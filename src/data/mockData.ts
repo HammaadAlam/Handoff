@@ -337,6 +337,13 @@ export const PROFILE_MY_ITEMS: ListingItem[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&q=80',
   },
+  {
+    id: 'pm3',
+    title: 'Sneakers',
+    price: '$80',
+    imageUrl:
+      'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&q=80',
+  },
 ];
 
 /** Generic placeholder image for empty UI / demos */

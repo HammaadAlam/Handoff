@@ -65,7 +65,10 @@ export function ProfileScreen() {
       <View style={styles.topRow}>
         <View style={styles.spacer} />
         <Text style={styles.username}>fahdhkhattak</Text>
-        <Pressable hitSlop={12} onPress={() => setManageSectionsOpen(true)}>
+        <Pressable
+          hitSlop={12}
+          onPress={() => navigation.navigate('ProfileSettings')}
+        >
           <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
         </Pressable>
       </View>

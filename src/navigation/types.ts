@@ -84,6 +84,7 @@ export type RootStackParamList = {
   MeetupDetails: MeetupDetailsParams;
   Favorites: undefined;
   Cart: undefined;
+  ProfileSettings: undefined;
 };
 
 export type RootStackNav = NativeStackNavigationProp<RootStackParamList>;
