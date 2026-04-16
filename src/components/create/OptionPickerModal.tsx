@@ -15,6 +15,7 @@ type Props = {
   options: readonly string[];
   selected: string | null;
   onSelect: (value: string) => void;
+  onClear?: () => void;
   onClose: () => void;
 };
 
@@ -24,6 +25,7 @@ export function OptionPickerModal({
   options,
   selected,
   onSelect,
+  onClear,
   onClose,
 }: Props) {
   return (
@@ -60,6 +62,17 @@ export function OptionPickerModal({
             );
           }}
         />
+        {selected ? (
+          <Pressable
+            style={styles.clearBtn}
+            onPress={() => {
+              onClear?.();
+              onClose();
+            }}
+          >
+            <Text style={styles.clearText}>Remove selection</Text>
+          </Pressable>
+        ) : null}
         <Pressable style={styles.cancelBtn} onPress={onClose}>
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
@@ -127,12 +140,22 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     marginTop: spacing.xs,
   },
   cancelText: {
     fontWeight: '600',
     color: colors.textSecondary,
+    fontSize: 16,
+  },
+  clearBtn: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  clearText: {
+    fontWeight: '700',
+    color: colors.primary,
     fontSize: 16,
   },
 });

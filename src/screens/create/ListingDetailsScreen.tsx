@@ -70,6 +70,7 @@ export function ListingDetailsScreen() {
           options: LISTING_CATEGORIES,
           selected: category,
           onSelect: setCategory,
+          onClear: () => setCategory(null),
         };
       case 'condition':
         return {
@@ -77,6 +78,7 @@ export function ListingDetailsScreen() {
           options: LISTING_CONDITIONS,
           selected: condition,
           onSelect: setCondition,
+          onClear: () => setCondition(null),
         };
       case 'size':
         return {
@@ -84,6 +86,7 @@ export function ListingDetailsScreen() {
           options: LISTING_SIZES,
           selected: size,
           onSelect: setSize,
+          onClear: () => setSize(null),
         };
       case 'brand':
         return {
@@ -91,6 +94,7 @@ export function ListingDetailsScreen() {
           options: LISTING_BRANDS,
           selected: brand,
           onSelect: setBrand,
+          onClear: () => setBrand(null),
         };
       default:
         return null;
@@ -147,6 +151,17 @@ export function ListingDetailsScreen() {
     }
   };
 
+  const infoFields: Array<{
+    key: PickerKind;
+    label: string;
+    value: string | null;
+  }> = [
+    { key: 'category', label: 'Category', value: category },
+    { key: 'condition', label: 'Condition', value: condition },
+    { key: 'size', label: 'Size', value: size },
+    { key: 'brand', label: 'Brand', value: brand },
+  ];
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {pickerModal ? (
@@ -156,6 +171,7 @@ export function ListingDetailsScreen() {
           options={pickerModal.options}
           selected={pickerModal.selected}
           onSelect={(v) => pickerModal.onSelect(v)}
+          onClear={pickerModal.onClear}
           onClose={() => setPicker(null)}
         />
       ) : null}
@@ -249,31 +265,33 @@ export function ListingDetailsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Item details</Text>
-          <SelectRow
-            label="Category"
-            value={category}
-            placeholder="Choose category"
-            onPress={() => setPicker('category')}
-          />
-          <SelectRow
-            label="Condition"
-            value={condition}
-            placeholder="Choose condition"
-            onPress={() => setPicker('condition')}
-          />
-          <SelectRow
-            label="Size"
-            value={size}
-            placeholder="Choose size"
-            onPress={() => setPicker('size')}
-          />
-          <SelectRow
-            label="Brand"
-            value={brand}
-            placeholder="Choose brand"
-            onPress={() => setPicker('brand')}
-          />
+          <Text style={styles.sectionLabel}>Info</Text>
+          <View style={styles.infoChipWrap}>
+            {infoFields.map((field) => (
+              <Pressable
+                key={field.key}
+                style={[styles.infoChip, field.value && styles.infoChipSelected]}
+                onPress={() => setPicker(field.key)}
+              >
+                <Text
+                  style={[
+                    styles.infoChipPlus,
+                    field.value && styles.infoChipPlusSelected,
+                  ]}
+                >
+                  +
+                </Text>
+                <Text
+                  style={[
+                    styles.infoChipText,
+                    field.value && styles.infoChipTextSelected,
+                  ]}
+                >
+                  {field.value ? `${field.label}: ${field.value}` : field.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -325,33 +343,6 @@ export function ListingDetailsScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function SelectRow({
-  label,
-  value,
-  placeholder,
-  onPress,
-}: {
-  label: string;
-  value: string | null;
-  placeholder: string;
-  onPress: () => void;
-}) {
-  return (
-    <View style={styles.fieldBlock}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <Pressable style={styles.selectRow} onPress={onPress}>
-        <Text
-          style={[styles.selectText, !value && styles.selectPlaceholder]}
-          numberOfLines={1}
-        >
-          {value || placeholder}
-        </Text>
-        <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
-      </Pressable>
-    </View>
   );
 }
 
@@ -473,6 +464,39 @@ const styles = StyleSheet.create({
   },
   textArea: {
     minHeight: 120,
+  },
+  infoChipWrap: {
+    gap: 10,
+  },
+  infoChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.bannerTint,
+    borderRadius: radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  infoChipSelected: {
+    backgroundColor: colors.primary,
+  },
+  infoChipPlus: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  infoChipText: {
+    color: colors.primaryDark,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  infoChipPlusSelected: {
+    color: '#FFF',
+  },
+  infoChipTextSelected: {
+    color: '#FFF',
   },
   fieldBlock: {
     marginBottom: 14,
