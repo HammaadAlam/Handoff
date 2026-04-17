@@ -1,2 +1,2 @@
 # Handoff
-Handoff App for 4330
+Handoff App for CSC 4330 Software Systems Development
