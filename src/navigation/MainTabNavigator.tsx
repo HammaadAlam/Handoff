@@ -3,11 +3,12 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { CompactTabBarLabel } from '@/components/navigation/CompactTabBarLabel';
 import { CreateListingStackNavigator } from '@/navigation/CreateListingStackNavigator';
 import { HomeScreen } from '@/screens/tabs/HomeScreen';
 import { InboxScreen } from '@/screens/tabs/InboxScreen';
 import { ProfileScreen } from '@/screens/tabs/ProfileScreen';
-import { fonts, colors } from '@/styles/theme';
+import { colors } from '@/styles/theme';
 import { SearchStackNavigator } from './SearchStackNavigator';
 import type { MainTabParamList } from './types';
 
@@ -30,7 +31,14 @@ export function MainTabNavigator() {
         headerShown: false,
         tabBarActiveTintColor: colors.textPrimary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarLabelStyle: { fontSize: 11, fontFamily: fonts.medium },
+        tabBarLabel: CompactTabBarLabel,
+        tabBarAllowFontScaling: false,
+        tabBarItemStyle: {
+          flex: 1,
+          minWidth: 0,
+          paddingHorizontal: 2,
+        },
+        tabBarIconStyle: { marginBottom: -2 },
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
@@ -51,7 +59,7 @@ export function MainTabNavigator() {
         name="CreateListing"
         component={CreateListingStackNavigator}
         options={{
-          tabBarLabel: 'List',
+          title: 'List',
           tabBarIcon: tabIcon('add-circle-outline'),
         }}
       />
@@ -59,7 +67,7 @@ export function MainTabNavigator() {
         name="Inbox"
         component={InboxScreen}
         options={{
-          tabBarLabel: 'Chat',
+          title: 'Chat',
           tabBarIcon: tabIcon('chatbubble-outline'),
         }}
       />
