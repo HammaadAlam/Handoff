@@ -1,5 +1,5 @@
 /**
- * Auto-growing chat composer for conversation threads.
+ * Auto-growing chat composer — single gray pill with camera, input, attach, send.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
@@ -20,22 +20,27 @@ type Props = {
   initialValue?: string;
   placeholder?: string;
   onSend: (text: string) => void | Promise<void>;
+  /** Legacy name — attachment / paperclip action */
   onPlus?: () => void;
   disabled?: boolean;
 };
 
-const MIN_HEIGHT = 40;
-const MAX_HEIGHT = 120;
+const MIN_INPUT_HEIGHT = 40;
+const MAX_INPUT_HEIGHT = 120;
+
+const PILL_ICON_SIZE = 26;
+
+const PILL_BG = '#F2F2F2';
 
 export function ChatComposer({
   initialValue = '',
-  placeholder = 'Message...',
+  placeholder = 'Type a message',
   onSend,
   onPlus,
   disabled,
 }: Props) {
   const [value, setValue] = useState(initialValue);
-  const [height, setHeight] = useState(MIN_HEIGHT);
+  const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
   const [sending, setSending] = useState(false);
 
   const trimmed = value.trim();
@@ -48,7 +53,7 @@ export function ChatComposer({
     try {
       await onSend(toSend);
       setValue('');
-      setHeight(MIN_HEIGHT);
+      setInputHeight(MIN_INPUT_HEIGHT);
       Keyboard.dismiss();
     } finally {
       setSending(false);
@@ -59,109 +64,128 @@ export function ChatComposer({
     e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>,
   ) => {
     const next = Math.min(
-      MAX_HEIGHT,
-      Math.max(MIN_HEIGHT, e.nativeEvent.contentSize.height + 4),
+      MAX_INPUT_HEIGHT,
+      Math.max(MIN_INPUT_HEIGHT, e.nativeEvent.contentSize.height + 4),
     );
-    setHeight(next);
+    setInputHeight(next);
   };
 
-  const handlePlus = () => {
+  const handleAttach = () => {
     if (onPlus) {
       onPlus();
       return;
     }
-    Alert.alert('Attachments', 'Photo and offer attachments are coming soon.');
+    Alert.alert('Attachments', 'Photos and files are coming soon.');
   };
+
+  const handleCamera = () => {
+    Alert.alert('Camera', 'Taking a photo to attach is coming soon.');
+  };
+
+  const iconActive = colors.textPrimary;
+  const iconMuted = colors.textMuted;
 
   return (
     <View style={styles.composer}>
-      <Pressable
-        style={styles.plusBtn}
-        onPress={handlePlus}
-        accessibilityLabel="Add attachment"
-        hitSlop={6}
-      >
-        <Ionicons name="add" size={22} color={colors.primary} />
-      </Pressable>
-      <TextInput
-        style={[styles.input, { height }]}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
-        value={value}
-        onChangeText={setValue}
-        editable={!disabled && !sending}
-        multiline
-        scrollEnabled
-        onContentSizeChange={handleContentSize}
-        textAlignVertical="center"
-        returnKeyType="default"
-        blurOnSubmit={false}
-      />
-      <Pressable
-        onPress={handleSend}
-        disabled={!canSend}
-        style={({ pressed }) => [
-          styles.sendBtn,
-          !canSend && styles.sendBtnDisabled,
-          pressed && canSend && styles.sendBtnPressed,
-        ]}
-        accessibilityLabel="Send message"
-        hitSlop={6}
-      >
-        <Ionicons
-          name="send"
-          size={20}
-          color={canSend ? colors.textInverse : colors.textMuted}
+      <View style={styles.pill}>
+        <Pressable
+          onPress={handleCamera}
+          accessibilityLabel="Camera"
+          hitSlop={6}
+          style={styles.pillIconBtn}
+        >
+          <Ionicons name="camera-outline" size={PILL_ICON_SIZE} color={iconActive} />
+        </Pressable>
+
+        <TextInput
+          style={[
+            styles.input,
+            { height: Math.min(inputHeight, MAX_INPUT_HEIGHT) },
+          ]}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textMuted}
+          value={value}
+          onChangeText={setValue}
+          editable={!disabled && !sending}
+          multiline
+          scrollEnabled
+          onContentSizeChange={handleContentSize}
+          textAlignVertical="center"
+          returnKeyType="default"
+          blurOnSubmit={false}
         />
-      </Pressable>
+
+        <Pressable
+          onPress={handleAttach}
+          accessibilityLabel="Attach file"
+          hitSlop={6}
+          style={styles.pillIconBtn}
+        >
+          <Ionicons name="attach-outline" size={PILL_ICON_SIZE} color={iconActive} />
+        </Pressable>
+
+        <Pressable
+          onPress={() => void handleSend()}
+          disabled={!canSend || sending}
+          style={({ pressed }) => [
+            styles.pillIconBtn,
+            pressed && canSend && styles.pillIconPressed,
+          ]}
+          accessibilityLabel="Send message"
+          accessibilityState={{ disabled: !canSend || sending }}
+          hitSlop={6}
+        >
+          <Ionicons
+            name="send"
+            size={PILL_ICON_SIZE}
+            color={canSend ? iconActive : iconMuted}
+          />
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   composer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    paddingHorizontal: spacing.sm,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 8,
+    backgroundColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    paddingHorizontal: spacing.sm,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 8 : 6,
-    gap: 8,
-    backgroundColor: colors.surface,
   },
-  plusBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.button,
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    minHeight: 44,
+    minWidth: 0,
+    backgroundColor: PILL_BG,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    gap: 4,
   },
   input: {
     flex: 1,
-    borderWidth: 1.5,
-    borderColor: colors.primaryLight,
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    minWidth: 0,
+    maxHeight: MAX_INPUT_HEIGHT,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+    paddingHorizontal: spacing.xs,
+    textAlign: 'left',
     ...typography.body,
+    fontFamily: fonts.regular,
     color: colors.textPrimary,
-    backgroundColor: colors.surface,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
-  sendBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.button,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
+  pillIconBtn: {
     justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 36,
+    minHeight: 36,
+    marginBottom: Platform.OS === 'ios' ? 5 : 4,
   },
-  sendBtnPressed: {
-    opacity: 0.85,
-  },
-  sendBtnDisabled: {
-    backgroundColor: colors.chipBg,
+  pillIconPressed: {
+    opacity: 0.7,
   },
 });

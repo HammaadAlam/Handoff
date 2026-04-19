@@ -228,7 +228,7 @@ export function ConversationScreen() {
             placeholder={
               entry === 'offer'
                 ? 'Add a note to your offer…'
-                : 'Message…'
+                : 'Type a message'
             }
             onSend={handleSend}
           />

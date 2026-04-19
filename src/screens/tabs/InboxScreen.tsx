@@ -172,17 +172,31 @@ export function InboxScreen() {
             >
               <RemoteImage uri={item.peerAvatarUrl} style={styles.avatarImg} />
               <View style={styles.rowBody}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
+                <Text
+                  style={styles.rowTitle}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
                   {item.userItem}
                 </Text>
-                <Text style={styles.preview} numberOfLines={1}>
+                <Text
+                  style={styles.preview}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
                   {item.preview}
                 </Text>
               </View>
               <View style={styles.meta}>
-                <Text style={styles.time}>{item.time}</Text>
+                <Text style={styles.time} numberOfLines={1}>
+                  {item.time}
+                </Text>
                 <View style={[styles.badge, { backgroundColor: st.bg }]}>
-                  <Text style={[styles.badgeText, { color: st.text }]}>
+                  <Text
+                    style={[styles.badgeText, { color: st.text }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
                     {item.status}
                   </Text>
                 </View>
@@ -291,6 +305,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
     backgroundColor: colors.background,
+    width: '100%',
   },
   avatarImg: {
     width: 48,
@@ -302,6 +317,7 @@ const styles = StyleSheet.create({
   rowBody: {
     flex: 1,
     minWidth: 0,
+    paddingRight: spacing.xs,
   },
   rowTitle: {
     fontSize: 15,
@@ -325,13 +341,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
     alignSelf: 'stretch',
-    flexShrink: 0,
+    flexShrink: 1,
+    minWidth: 72,
+    maxWidth: '38%',
   },
   badge: {
     borderRadius: radii.pill,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    flexShrink: 0,
+    paddingVertical: 7,
+    maxWidth: '100%',
     alignSelf: 'flex-end',
   },
   badgeText: {
