@@ -37,8 +37,11 @@ export function SearchHomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const popularCellPad = spacing.sm / 2;
-  const popularColWidth = (width - spacing.md * 2 - popularCellPad * 2) / 2;
+  /** Same grid rhythm as Home “Recommended For You” */
+  const gridInset = spacing.md;
+  const gridGutter = spacing.sm;
+  const gridInnerWidth = width - gridInset * 2;
+  const popularColWidth = (gridInnerWidth - gridGutter) / 2;
 
   const openListing = (item: (typeof POPULAR_LISTINGS)[0]) => {
     navigateToItemDetail(navigation, {
@@ -193,10 +196,7 @@ export function SearchHomeScreen() {
 
           <View style={styles.popularGrid}>
             {POPULAR_LISTINGS.map((item) => (
-              <View
-                key={item.id}
-                style={{ width: popularColWidth, paddingHorizontal: popularCellPad }}
-              >
+              <View key={item.id} style={{ width: popularColWidth }}>
                 <SearchPopularCard item={item} onPress={() => openListing(item)} />
               </View>
             ))}
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   popularGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    /** Offset cell horizontal padding — keep in sync with `popularCellPad` above */
-    marginHorizontal: -(spacing.sm / 2),
+    alignItems: 'flex-start',
+    gap: spacing.sm,
   },
 });

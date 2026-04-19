@@ -10,6 +10,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +22,11 @@ import { fonts, colors, spacing, typography } from '@/styles/theme';
 
 export function CategoryResultsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
+  const { width } = useWindowDimensions();
+  const gridInset = spacing.md;
+  const gridGutter = spacing.sm;
+  const gridInnerWidth = width - gridInset * 2;
+  const gridColWidth = (gridInnerWidth - gridGutter) / 2;
   const { params } = useRoute<RouteProp<SearchStackParamList, 'CategoryResults'>>();
   const { query } = params;
 
@@ -50,10 +56,10 @@ export function CategoryResultsScreen() {
         data={data}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        columnWrapperStyle={styles.row}
+        columnWrapperStyle={[styles.row, { gap: gridGutter }]}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <View style={styles.cell}>
+          <View style={{ width: gridColWidth }}>
             <ProductCard
               item={item}
               onPress={() =>
@@ -100,13 +106,11 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   row: {
-    justifyContent: 'space-between',
-  },
-  cell: {
-    width: '50%',
-    paddingHorizontal: 6,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
 });

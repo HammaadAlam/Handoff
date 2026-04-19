@@ -11,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,6 +48,12 @@ function openTicket(navigation: HomeTabNavigation, t: TicketListing) {
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeTabNavigation>();
+  const { width } = useWindowDimensions();
+  /** Two columns: screen inset + clear gutter between cards (not squeezed center gap) */
+  const gridInset = spacing.md;
+  const gridGutter = spacing.sm;
+  const gridInnerWidth = width - gridInset * 2;
+  const recommendedColWidth = (gridInnerWidth - gridGutter) / 2;
   const [activeCat, setActiveCat] = useState<string>(HOME_CATEGORIES[0]);
   const [recommended, setRecommended] =
     useState<ListingItem[]>(RECOMMENDED_LISTINGS);
@@ -144,10 +151,10 @@ export function HomeScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        columnWrapperStyle={styles.row}
+        columnWrapperStyle={[styles.row, { gap: gridGutter }]}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <View style={styles.cell}>
+          <View style={{ width: recommendedColWidth }}>
             <ProductCard
               item={item}
               onPress={() =>
@@ -200,12 +207,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerBlock: {
-    marginBottom: spacing.sm,
+    marginBottom: 0,
   },
   ticketSection: {
     backgroundColor: colors.surface,
-    marginHorizontal: spacing.sm,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
     borderRadius: radii.card,
@@ -270,19 +276,16 @@ const styles = StyleSheet.create({
     ...typography.header,
     fontSize: 18,
     color: colors.textPrimary,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
   listContent: {
     paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   row: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-  },
-  cell: {
-    width: '50%',
-    paddingHorizontal: 6,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
 });

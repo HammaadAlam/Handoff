@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   copy: {
-    paddingTop: 10,
+    paddingTop: 12,
     alignItems: 'flex-start',
   },
   title: {
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   price: {
-    marginTop: 4,
+    marginTop: 6,
     fontFamily: fonts.bold,
     fontSize: 17,
     color: colors.textPrimary,

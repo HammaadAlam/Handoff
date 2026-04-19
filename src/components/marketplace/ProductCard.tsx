@@ -3,7 +3,10 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import type { ListingItem } from '@/data/mockData';
-import { fonts, colors, radii, typography } from '@/styles/theme';
+import { fonts, colors, spacing, typography } from '@/styles/theme';
+
+/** Keep in sync with `SearchPopularCard` — shared marketplace grid look */
+const IMAGE_RADIUS = 18;
 
 type Props = {
   item: ListingItem;
@@ -16,12 +19,12 @@ export function ProductCard({ item, onPress }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.imageBox}>
+      <View style={styles.imageShell}>
         <Pressable style={styles.imagePress} onPress={onPress}>
           <RemoteImage uri={item.imageUrl} style={styles.image} />
         </Pressable>
         <Pressable
-          style={styles.favBtn}
+          style={styles.favCircle}
           onPress={() => toggleFavorite(item)}
           hitSlop={8}
           accessibilityLabel={fav ? 'Remove from favorites' : 'Add to favorites'}
@@ -34,10 +37,12 @@ export function ProductCard({ item, onPress }: Props) {
         </Pressable>
       </View>
       <Pressable onPress={onPress}>
-        <Text style={styles.title} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={styles.price}>{item.price}</Text>
+        <View style={styles.copy}>
+          <Text style={styles.title} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text style={styles.price}>{item.price}</Text>
+        </View>
       </Pressable>
     </View>
   );
@@ -47,15 +52,14 @@ const styles = StyleSheet.create({
   wrap: {
     flex: 1,
     width: '100%',
-    paddingHorizontal: 6,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
-  imageBox: {
+  imageShell: {
     position: 'relative',
-    aspectRatio: 1,
-    borderRadius: 12,
+    borderRadius: IMAGE_RADIUS,
     overflow: 'hidden',
-    backgroundColor: colors.border,
+    backgroundColor: colors.chipBg,
+    aspectRatio: 0.82,
   },
   imagePress: {
     flex: 1,
@@ -64,26 +68,39 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  favBtn: {
+  favCircle: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 10,
+    right: 10,
     zIndex: 2,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 16,
-    padding: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 252, 248, 0.96)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  copy: {
+    paddingTop: 12,
+    alignItems: 'flex-start',
   },
   title: {
     ...typography.body,
     fontSize: 14,
-    marginTop: 8,
+    fontFamily: fonts.medium,
     color: colors.textPrimary,
+    lineHeight: 19,
   },
   price: {
-    ...typography.body,
-    fontSize: 15,
+    marginTop: 6,
     fontFamily: fonts.bold,
+    fontSize: 17,
     color: colors.textPrimary,
-    marginTop: 2,
+    letterSpacing: -0.2,
   },
 });
