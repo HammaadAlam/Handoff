@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 type Props = {
   visible: boolean;
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   rowTextOn: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.primaryDark,
   },
   cancelBtn: {
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   cancelText: {
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textSecondary,
     fontSize: 16,
   },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   clearText: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.primary,
     fontSize: 16,
   },

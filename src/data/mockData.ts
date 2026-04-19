@@ -13,7 +13,43 @@ export type ListingItem = {
   title: string;
   price: string;
   imageUrl: string;
+  /** Rich search / popular card (optional) */
+  rating?: number;
+  reviewCount?: number;
+  location?: string;
+  postedAgo?: string;
+  imageBadge?: 'boost' | 'urgent';
+  trust?: 'verified' | 'premium';
 };
+
+/** Search home — horizontal suggestion chips */
+export const SEARCH_CHIP_SUGGESTIONS = [
+  'ford ranger',
+  'macbook pro',
+  'calculator',
+  'desk chair',
+  'bike',
+] as const;
+
+/** Search home — 5×2 category grid (icons are Ionicons names) */
+export type SearchGridCategory = {
+  id: string;
+  label: string;
+  icon: string;
+};
+
+export const SEARCH_GRID_CATEGORIES: SearchGridCategory[] = [
+  { id: 'g1', label: 'Vehicle', icon: 'car-sport-outline' },
+  { id: 'g2', label: 'Property', icon: 'home-outline' },
+  { id: 'g3', label: 'Phones', icon: 'phone-portrait-outline' },
+  { id: 'g4', label: 'Fashion', icon: 'shirt-outline' },
+  { id: 'g5', label: 'Babies', icon: 'gift-outline' },
+  { id: 'g6', label: 'Jobs', icon: 'briefcase-outline' },
+  { id: 'g7', label: 'Sport', icon: 'football-outline' },
+  { id: 'g8', label: 'Service', icon: 'construct-outline' },
+  { id: 'g9', label: 'Furniture', icon: 'bed-outline' },
+  { id: 'g10', label: 'Tech', icon: 'hardware-chip-outline' },
+];
 
 export const RECOMMENDED_LISTINGS: ListingItem[] = [
   {
@@ -170,10 +206,90 @@ export const TRENDING_LISTINGS: ListingItem[] = [
   },
 ];
 
+/** Search landing “Popular items” grid — badges, ratings, location */
+export const POPULAR_LISTINGS: ListingItem[] = [
+  {
+    id: 'p1',
+    title: 'Willow Creek desk',
+    price: '$120',
+    imageUrl:
+      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&q=80',
+    rating: 4.8,
+    reviewCount: 60,
+    location: 'LSU North Hall',
+    postedAgo: '3d ago',
+    imageBadge: 'boost',
+    trust: 'verified',
+  },
+  {
+    id: 'p2',
+    title: 'MacBook Pro M1 2020',
+    price: '$650',
+    imageUrl:
+      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80',
+    rating: 4.9,
+    reviewCount: 42,
+    location: 'Highland Rd',
+    postedAgo: '1d ago',
+    imageBadge: 'urgent',
+    trust: 'premium',
+  },
+  {
+    id: 'p3',
+    title: 'Physics textbook bundle',
+    price: '$45',
+    imageUrl:
+      'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80',
+    rating: 4.5,
+    reviewCount: 18,
+    location: 'Student Union',
+    postedAgo: '5h ago',
+    trust: 'verified',
+  },
+  {
+    id: 'p4',
+    title: 'Road bike — medium',
+    price: '$280',
+    imageUrl:
+      'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400&q=80',
+    rating: 4.6,
+    reviewCount: 31,
+    location: 'Campus edge',
+    postedAgo: '2d ago',
+    imageBadge: 'boost',
+  },
+  {
+    id: 'p5',
+    title: 'Desk lamp LED',
+    price: '$22',
+    imageUrl:
+      'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=400&q=80',
+    rating: 4.2,
+    reviewCount: 9,
+    location: 'West campus',
+    postedAgo: '12h ago',
+    trust: 'verified',
+  },
+  {
+    id: 'p6',
+    title: 'Winter jacket (M)',
+    price: '$55',
+    imageUrl:
+      'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&q=80',
+    rating: 4.7,
+    reviewCount: 14,
+    location: 'Greek row',
+    postedAgo: '4d ago',
+    imageBadge: 'urgent',
+    trust: 'premium',
+  },
+];
+
 /** Pick a result set for the category / search results screen */
 export function listingsForSearchQuery(query: string): ListingItem[] {
   const q = query.trim().toLowerCase();
   if (q.includes('cabinet')) return CABINET_LISTINGS;
+  if (q.includes('popular')) return POPULAR_LISTINGS;
   return TRENDING_LISTINGS;
 }
 

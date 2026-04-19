@@ -9,7 +9,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppLogo } from '@/components/AppLogo';
 import type { CreateListingStackParamList } from '@/navigation/types';
-import { colors, radii, shadows, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
 
 export function CreateEntryScreen() {
   const navigation =
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: '#FFF',
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   cardSub: {
     color: 'rgba(255,255,255,0.92)',

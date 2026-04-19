@@ -8,7 +8,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MeetupMapPreview } from '@/components/MeetupMapPreview';
 import { RemoteImage } from '@/components/RemoteImage';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
 export function MeetupDetailsScreen() {
@@ -129,12 +129,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   itemTitle: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 16,
     color: colors.textPrimary,
   },
   itemPrice: {
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     fontSize: 17,
     marginTop: 4,
     color: colors.textPrimary,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing.md,
   },
   label: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     marginBottom: 8,
     color: colors.textPrimary,
   },

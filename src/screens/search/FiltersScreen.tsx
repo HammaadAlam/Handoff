@@ -1,314 +1,368 @@
 /**
- * Filter sheet — accordion rows, expanded Price (sort + min/max), Apply / Reset.
+ * Filters — sheet layout; max price slider, sort chips, condition, footer.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import Slider from '@react-native-community/slider';
+import { useCallback, useMemo, useState } from 'react';
+import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { SearchStackParamList } from '@/navigation/types';
-import { colors, radii, spacing, typography } from '@/styles/theme';
-
-const SECTIONS = [
-  'Brand',
-  'Size',
-  'Price',
-  'Color',
-  'Rating',
-  'Lister',
-  'Subject',
-  'Condition',
-] as const;
+import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
 
 type SortOption = 'best' | 'low' | 'high';
 
+const CONDITIONS = ['New', 'Like New', 'Used'] as const;
+const SELLER_TYPES = ['Individual', 'Campus shop'] as const;
+const MILEAGE_LABELS = ['Any', 'On campus', 'Within 5 mi', 'Within 15 mi'] as const;
+
+const PRICE_SLIDER_MAX = 2000;
+const PRICE_STEP = 25;
+
 export function FiltersScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
-  const [expanded, setExpanded] = useState<string | null>('Price');
-  const [sort, setSort] = useState<SortOption>('best');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
 
-  const toggle = (name: string) => {
-    setExpanded((prev) => (prev === name ? null : name));
-  };
+  /** Pop when possible; if Filters is the only route (nothing to pop), replace with Search home */
+  const exitFilters = useCallback(() => {
+    const state = navigation.getState();
+    const routes = state?.routes ?? [];
+    const filtersOnly = routes.length === 1 && routes[0]?.name === 'Filters';
+
+    if (filtersOnly || !navigation.canGoBack()) {
+      navigation.replace('SearchHome');
+      return;
+    }
+    navigation.goBack();
+  }, [navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        exitFilters();
+        return true;
+      });
+      return () => sub.remove();
+    }, [exitFilters]),
+  );
+
+  const [sort, setSort] = useState<SortOption>('best');
+  /** Maximum budget (slider); min is always $0 */
+  const [priceMax, setPriceMax] = useState(PRICE_SLIDER_MAX);
+
+  const [condition, setCondition] = useState<(typeof CONDITIONS)[number] | null>(null);
+  const [sellerType, setSellerType] = useState<(typeof SELLER_TYPES)[number]>('Individual');
+  const [mileage, setMileage] = useState<(typeof MILEAGE_LABELS)[number]>('Any');
+
+  const rangeLabel = useMemo(() => {
+    const rounded = Math.round(priceMax);
+    if (rounded >= PRICE_SLIDER_MAX) {
+      return `$0 – $${PRICE_SLIDER_MAX.toLocaleString()}+`;
+    }
+    return `$0 – $${rounded.toLocaleString()}`;
+  }, [priceMax]);
 
   const reset = () => {
     setSort('best');
-    setMinPrice('');
-    setMaxPrice('');
-    setExpanded('Price');
+    setPriceMax(PRICE_SLIDER_MAX);
+    setCondition(null);
+    setSellerType('Individual');
+    setMileage('Any');
   };
 
   const apply = () => {
-    navigation.goBack();
+    exitFilters();
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={styles.headerIconBtn}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Filters</Text>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={styles.headerIconBtn}
-        >
-          <Ionicons name="close" size={26} color={colors.textPrimary} />
-        </Pressable>
-      </View>
+    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+      <View style={styles.sheet}>
+        <View style={styles.handle} />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {SECTIONS.map((name) => (
-          <View key={name} style={styles.section}>
-            <Pressable
-              style={styles.accordionHead}
-              onPress={() => toggle(name)}
-            >
-              <Text style={styles.accordionTitle}>{name}</Text>
-              <Ionicons
-                name={expanded === name ? 'chevron-up' : 'chevron-down'}
-                size={22}
-                color={colors.textSecondary}
-              />
-            </Pressable>
-            {expanded === name && name === 'Price' && (
-              <View style={styles.priceBody}>
-                <View style={styles.sortCol}>
-                  {(
-                    [
-                      ['best', 'Best Match'],
-                      ['low', 'Low to High'],
-                      ['high', 'High to Low'],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <Pressable
-                      key={key}
-                      style={styles.radioRow}
-                      onPress={() => setSort(key)}
-                    >
-                      <View
-                        style={[
-                          styles.radioOuter,
-                          sort === key && styles.radioOuterOn,
-                        ]}
-                      >
-                        {sort === key && <View style={styles.radioInner} />}
-                      </View>
-                      <Text style={styles.radioLabel}>{label}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <View style={styles.priceInputs}>
-                  <Text style={styles.miniLabel}>Min. Price</Text>
-                  <View style={styles.miniField}>
-                    <Text style={styles.dollar}>$</Text>
-                    <TextInput
-                      style={styles.miniInput}
-                      keyboardType="decimal-pad"
-                      placeholder="0"
-                      value={minPrice}
-                      onChangeText={setMinPrice}
-                    />
-                  </View>
-                  <Text style={styles.miniLabel}>Max. Price</Text>
-                  <View style={styles.miniField}>
-                    <Text style={styles.dollar}>$</Text>
-                    <TextInput
-                      style={styles.miniInput}
-                      keyboardType="decimal-pad"
-                      placeholder="999"
-                      value={maxPrice}
-                      onChangeText={setMaxPrice}
-                    />
-                  </View>
-                </View>
-              </View>
-            )}
+        <View style={styles.sheetHead}>
+          <Text style={styles.sheetTitle}>Filters</Text>
+          <Pressable
+            onPress={exitFilters}
+            hitSlop={12}
+            accessibilityLabel="Close filters"
+          >
+            <Ionicons name="close" size={26} color={colors.textPrimary} />
+          </Pressable>
+        </View>
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollInner}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Price — slider only */}
+          <View style={styles.block}>
+            <View style={styles.blockHead}>
+              <Text style={styles.blockTitle}>Price</Text>
+              <Text style={styles.blockMeta}>{rangeLabel}</Text>
+            </View>
+            <Text style={styles.sliderHint}>Max budget</Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={PRICE_SLIDER_MAX}
+              step={PRICE_STEP}
+              value={priceMax}
+              onValueChange={setPriceMax}
+              minimumTrackTintColor={colors.primary}
+              maximumTrackTintColor={colors.chipBg}
+              thumbTintColor={colors.primary}
+            />
+            <Text style={styles.sortHeading}>Sort by</Text>
+            <View style={styles.sortChips}>
+              {(
+                [
+                  ['best', 'Best match'],
+                  ['low', 'Low → High'],
+                  ['high', 'High → Low'],
+                ] as const
+              ).map(([key, label]) => {
+                const on = sort === key;
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setSort(key)}
+                    style={[styles.choiceChip, on && styles.choiceChipOn]}
+                  >
+                    <Text style={[styles.choiceChipText, on && styles.choiceChipTextOn]}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        ))}
-      </ScrollView>
 
-      <View style={styles.footer}>
-        <Pressable style={styles.apply} onPress={apply}>
-          <Text style={styles.applyText}>Apply Filters</Text>
-        </Pressable>
-        <Pressable style={styles.reset} onPress={reset}>
-          <Text style={styles.resetText}>Reset Filters</Text>
-        </Pressable>
+          <View style={styles.block}>
+            <Text style={[styles.blockTitle, styles.blockTitleGap]}>Condition</Text>
+            <View style={[styles.chipRow, styles.chipRowTight]}>
+              {CONDITIONS.map((c) => {
+                const on = condition === c;
+                return (
+                  <Pressable
+                    key={c}
+                    onPress={() => setCondition((prev) => (prev === c ? null : c))}
+                    style={[styles.choiceChip, on && styles.choiceChipOn]}
+                  >
+                    <Text style={[styles.choiceChipText, on && styles.choiceChipTextOn]}>
+                      {c}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.block}>
+            <Text style={[styles.blockTitle, styles.blockTitleGap]}>Seller type</Text>
+            <View style={[styles.chipRow, styles.chipRowTight]}>
+              {SELLER_TYPES.map((s) => {
+                const on = sellerType === s;
+                return (
+                  <Pressable
+                    key={s}
+                    onPress={() => setSellerType(s)}
+                    style={[styles.choiceChip, on && styles.choiceChipOn]}
+                  >
+                    <Text style={[styles.choiceChipText, on && styles.choiceChipTextOn]}>
+                      {s}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={[styles.block, styles.blockLast]}>
+            <Text style={[styles.blockTitle, styles.blockTitleGap]}>Distance</Text>
+            <View style={styles.chipRowWrap}>
+              {MILEAGE_LABELS.map((m) => {
+                const on = mileage === m;
+                return (
+                  <Pressable
+                    key={m}
+                    onPress={() => setMileage(m)}
+                    style={[styles.choiceChip, on && styles.choiceChipOn]}
+                  >
+                    <Text style={[styles.choiceChipText, on && styles.choiceChipTextOn]}>
+                      {m}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </ScrollView>
+
+        <View style={[styles.footer, shadows.soft]}>
+          <Pressable style={styles.resetBtn} onPress={reset}>
+            <Text style={styles.resetText}>Reset</Text>
+          </Pressable>
+          <Pressable style={styles.applyBtn} onPress={apply}>
+            <Text style={styles.applyText}>Apply Filter</Text>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  root: {
     flex: 1,
     backgroundColor: colors.surface,
   },
-  header: {
+  sheet: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  sheetHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    minHeight: 56,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    paddingBottom: spacing.sm,
   },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
+  sheetTitle: {
     ...typography.header,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: colors.background,
+    fontSize: 20,
+    fontFamily: fonts.bold,
+    color: colors.textPrimary,
   },
   scroll: {
+    flex: 1,
+  },
+  scrollInner: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.lg,
   },
-  section: {
-    marginBottom: 10,
+  block: {
+    marginBottom: spacing.lg,
   },
-  accordionHead: {
+  blockLast: {
+    marginBottom: spacing.md,
+  },
+  blockHead: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
-    backgroundColor: colors.bannerTint,
-    borderRadius: radii.card,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 14,
+    marginBottom: spacing.sm,
   },
-  accordionTitle: {
+  blockTitle: {
+    fontFamily: fonts.bold,
     fontSize: 16,
-    fontWeight: '600',
     color: colors.textPrimary,
   },
-  priceBody: {
-    marginTop: 10,
+  blockTitleGap: {
+    marginBottom: spacing.sm,
+  },
+  blockMeta: {
+    ...typography.caption,
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  sliderHint: {
+    ...typography.caption,
+    fontFamily: fonts.semiBold,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  slider: {
+    width: '100%',
+    height: 44,
+  },
+  sortHeading: {
+    ...typography.caption,
+    fontFamily: fonts.semiBold,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  sortChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.sm,
   },
-  sortCol: {
-    flex: 1,
-    minWidth: 140,
-    gap: 10,
-  },
-  radioRow: {
+  chipRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
-  radioOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.borderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
+  chipRowTight: {
+    marginTop: 0,
   },
-  radioOuterOn: {
-    borderColor: colors.primary,
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
-  },
-  radioLabel: {
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  priceInputs: {
-    width: 140,
-  },
-  miniLabel: {
-    ...typography.caption,
-    fontWeight: '600',
-    marginBottom: 4,
-    color: colors.textSecondary,
-  },
-  miniField: {
+  chipRowWrap: {
     flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  choiceChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    marginBottom: 10,
     backgroundColor: colors.surface,
   },
-  dollar: {
-    fontWeight: '700',
+  choiceChipOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  choiceChipText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
     color: colors.textSecondary,
   },
-  miniInput: {
-    flex: 1,
-    paddingVertical: 8,
-    fontSize: 15,
-    color: colors.textPrimary,
+  choiceChipTextOn: {
+    color: colors.textInverse,
+    fontFamily: fonts.semiBold,
   },
   footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
-    gap: 10,
+    paddingVertical: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
-  apply: {
+  resetBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  resetText: {
+    ...typography.button,
+    fontSize: 15,
+    color: colors.primaryDark,
+    fontFamily: fonts.semiBold,
+  },
+  applyBtn: {
+    flex: 1,
     backgroundColor: colors.primary,
     borderRadius: radii.button,
     paddingVertical: 14,
     alignItems: 'center',
+    ...shadows.button,
   },
   applyText: {
     ...typography.button,
-    color: '#FFF',
-  },
-  reset: {
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderRadius: radii.button,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-  },
-  resetText: {
-    ...typography.button,
-    color: colors.textPrimary,
+    color: colors.textInverse,
+    fontSize: 16,
   },
 });

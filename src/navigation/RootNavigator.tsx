@@ -3,6 +3,7 @@
  * Unauthenticated users see Login only.
  */
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { LoginScreen } from '@/screens/auth/LoginScreen';
@@ -18,6 +19,17 @@ import type { RootStackParamList } from './types';
 import { colors } from '@/styles/theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+function ConversationRoute({
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'Conversation'>) {
+  const p = route.params;
+  return (
+    <ConversationScreen
+      key={`${p.listingId}-${p.entry}-${p.offerAmount ?? ''}`}
+    />
+  );
+}
 
 export function RootNavigator() {
   const { session, authBypass, loading } = useAuth();
@@ -55,7 +67,7 @@ export function RootNavigator() {
     >
       <Stack.Screen name="Main" component={MainTabNavigator} />
       <Stack.Screen name="ItemDetail" component={ItemDetailScreen} />
-      <Stack.Screen name="Conversation" component={ConversationScreen} />
+      <Stack.Screen name="Conversation" component={ConversationRoute} />
       <Stack.Screen name="MeetupDetails" component={MeetupDetailsScreen} />
       <Stack.Screen name="Favorites" component={FavoritesScreen} />
       <Stack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />

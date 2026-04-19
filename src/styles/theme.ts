@@ -1,14 +1,14 @@
 /**
  * Handoff design tokens — purple-forward, campus marketplace UI.
- * Adjust gradients here to tune LSU-inspired branding.
  */
+import { fonts } from '@/styles/fonts';
+
+export { fonts } from '@/styles/fonts';
 
 export const colors = {
-  /** Core purple from mockups */
   primary: '#7065D4',
   primaryDark: '#5B52B8',
   primaryLight: '#8B82E0',
-  /** Gradient stops for buttons / accents */
   gradientStart: '#7C6FE0',
   gradientEnd: '#5E54C9',
   background: '#F9FAFB',
@@ -24,8 +24,15 @@ export const colors = {
   warning: '#EAB308',
   chipBg: '#F3F4F6',
   bannerTint: '#EDE9FE',
-  /** Soft sash accent on logo */
   sash: '#F5E6C8',
+  textInverse: '#FFFFFF',
+  overlayOnImage: 'rgba(255,255,255,0.92)',
+  carouselDotMuted: 'rgba(255,255,255,0.55)',
+  ratingStar: '#FBBF24',
+  /** Listing detail — curated / success strip */
+  curatedBannerBg: '#ECFDF5',
+  curatedBannerBorder: '#A7F3D0',
+  curatedBannerText: '#166534',
 } as const;
 
 export const spacing = {
@@ -38,11 +45,8 @@ export const spacing = {
 } as const;
 
 export const radii = {
-  /** Full pill (chips, search bar) */
   pill: 999,
-  /** Text fields and rectangular CTAs */
   input: 12,
-  /** Primary / secondary pressables */
   button: 12,
   card: 16,
 } as const;
@@ -65,10 +69,14 @@ export const shadows = {
 } as const;
 
 export const typography = {
-  title: { fontSize: 26, fontWeight: '700' as const, letterSpacing: -0.3 },
-  subtitle: { fontSize: 15, fontWeight: '400' as const, lineHeight: 22 },
-  header: { fontSize: 22, fontWeight: '700' as const },
-  body: { fontSize: 15, fontWeight: '400' as const },
-  caption: { fontSize: 12, fontWeight: '400' as const },
-  button: { fontSize: 15, fontWeight: '700' as const },
+  title: {
+    fontFamily: fonts.bold,
+    fontSize: 26,
+    letterSpacing: -0.3,
+  },
+  subtitle: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 22 },
+  header: { fontFamily: fonts.bold, fontSize: 22 },
+  body: { fontFamily: fonts.regular, fontSize: 15 },
+  caption: { fontFamily: fonts.regular, fontSize: 12 },
+  button: { fontFamily: fonts.bold, fontSize: 15 },
 } as const;

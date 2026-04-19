@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NEARBY_PICKUP_SPOTS, type PickupSpot } from '@/data/mockPickupLocations';
 import type { CreateListingStackParamList } from '@/navigation/types';
-import { colors, spacing, typography } from '@/styles/theme';
+import { fonts, colors, spacing, typography } from '@/styles/theme';
 
 type Tab = 'Nearby' | 'Previous' | 'Favorites';
 
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   headerTitle: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 16,
     color: colors.textPrimary,
   },
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   tabTextOn: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   tabUnderline: {
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   spotName: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 16,
     color: colors.textPrimary,
   },

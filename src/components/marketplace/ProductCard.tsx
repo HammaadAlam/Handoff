@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import type { ListingItem } from '@/data/mockData';
-import { colors, radii, typography } from '@/styles/theme';
+import { fonts, colors, radii, typography } from '@/styles/theme';
 
 type Props = {
   item: ListingItem;
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   price: {
     ...typography.body,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
     marginTop: 2,
   },

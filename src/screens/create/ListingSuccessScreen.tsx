@@ -8,7 +8,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { goHomeFromCreateFlow } from '@/navigation/goHomeFromCreateFlow';
 import type { CreateListingStackParamList } from '@/navigation/types';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 export function ListingSuccessScreen() {
   const navigation =
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: '#111',
     marginBottom: 8,
     textAlign: 'center',
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   homeBtnText: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 16,
     color: '#111',
   },

@@ -1,11 +1,13 @@
 /**
- * Profile — stats, bio, featured carousels, item grid (matches profile mockup).
+ * Profile / store — top actions, identity row, tabs, carousels, grid, floating sort/filter.
+ * Layout inspired by marketplace store pages; colors use Handoff theme tokens.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
+  Dimensions,
   Pressable,
   ScrollView,
   Share,
@@ -13,9 +15,19 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { ManageSectionsModal } from '@/components/profile/ManageSectionsModal';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  ManageSectionsModal,
+  loadProfileTabPreferences,
+} from '@/components/profile/ManageSectionsModal';
+import {
+  DEFAULT_SHOP_LAYOUT,
+  PROFILE_TABS,
+  type ProfileTab,
+  type ShopSectionLayout,
+} from '@/constants/profileTabs';
 import { RemoteImage } from '@/components/RemoteImage';
+import { useMarketplace } from '@/context/MarketplaceContext';
 import {
   DEFAULT_PEER_AVATAR_URI,
   PLACEHOLDER_IMAGE_URI,
@@ -26,13 +38,138 @@ import {
 } from '@/data/mockData';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { ProfileTabNavigation } from '@/navigation/types';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
+
+const CAROUSEL_CARD_W = Math.min(152, Dimensions.get('window').width * 0.42);
+
+/** Two-column grid inside scroll (`paddingHorizontal: md`) — avoids bleeding past edges */
+const PROFILE_GRID_INNER_W = Dimensions.get('window').width - spacing.md * 2;
+const PROFILE_GRID_GAP = spacing.sm;
+const PROFILE_GRID_CELL_W = (PROFILE_GRID_INNER_W - PROFILE_GRID_GAP) / 2;
+
+/** Demo seller average; maps prior “98% positive” story to a /5 score */
+const PROFILE_SELLER_RATING = 4.9;
+
+function SellerRatingStat() {
+  const r = PROFILE_SELLER_RATING;
+  return (
+    <View
+      style={styles.statRatingRow}
+      accessibilityRole="text"
+      accessibilityLabel={`${r.toFixed(1)} out of 5 stars`}
+    >
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Ionicons
+          key={i}
+          name={r >= i ? 'star' : r >= i - 0.5 ? 'star-half' : 'star-outline'}
+          size={15}
+          color={colors.ratingStar}
+        />
+      ))}
+      <Text style={styles.statRatingInline}>
+        <Text style={styles.statNumber}>{r.toFixed(1)}</Text>
+        <Text style={styles.statRatingSuffix}>/5</Text>
+      </Text>
+    </View>
+  );
+}
+
+function StoreCarouselCard({
+  item,
+  onPress,
+}: {
+  item: ListingItem;
+  onPress: () => void;
+}) {
+  const { isFavorite, toggleFavorite } = useMarketplace();
+  const fav = isFavorite(item.id);
+
+  return (
+    <Pressable style={styles.carouselCard} onPress={onPress}>
+      <View style={styles.carouselImgWrap}>
+        <RemoteImage uri={item.imageUrl} style={styles.carouselImg} />
+        <Pressable
+          style={styles.carouselHeart}
+          onPress={() => toggleFavorite(item)}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={fav ? 'heart' : 'heart-outline'}
+            size={18}
+            color={fav ? colors.error : colors.textPrimary}
+          />
+        </Pressable>
+      </View>
+      <Text style={styles.carouselTitle} numberOfLines={2}>
+        {item.title}
+      </Text>
+      <Text style={styles.carouselPrice}>{item.price}</Text>
+    </Pressable>
+  );
+}
+
+function GridCard({
+  item,
+  onPress,
+}: {
+  item: ListingItem;
+  onPress: () => void;
+}) {
+  const { isFavorite, toggleFavorite } = useMarketplace();
+  const fav = isFavorite(item.id);
+
+  return (
+    <Pressable style={styles.gridCard} onPress={onPress}>
+      <View style={styles.gridImgWrap}>
+        <RemoteImage uri={item.imageUrl} style={styles.gridImg} />
+        <Pressable
+          style={styles.gridHeart}
+          onPress={() => toggleFavorite(item)}
+        >
+          <Ionicons
+            name={fav ? 'heart' : 'heart-outline'}
+            size={18}
+            color={fav ? colors.error : colors.textPrimary}
+          />
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+}
 
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileTabNavigation>();
+  const insets = useSafeAreaInsets();
   const [manageSectionsOpen, setManageSectionsOpen] = useState(false);
-  /** Demo: tap placeholder to “add” photo */
   const [profilePhotoReady, setProfilePhotoReady] = useState(false);
+  const [tabBarOrder, setTabBarOrder] = useState<ProfileTab[]>([...PROFILE_TABS]);
+  const [shopSectionLayout, setShopSectionLayout] =
+    useState<ShopSectionLayout>(DEFAULT_SHOP_LAYOUT);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [activeTab, setActiveTab] = useState<ProfileTab>('Shop');
+
+  useEffect(() => {
+    let cancelled = false;
+    loadProfileTabPreferences().then(({ tabOrder, shopLayout }) => {
+      if (cancelled) return;
+      setTabBarOrder(tabOrder);
+      setShopSectionLayout(shopLayout);
+      setPrefsLoaded(true);
+      setActiveTab((current) =>
+        tabOrder.includes(current) ? current : tabOrder[0] ?? 'Shop',
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    if (!tabBarOrder.includes(activeTab)) {
+      setActiveTab(tabBarOrder[0] ?? 'Shop');
+    }
+  }, [tabBarOrder, activeTab, prefsLoaded]);
 
   const openListing = (item: ListingItem) => {
     navigateToItemDetail(navigation, {
@@ -56,130 +193,306 @@ export function ProfileScreen() {
     }
   };
 
+  const showShopChrome = activeTab === 'Shop' || activeTab === 'Sale';
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ManageSectionsModal
         visible={manageSectionsOpen}
         onClose={() => setManageSectionsOpen(false)}
+        tabOrder={tabBarOrder}
+        shopLayout={shopSectionLayout}
+        featuredCount={PROFILE_FEATURED_LISTINGS.length}
+        saleListingCount={PROFILE_BEST_SELLERS.length}
+        onApply={({ tabOrder, shopLayout }) => {
+          setTabBarOrder(tabOrder);
+          setShopSectionLayout(shopLayout);
+          setActiveTab((t) => (tabOrder.includes(t) ? t : tabOrder[0] ?? 'Shop'));
+        }}
       />
-      <View style={styles.topRow}>
-        <View style={styles.spacer} />
-        <Text style={styles.username}>fahdhkhattak</Text>
-        <Pressable
-          hitSlop={12}
-          onPress={() => navigation.navigate('ProfileSettings')}
-        >
-          <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
-        </Pressable>
+
+      {/* Profile header — white bar + tinted middle (identity + meeting strip) + tabs */}
+      <View style={[styles.profileHeader, { paddingTop: insets.top }]}>
+        <View style={styles.profileTopRow}>
+          <View style={styles.profileTopSide} />
+          <View style={styles.profileTitleColumn}>
+            <Text style={styles.profileTitle}>Profile</Text>
+          </View>
+          <View style={[styles.profileTopSide, styles.profileTopActions]}>
+            <Pressable
+              style={styles.profileIconWell}
+              onPress={shareProfile}
+              accessibilityLabel="Share profile"
+            >
+              <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
+            </Pressable>
+            <Pressable
+              style={styles.profileIconWell}
+              onPress={() => navigation.navigate('ProfileSettings')}
+              accessibilityLabel="Settings"
+            >
+              <Ionicons name="settings-outline" size={20} color={colors.textPrimary} />
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.profileMiddleBand}>
+          <View style={styles.identityOuter}>
+            <View style={styles.identity}>
+              <Pressable
+                onPress={() => {
+                  if (!profilePhotoReady) setProfilePhotoReady(true);
+                  else Alert.alert('Profile photo', 'Replace photo (demo).');
+                }}
+                style={styles.avatarPress}
+              >
+                {profilePhotoReady ? (
+                  <RemoteImage uri={DEFAULT_PEER_AVATAR_URI} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <RemoteImage
+                      uri={PLACEHOLDER_IMAGE_URI}
+                      style={styles.avatarPhImage}
+                      contentFit="cover"
+                    />
+                    <View style={styles.avatarPhOverlay}>
+                      <Ionicons name="camera" size={22} color={colors.primary} />
+                    </View>
+                  </View>
+                )}
+              </Pressable>
+              <View style={styles.identityText}>
+                <Text style={styles.displayName}>fahdhkhattak</Text>
+                <View style={styles.statsStack}>
+                  <View style={[styles.statRow, styles.statRowDivider]}>
+                    <SellerRatingStat />
+                  </View>
+                  <View style={[styles.statRow, styles.statRowDivider]}>
+                    <Text style={styles.statLine}>
+                      <Text style={styles.statNumber}>67</Text> followers
+                    </Text>
+                  </View>
+                  <View style={styles.statRow}>
+                    <Text style={styles.statLine}>
+                      <Text style={styles.statNumber}>18</Text> items sold
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <Pressable
+                style={styles.heartWell}
+                hitSlop={10}
+                onPress={() => Alert.alert('Saved', 'Pinning your shop is coming soon.')}
+                accessibilityLabel="Favorite shop"
+              >
+                <Ionicons name="heart-outline" size={22} color={colors.primary} />
+              </Pressable>
+            </View>
+          </View>
+
+          <Pressable
+            style={styles.headerStatusStrip}
+            onPress={() => Alert.alert('Events', 'Campus events are coming soon.')}
+          >
+            <View style={styles.headerStatusLeft}>
+              <Ionicons name="pulse" size={15} color={colors.success} />
+              <Text style={styles.headerStatusLabel}>Meeting times</Text>
+            </View>
+            <Text style={styles.headerStatusLink}>See events</Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.tabRow, styles.tabRowOnLight]}>
+          {tabBarOrder.map((t) => {
+            const on = activeTab === t;
+            return (
+              <Pressable key={t} style={styles.tab} onPress={() => setActiveTab(t)}>
+                <Text style={[styles.tabLabel, on && styles.tabLabelOn]}>{t}</Text>
+                {on ? <View style={styles.tabUnderline} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: showShopChrome ? 88 + insets.bottom : spacing.xxl },
+        ]}
       >
-        <View style={styles.profileRow}>
-          <Pressable
-            onPress={() => {
-              if (!profilePhotoReady) {
-                setProfilePhotoReady(true);
-              } else {
-                Alert.alert('Profile photo', 'Replace photo (demo).');
-              }
-            }}
-            style={styles.avatarPress}
-          >
-            {profilePhotoReady ? (
-              <RemoteImage uri={DEFAULT_PEER_AVATAR_URI} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <RemoteImage
-                  uri={PLACEHOLDER_IMAGE_URI}
-                  style={styles.avatarPhImage}
-                  contentFit="cover"
-                />
-                <View style={styles.avatarPhOverlay}>
-                  <Ionicons name="camera" size={22} color={colors.primary} />
-                  <Text style={styles.avatarPhText}>Add photo</Text>
-                </View>
+        {(activeTab === 'Shop' || activeTab === 'Sale') && (
+          <>
+            {activeTab === 'Shop' && (
+              <View style={styles.searchRow}>
+                <Pressable
+                  style={styles.searchPill}
+                  onPress={() => setManageSectionsOpen(true)}
+                >
+                  <Ionicons name="menu-outline" size={18} color={colors.textPrimary} />
+                  <Text style={styles.searchPillText}>Categories</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.searchPill, styles.searchPillGrow]}
+                  onPress={() => Alert.alert('Search', 'Search your listings is coming soon.')}
+                >
+                  <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+                  <Text style={styles.searchPillMuted} numberOfLines={1}>
+                    Search all items
+                  </Text>
+                </Pressable>
               </View>
             )}
-          </Pressable>
-          <View style={styles.stats}>
-            <View style={styles.stat}>
-              <Text style={styles.statNum}>67</Text>
-              <Text style={styles.statLabel}>Followers</Text>
+
+            {activeTab === 'Shop' && shopSectionLayout.topPicks && (
+              <>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>Top picks</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.carouselRail}
+                  contentContainerStyle={styles.carouselContent}
+                >
+                  {PROFILE_FEATURED_LISTINGS.map((item) => (
+                    <StoreCarouselCard
+                      key={item.id}
+                      item={item}
+                      onPress={() => openListing(item)}
+                    />
+                  ))}
+                </ScrollView>
+              </>
+            )}
+
+            {(activeTab === 'Sale' ||
+              (activeTab === 'Shop' && shopSectionLayout.newlyListed)) && (
+              <>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>
+                    {activeTab === 'Sale' ? 'On sale' : 'Newly listed'}
+                  </Text>
+                  {activeTab === 'Sale' ? (
+                    <Pressable hitSlop={8} onPress={() => setActiveTab('Shop')}>
+                      <Text style={styles.seeAll}>See all</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable hitSlop={8} onPress={() => setManageSectionsOpen(true)}>
+                      <Text style={styles.seeAll}>Edit sections</Text>
+                    </Pressable>
+                  )}
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.carouselRail}
+                  contentContainerStyle={styles.carouselContent}
+                >
+                  {PROFILE_BEST_SELLERS.map((item) => (
+                    <StoreCarouselCard
+                      key={item.id}
+                      item={item}
+                      onPress={() => openListing(item)}
+                    />
+                  ))}
+                </ScrollView>
+              </>
+            )}
+
+            {(activeTab === 'Sale' ||
+              (activeTab === 'Shop' && shopSectionLayout.allItems)) && (
+              <>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>All items</Text>
+                </View>
+                <View style={styles.grid}>
+                  {(activeTab === 'Sale'
+                    ? PROFILE_MY_ITEMS.slice(0, 2)
+                    : PROFILE_MY_ITEMS
+                  ).map((item) => (
+                    <View key={item.id} style={styles.gridCell}>
+                      <GridCard item={item} onPress={() => openListing(item)} />
+                      <Text style={styles.gridCaption} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      <Text style={styles.gridPrice}>{item.price}</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {activeTab === 'Shop' &&
+              !shopSectionLayout.topPicks &&
+              !shopSectionLayout.newlyListed &&
+              !shopSectionLayout.allItems && (
+                <Text style={styles.shopEmptySections}>
+                  Turn on sections in Manage sections to show your storefront blocks.
+                </Text>
+              )}
+          </>
+        )}
+
+        {activeTab === 'About' && (
+          <View style={styles.about}>
+            <Text style={styles.aboutBio}>
+              Sellin clothes for a livin&apos; — DM for bundles. Campus pickup most days.
+            </Text>
+            <View style={styles.aboutStats}>
+              <Text style={styles.aboutLine}>Items sold: 18</Text>
+              <Text style={styles.aboutLine}>Member since 2024</Text>
             </View>
-            <View style={styles.stat}>
-              <Text style={styles.statNum}>192</Text>
-              <Text style={styles.statLabel}>Following</Text>
-            </View>
-            <View style={styles.stat}>
-              <View style={styles.ratingRow}>
-                <Text style={styles.statNum}>4.2</Text>
-                <Ionicons name="star" size={14} color={colors.warning} />
-              </View>
-              <Text style={styles.statLabel}>Rating</Text>
+            <View style={styles.aboutActions}>
+              <Pressable
+                style={styles.btnOutline}
+                onPress={() => setManageSectionsOpen(true)}
+              >
+                <Text style={styles.btnOutlineText}>Edit sections</Text>
+              </Pressable>
+              <Pressable style={styles.btnPrimary} onPress={shareProfile}>
+                <Text style={styles.btnPrimaryText}>Share shop</Text>
+              </Pressable>
             </View>
           </View>
-        </View>
+        )}
 
-        <Pressable
-          style={styles.bioRow}
-          onPress={() => setManageSectionsOpen(true)}
-        >
-          <Text style={styles.bio}>Sellin Clothes for a livin&apos;</Text>
-          <Ionicons name="pencil-outline" size={16} color={colors.textSecondary} />
-        </Pressable>
-        <Text style={styles.sold}>Items Sold : 18</Text>
-
-        <View style={styles.actions}>
-          <Pressable
-            style={styles.btnOutline}
-            onPress={() => setManageSectionsOpen(true)}
-          >
-            <Text style={styles.btnOutlineText}>Edit Items</Text>
-          </Pressable>
-          <Pressable style={styles.btnPrimary} onPress={shareProfile}>
-            <Text style={styles.btnPrimaryText}>Share Profile</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.section}>Featured Items</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {PROFILE_FEATURED_LISTINGS.map((item) => (
-            <Pressable key={item.id} onPress={() => openListing(item)}>
-              <RemoteImage uri={item.imageUrl} style={styles.thumb} />
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <Text style={styles.section}>Best Sellers</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {PROFILE_BEST_SELLERS.map((item) => (
-            <Pressable key={item.id} onPress={() => openListing(item)}>
-              <RemoteImage uri={item.imageUrl} style={styles.thumb} />
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <View style={styles.myItemsHeader}>
-          <Text style={styles.section}>My Items</Text>
-          <Pressable onPress={() => setManageSectionsOpen(true)}>
-            <Ionicons name="create-outline" size={22} color={colors.textPrimary} />
-          </Pressable>
-        </View>
-        <View style={styles.grid2}>
-          {PROFILE_MY_ITEMS.map((item) => (
-            <Pressable
-              key={item.id}
-              style={styles.gridCell}
-              onPress={() => openListing(item)}
-            >
-              <RemoteImage uri={item.imageUrl} style={styles.gridImg} />
-            </Pressable>
-          ))}
-        </View>
+        {activeTab === 'Feedback' && (
+          <View style={styles.feedback}>
+            <Text style={styles.feedbackTitle}>Buyer reviews</Text>
+            <Text style={styles.feedbackPlaceholder}>
+              Reviews from campus buyers will appear here.
+            </Text>
+          </View>
+        )}
       </ScrollView>
+
+      {showShopChrome ? (
+        <View
+          style={[
+            styles.floatBar,
+            { bottom: spacing.sm + insets.bottom },
+            shadows.soft,
+          ]}
+        >
+          <Pressable
+            style={styles.floatHalf}
+            onPress={() => Alert.alert('Sort', 'Sorting listings is coming soon.')}
+          >
+            <Ionicons name="swap-vertical" size={18} color={colors.textPrimary} />
+            <Text style={styles.floatText}>Sort</Text>
+          </Pressable>
+          <View style={styles.floatDivider} />
+          <Pressable
+            style={styles.floatHalf}
+            onPress={() => navigation.navigate('Search', { screen: 'Filters' })}
+          >
+            <Ionicons name="options-outline" size={18} color={colors.textPrimary} />
+            <Text style={styles.floatText}>Filter</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -189,40 +502,71 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
   },
-  topRow: {
+  profileHeader: {
+    backgroundColor: colors.surface,
+  },
+  profileMiddleBand: {
+    backgroundColor: colors.bannerTint,
+    paddingBottom: spacing.xs,
+  },
+  profileTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingBottom: spacing.sm,
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
+    minHeight: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  spacer: { width: 28 },
-  username: {
+  profileTopSide: {
     flex: 1,
-    textAlign: 'center',
-    ...typography.header,
-    fontSize: 18,
   },
-  scroll: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xxl,
+  profileTitleColumn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  profileRow: {
+  profileTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    color: colors.textPrimary,
+    letterSpacing: -0.2,
+  },
+  profileTopActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 10,
+  },
+  profileIconWell: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.bannerTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  identityOuter: {
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  identity: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
   },
-  avatarPress: {
-    marginRight: spacing.md,
-  },
+  avatarPress: {},
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.chipBg,
   },
   avatarPlaceholder: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: colors.primaryLight,
@@ -232,68 +576,297 @@ const styles = StyleSheet.create({
   avatarPhImage: {
     width: '100%',
     height: '100%',
-    opacity: 0.4,
+    opacity: 0.45,
   },
   avatarPhOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: 'rgba(255,255,255,0.85)',
   },
-  avatarPhText: {
-    ...typography.caption,
-    fontWeight: '700',
-    marginTop: 4,
-    color: colors.primaryDark,
-    fontSize: 11,
-  },
-  stats: {
+  identityText: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    minWidth: 0,
   },
-  stat: {
-    alignItems: 'center',
-  },
-  statNum: {
-    fontSize: 18,
-    fontWeight: '700',
+  displayName: {
+    fontFamily: fonts.bold,
+    fontSize: 19,
+    letterSpacing: -0.35,
     color: colors.textPrimary,
+    marginBottom: 4,
   },
-  statLabel: {
-    ...typography.caption,
+  statsStack: {
+    alignSelf: 'stretch',
+  },
+  statRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 3,
+  },
+  statRatingInline: {
+    marginLeft: spacing.sm,
+    fontSize: 13,
+  },
+  statRatingSuffix: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
     color: colors.textSecondary,
-    marginTop: 2,
   },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  statRow: {
+    paddingVertical: 2,
   },
-  bioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+  statRowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  bio: {
-    ...typography.body,
+  statLine: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  statNumber: {
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
-  sold: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.primary,
+  heartWell: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 'auto',
+  },
+  headerStatusStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.primaryDark,
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.xs,
     marginBottom: spacing.md,
   },
-  actions: {
+  headerStatusLeft: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  headerStatusLabel: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: colors.textInverse,
+  },
+  headerStatusLink: {
+    fontSize: 12,
+    fontFamily: fonts.semiBold,
+    color: colors.textInverse,
+    textDecorationLine: 'underline',
+  },
+  tabRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.sm,
+  },
+  tabRowOnLight: {
+    backgroundColor: colors.surface,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  tabLabel: {
+    fontSize: 14,
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+  },
+  tabLabelOn: {
+    color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+  },
+  tabUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    height: 3,
+    width: 36,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  scroll: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
     marginBottom: spacing.lg,
+  },
+  searchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.chipBg,
+  },
+  searchPillGrow: {
+    flex: 1,
+    minWidth: 0,
+  },
+  searchPillText: {
+    fontSize: 13,
+    fontFamily: fonts.semiBold,
+    color: colors.textPrimary,
+  },
+  searchPillMuted: {
+    fontSize: 13,
+    color: colors.textMuted,
+    flex: 1,
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  sectionTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  shopEmptySections: {
+    ...typography.body,
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+  },
+  seeAll: {
+    fontSize: 14,
+    fontFamily: fonts.semiBold,
+    color: colors.primary,
+  },
+  carouselRail: {
+    marginHorizontal: -spacing.md,
+  },
+  carouselContent: {
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  carouselCard: {
+    width: CAROUSEL_CARD_W,
+  },
+  carouselImgWrap: {
+    position: 'relative',
+    borderRadius: radii.card,
+    overflow: 'hidden',
+    aspectRatio: 1,
+    backgroundColor: colors.chipBg,
+  },
+  carouselImg: {
+    width: '100%',
+    height: '100%',
+  },
+  carouselHeart: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.overlayOnImage,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  carouselTitle: {
+    marginTop: 8,
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.textPrimary,
+    lineHeight: 17,
+  },
+  carouselPrice: {
+    marginTop: 4,
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: PROFILE_GRID_GAP,
+    marginBottom: spacing.lg,
+  },
+  gridCell: {
+    width: PROFILE_GRID_CELL_W,
+  },
+  gridCard: {},
+  gridImgWrap: {
+    position: 'relative',
+    borderRadius: radii.card,
+    overflow: 'hidden',
+    aspectRatio: 1,
+    backgroundColor: colors.chipBg,
+  },
+  gridImg: {
+    width: '100%',
+    height: '100%',
+  },
+  gridHeart: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.overlayOnImage,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridCaption: {
+    marginTop: 8,
+    fontSize: 13,
+    color: colors.textPrimary,
+    fontFamily: fonts.medium,
+  },
+  gridPrice: {
+    marginTop: 2,
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  about: {
+    paddingVertical: spacing.sm,
+  },
+  aboutBio: {
+    ...typography.body,
+    lineHeight: 22,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  aboutStats: {
+    marginBottom: spacing.lg,
+    gap: 6,
+  },
+  aboutLine: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  aboutActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   btnOutline: {
     flex: 1,
@@ -304,8 +877,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnOutlineText: {
-    fontWeight: '700',
-    color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    color: colors.primary,
   },
   btnPrimary: {
     flex: 1,
@@ -315,41 +888,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnPrimaryText: {
-    fontWeight: '700',
-    color: '#FFF',
+    fontFamily: fonts.bold,
+    color: colors.textInverse,
   },
-  section: {
-    ...typography.header,
+  feedback: {
+    paddingVertical: spacing.md,
+  },
+  feedbackTitle: {
+    fontFamily: fonts.bold,
     fontSize: 16,
     marginBottom: spacing.sm,
-    marginTop: spacing.sm,
     color: colors.textPrimary,
   },
-  thumb: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    marginRight: 10,
-    backgroundColor: colors.border,
+  feedbackPlaceholder: {
+    ...typography.body,
+    color: colors.textMuted,
   },
-  myItemsHeader: {
+  floatBar: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    overflow: 'hidden',
   },
-  grid2: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  gridCell: {
+  floatHalf: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
   },
-  gridImg: {
-    width: '100%',
-    height: 160,
-    borderRadius: 12,
+  floatDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
     backgroundColor: colors.border,
+  },
+  floatText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    color: colors.textPrimary,
   },
 });

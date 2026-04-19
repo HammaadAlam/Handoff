@@ -27,7 +27,7 @@ import {
 } from '@/data/listingOptions';
 import { PLACEHOLDER_IMAGE_URI } from '@/data/mockData';
 import type { CreateListingStackParamList } from '@/navigation/types';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 type PickerKind = 'category' | 'condition' | 'size' | 'brand';
 
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sectionLabel: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 15,
     marginBottom: 10,
     color: colors.textPrimary,
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     flex: 1,
     color: colors.primaryDark,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   mediaRow: {
     flexDirection: 'row',
@@ -484,13 +484,13 @@ const styles = StyleSheet.create({
   infoChipPlus: {
     color: colors.primaryDark,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     lineHeight: 16,
   },
   infoChipText: {
     color: colors.primaryDark,
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
   },
   infoChipPlusSelected: {
     color: '#FFF',
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     ...typography.caption,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     marginBottom: 6,
     color: colors.textSecondary,
     textTransform: 'uppercase',
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   radioLabel: {
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     fontSize: 15,
     color: colors.textPrimary,
   },
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   saveText: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   postBtn: {
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   postText: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: '#FFF',
   },
 });

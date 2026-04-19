@@ -22,7 +22,7 @@ import {
 } from '@/data/mockData';
 import { RemoteImage } from '@/components/RemoteImage';
 import { navigateToConversation } from '@/navigation/navigateConversation';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 const FILTERS: InboxFilter[] = ['All', 'Selling', 'Buying', 'Archived'];
 
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   filterText: {
     ...typography.caption,
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textSecondary,
   },
   filterTextOn: {
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
   preview: {
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     textAlign: 'center',
   },
   deleteAction: {

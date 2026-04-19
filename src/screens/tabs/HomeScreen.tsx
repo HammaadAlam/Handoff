@@ -29,7 +29,7 @@ import { fetchRecommendedListings } from '@/services/listings';
 import { navigateToFavorites } from '@/navigation/navigateFavorites';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { HomeTabNavigation } from '@/navigation/types';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 function openTicket(navigation: HomeTabNavigation, t: TicketListing) {
   navigateToItemDetail(navigation, {
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   ticketTitle: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 14,
     color: colors.textPrimary,
   },
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   ticketPrice: {
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     fontSize: 16,
     color: colors.primary,
     marginTop: 8,

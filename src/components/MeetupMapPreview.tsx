@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-import { colors, typography } from '@/styles/theme';
+import { fonts, colors, typography } from '@/styles/theme';
 import { regionForMeetupLocation } from '@/utils/meetupLocationCoords';
 
 type Props = {
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   webHintText: {
     ...typography.caption,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.primary,
   },
 });

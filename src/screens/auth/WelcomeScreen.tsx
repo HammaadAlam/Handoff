@@ -9,7 +9,7 @@ import { AppLogo } from '@/components/AppLogo';
 import { useAuth } from '@/context/AuthContext';
 import type { RootStackParamList } from '@/navigation/types';
 import { authColors, authRadius, authStyles } from '@/screens/auth/authTheme';
-import { spacing, typography } from '@/styles/theme';
+import { fonts, spacing, typography } from '@/styles/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   bypassText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: authColors.textMuted,
     textDecorationLine: 'underline',
   },

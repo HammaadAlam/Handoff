@@ -1,11 +1,13 @@
 /**
- * Product detail — gallery, price/condition, description, meetup, message / offer CTAs.
+ * Product detail — hero gallery with overlays, card sections, Send offer + Chat footer.
+ * Layout inspired by marketplace listing reference; colors use Handoff theme tokens.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   FlatList,
   NativeScrollEvent,
@@ -14,6 +16,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import {
@@ -23,11 +26,15 @@ import {
 import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import { DEFAULT_PEER_AVATAR_URI, type ListingItem } from '@/data/mockData';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { MakeOfferSheet } from '@/screens/transaction/MakeOfferSheet';
+import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-const CAROUSEL_H = 280;
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+/** Taller hero; bottom overlaps the first card slightly */
+const HERO_H = Math.min(Math.round(SCREEN_H * 0.42), 380);
+/** How far the first card sits up on the image (image shows through under the card edge) */
+const HERO_CARD_OVERLAP = 20;
 
 const DEFAULT_DESC =
   'Great camera for photos and video — lightweight body, full-frame sensor. Works perfectly; always kept in a dry bag on campus.';
@@ -40,19 +47,25 @@ export function ItemDetailScreen() {
     title,
     price,
     imageUrl,
-    seller = 'fahdhkhattak',
+    seller = 'Seller',
     sellerAvatarUrl,
-    categoryLabel = 'Camera',
+    categoryLabel = 'General',
     condition = 'Slightly Used',
     description = DEFAULT_DESC,
     meetupLocation = 'LSU Student Union',
     galleryUrls,
   } = params;
 
-  const images = galleryUrls?.length ? galleryUrls : [imageUrl, imageUrl, imageUrl, imageUrl];
+  const images = galleryUrls?.length ? galleryUrls : [imageUrl, imageUrl, imageUrl];
   const [slide, setSlide] = useState(0);
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const insets = useSafeAreaInsets();
+  const { width: windowW } = useWindowDimensions();
   const { toggleFavorite, isFavorite } = useMarketplace();
+  /** Exact half of footer row (matches `footer` horizontal padding + `footerRow` gap) */
+  const footerBtnWidth =
+    (windowW - spacing.md * 2 - spacing.sm) / 2;
 
   const listingItem: ListingItem = useMemo(
     () => ({
@@ -64,13 +77,35 @@ export function ItemDetailScreen() {
     [listingId, title, price, imageUrl],
   );
 
+  const priceDisplay = price.startsWith('$') ? price : `$${price}`;
+
+  const tagPills = useMemo(
+    () =>
+      [condition, categoryLabel, 'Campus meetup'].filter(
+        (t, i, a) => a.indexOf(t) === i,
+      ),
+    [condition, categoryLabel],
+  );
+
+  const specRows = useMemo(
+    () => [
+      { label: 'Category', value: categoryLabel },
+      { label: 'Condition', value: condition },
+      { label: 'Meetup', value: meetupLocation },
+    ],
+    [categoryLabel, condition, meetupLocation],
+  );
+
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const x = e.nativeEvent.contentOffset.x;
     const i = Math.round(x / SCREEN_W);
     setSlide(Math.min(Math.max(i, 0), images.length - 1));
   };
 
-  const openConversation = (entry: 'message' | 'offer') => {
+  const openConversation = (
+    entry: 'message' | 'offer',
+    offerAmount?: string,
+  ) => {
     navigation.navigate('Conversation', {
       listingId,
       title,
@@ -79,42 +114,34 @@ export function ItemDetailScreen() {
       seller,
       avatarUrl: sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
       entry,
+      offerAmount,
     });
   };
 
-  const headerTitle = `${seller} - ${categoryLabel}`;
+  const handleOfferSubmit = (amount: string) => {
+    setOfferOpen(false);
+    openConversation('offer', amount);
+  };
+
+  const sellerAvatar = sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI;
+  const descPreviewLen = 180;
+  const descLong = description.length > descPreviewLen;
+  const descShown =
+    descExpanded || !descLong
+      ? description
+      : `${description.slice(0, descPreviewLen).trim()}…`;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {headerTitle}
-        </Text>
-        <Pressable
-          hitSlop={12}
-          style={styles.headerBtn}
-          onPress={() => toggleFavorite(listingItem)}
-          accessibilityLabel="Toggle favorite"
-        >
-          <Ionicons
-            name={isFavorite(listingId) ? 'heart' : 'heart-outline'}
-            size={24}
-            color={isFavorite(listingId) ? colors.error : colors.textPrimary}
-          />
-        </Pressable>
-      </View>
-
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 88 + insets.bottom },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.aboutHeading}>About this Item</Text>
-
-        <View style={styles.carouselWrap}>
+        <View style={styles.hero}>
           <FlatList
             data={images}
             keyExtractor={(_, i) => `${i}`}
@@ -124,7 +151,7 @@ export function ItemDetailScreen() {
             onScroll={onScroll}
             scrollEventThrottle={16}
             renderItem={({ item }) => (
-              <RemoteImage uri={item} style={styles.carouselImage} />
+              <RemoteImage uri={item} style={styles.heroImage} />
             )}
             getItemLayout={(_, index) => ({
               length: SCREEN_W,
@@ -132,7 +159,30 @@ export function ItemDetailScreen() {
               index,
             })}
           />
-          <View style={styles.dots}>
+          <View style={[styles.heroTopBar, { paddingTop: insets.top + spacing.sm }]}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              hitSlop={12}
+              style={styles.heroIconBtn}
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+            </Pressable>
+            <View style={styles.heroTopSpacer} />
+            <Pressable
+              hitSlop={12}
+              style={styles.heroIconBtn}
+              onPress={() => toggleFavorite(listingItem)}
+              accessibilityLabel="Toggle favorite"
+            >
+              <Ionicons
+                name={isFavorite(listingId) ? 'heart' : 'heart-outline'}
+                size={22}
+                color={isFavorite(listingId) ? colors.error : colors.textPrimary}
+              />
+            </Pressable>
+          </View>
+          <View style={styles.heroDots}>
             {images.map((_, i) => (
               <View
                 key={i}
@@ -142,42 +192,121 @@ export function ItemDetailScreen() {
           </View>
         </View>
 
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>US {price.startsWith('$') ? price : `$${price}`}</Text>
-          <Text style={styles.condition}>{condition}</Text>
-        </View>
+        <View style={styles.cards}>
+          <View style={[styles.card, shadows.soft]}>
+            <View style={styles.titlePriceRow}>
+              <Text style={styles.productTitle} numberOfLines={2}>
+                {title}
+              </Text>
+              <Text style={styles.priceAccent}>{priceDisplay}</Text>
+            </View>
+            <Text style={styles.listedMeta}>Listed recently</Text>
+            <View style={styles.tagRow}>
+              {tagPills.map((t) => (
+                <View key={t} style={styles.tagPill}>
+                  <Text style={styles.tagPillText}>{t}</Text>
+                </View>
+              ))}
+            </View>
+            <Pressable
+              style={styles.curatedBanner}
+              onPress={() => {}}
+              accessibilityRole="button"
+            >
+              <Text style={styles.curatedText}>
+                Recommended item — curated for campus buyers
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.curatedBannerText} />
+            </Pressable>
+          </View>
 
-        <Text style={styles.descLabel}>Description</Text>
-        <View style={styles.descBox}>
-          <Text style={styles.descText}>{description}</Text>
-        </View>
+          <View style={[styles.card, shadows.soft]}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Description</Text>
+              {descLong ? (
+                <Pressable onPress={() => setDescExpanded((e) => !e)} hitSlop={8}>
+                  <Text style={styles.moreLink}>
+                    {descExpanded ? 'Less' : 'More'}
+                    {' >'}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+            <Text style={styles.bodyText}>{descShown}</Text>
+            {specRows.map((row) => (
+              <Text key={row.label} style={styles.specLine}>
+                <Text style={styles.specLabel}>{row.label}: </Text>
+                {row.value}
+              </Text>
+            ))}
+          </View>
 
-        <Text style={styles.meetup}>
-          <Text style={styles.meetupStar}>*</Text>
-          <Text> Specified Meetup Location: </Text>
-          <Text style={styles.meetupLink}>{meetupLocation}</Text>
-        </Text>
+          <Pressable
+            style={[styles.card, styles.sellerCard, shadows.soft]}
+            onPress={() =>
+              Alert.alert('Seller', `${seller}'s full profile is coming soon.`)
+            }
+          >
+            <RemoteImage uri={sellerAvatar} style={styles.sellerAvatar} />
+            <View style={styles.sellerMeta}>
+              <Text style={styles.sellerName}>{seller}</Text>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={16} color={colors.ratingStar} />
+                <Text style={styles.ratingText}>4.5 (22 reviews)</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </Pressable>
+
+          <View style={[styles.card, shadows.soft]}>
+            <Text style={styles.sectionTitle}>Ad posted at</Text>
+            <Text style={styles.locationText}>{meetupLocation}</Text>
+          </View>
+        </View>
       </ScrollView>
 
       <View
         style={[
           styles.footer,
-          { paddingBottom: spacing.md + insets.bottom },
+          {
+            paddingBottom: spacing.sm + insets.bottom,
+            paddingTop: spacing.sm,
+          },
         ]}
       >
-        <Pressable
-          style={styles.btnPrimary}
-          onPress={() => openConversation('message')}
-        >
-          <Text style={styles.btnPrimaryText}>Message Seller</Text>
-        </Pressable>
-        <Pressable
-          style={styles.btnOutline}
-          onPress={() => openConversation('offer')}
-        >
-          <Text style={styles.btnOutlineText}>Send Offer ({price})</Text>
-        </Pressable>
+        <View style={styles.footerRow}>
+          <Pressable
+            style={[styles.btnOffer, { width: footerBtnWidth }]}
+            onPress={() => setOfferOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Send offer ${priceDisplay}`}
+          >
+            <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
+            <Text style={styles.btnOfferText} numberOfLines={1}>
+              Offer
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.btnChat, { width: footerBtnWidth }]}
+            onPress={() => openConversation('message')}
+            accessibilityRole="button"
+            accessibilityLabel="Message seller"
+          >
+            <Ionicons name="chatbubble-outline" size={20} color={colors.textInverse} />
+            <Text style={styles.btnChatText}>Message</Text>
+          </Pressable>
+        </View>
       </View>
+
+      <MakeOfferSheet
+        visible={offerOpen}
+        title={title}
+        imageUrl={imageUrl}
+        price={price}
+        variant={condition}
+        onClose={() => setOfferOpen(false)}
+        onSubmit={handleOfferSubmit}
+      />
     </SafeAreaView>
   );
 }
@@ -185,143 +314,254 @@ export function ItemDetailScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.surface,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  headerBtn: {
-    width: 40,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    ...typography.body,
-    fontWeight: '700',
-    fontSize: 16,
+    backgroundColor: colors.background,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: spacing.lg,
+    flexGrow: 1,
   },
-  aboutHeading: {
-    textAlign: 'center',
-    ...typography.body,
-    fontWeight: '700',
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-    color: colors.textPrimary,
-  },
-  carouselWrap: {
+  hero: {
     width: SCREEN_W,
-    alignSelf: 'center',
+    height: HERO_H,
+    backgroundColor: colors.chipBg,
+    position: 'relative',
   },
-  carouselImage: {
+  heroImage: {
     width: SCREEN_W,
-    height: CAROUSEL_H,
+    height: HERO_H,
     backgroundColor: colors.chipBg,
   },
-  dots: {
+  heroTopBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  heroIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.overlayOnImage,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTopSpacer: {
+    flex: 1,
+  },
+  heroDots: {
+    position: 'absolute',
+    bottom: spacing.md,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 6,
-    marginTop: 10,
   },
   dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.border,
+    backgroundColor: colors.carouselDotMuted,
   },
   dotActive: {
     backgroundColor: colors.primary,
-    width: 8,
+    width: 16,
   },
-  priceRow: {
+  cards: {
+    paddingHorizontal: spacing.md,
+    marginTop: -HERO_CARD_OVERLAP,
+    paddingTop: 0,
+    gap: spacing.md,
+    zIndex: 1,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.card,
+    padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  titlePriceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  productTitle: {
+    flex: 1,
+    ...typography.header,
+    fontSize: 20,
+    color: colors.textPrimary,
+  },
+  priceAccent: {
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    color: colors.primary,
+  },
+  listedMeta: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  tagPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.chipBg,
+  },
+  tagPillText: {
+    ...typography.caption,
+    fontFamily: fonts.medium,
+    color: colors.textSecondary,
+  },
+  curatedBanner: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.pill,
+    backgroundColor: colors.curatedBannerBg,
+    borderWidth: 1,
+    borderColor: colors.curatedBannerBorder,
+  },
+  curatedText: {
+    flex: 1,
+    ...typography.caption,
+    fontFamily: fonts.semiBold,
+    color: colors.curatedBannerText,
+    marginRight: spacing.sm,
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
-  price: {
-    fontSize: 20,
-    fontWeight: '800',
+  sectionTitle: {
+    ...typography.body,
+    fontFamily: fonts.bold,
+    fontSize: 16,
     color: colors.textPrimary,
   },
-  condition: {
+  moreLink: {
+    ...typography.caption,
+    fontFamily: fonts.semiBold,
+    color: colors.link,
+  },
+  bodyText: {
     ...typography.body,
-    fontWeight: '600',
+    lineHeight: 22,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  specLine: {
+    ...typography.body,
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 6,
+  },
+  specLabel: {
+    fontFamily: fonts.semiBold,
+    color: colors.textPrimary,
+  },
+  sellerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  sellerAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.chipBg,
+  },
+  sellerMeta: {
+    flex: 1,
+  },
+  sellerName: {
+    ...typography.body,
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    color: colors.textPrimary,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  ratingText: {
+    ...typography.caption,
     color: colors.textSecondary,
   },
-  descLabel: {
+  locationText: {
     ...typography.body,
-    fontWeight: '700',
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.md,
-    color: colors.textPrimary,
-  },
-  descBox: {
-    marginHorizontal: spacing.md,
     marginTop: spacing.sm,
-    backgroundColor: colors.bannerTint,
-    borderRadius: radii.card,
-    padding: spacing.md,
-  },
-  descText: {
-    ...typography.body,
-    lineHeight: 22,
-    color: colors.textPrimary,
-  },
-  meetup: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
-    ...typography.body,
-    lineHeight: 22,
-  },
-  meetupStar: {
-    color: colors.error,
-  },
-  meetupLink: {
-    color: colors.link,
-    fontWeight: '600',
+    color: colors.textSecondary,
   },
   footer: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    gap: 10,
-    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    ...shadows.soft,
   },
-  btnPrimary: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.button,
-    paddingVertical: 14,
+  footerRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  btnOffer: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  btnPrimaryText: {
-    ...typography.button,
-    color: '#FFF',
-  },
-  btnOutline: {
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.card,
     borderWidth: 2,
     borderColor: colors.primary,
-    borderRadius: radii.button,
-    paddingVertical: 14,
-    alignItems: 'center',
     backgroundColor: colors.surface,
   },
-  btnOutlineText: {
+  btnOfferText: {
     ...typography.button,
     color: colors.primary,
+    fontSize: 14,
+    flexShrink: 1,
+  },
+  btnChat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.card,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+    ...shadows.button,
+  },
+  btnChatText: {
+    ...typography.button,
+    color: colors.textInverse,
   },
 });

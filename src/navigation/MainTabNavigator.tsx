@@ -7,7 +7,7 @@ import { CreateListingStackNavigator } from '@/navigation/CreateListingStackNavi
 import { HomeScreen } from '@/screens/tabs/HomeScreen';
 import { InboxScreen } from '@/screens/tabs/InboxScreen';
 import { ProfileScreen } from '@/screens/tabs/ProfileScreen';
-import { colors } from '@/styles/theme';
+import { fonts, colors } from '@/styles/theme';
 import { SearchStackNavigator } from './SearchStackNavigator';
 import type { MainTabParamList } from './types';
 
@@ -30,7 +30,7 @@ export function MainTabNavigator() {
         headerShown: false,
         tabBarActiveTintColor: colors.textPrimary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarLabelStyle: { fontSize: 11, fontFamily: fonts.medium },
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,

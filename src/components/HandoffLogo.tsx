@@ -3,7 +3,7 @@
  */
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radii } from '@/styles/theme';
+import { fonts, colors, radii } from '@/styles/theme';
 
 export function HandoffLogo({ size = 120 }: { size?: number }) {
   const fontSize = size * 0.85;
@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   letter: {
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: colors.primary,
     zIndex: 2,
   },

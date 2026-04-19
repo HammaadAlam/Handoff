@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { PROFILE_MY_ITEMS } from '@/data/mockData';
 import type { RootStackParamList } from '@/navigation/types';
-import { colors, spacing, typography } from '@/styles/theme';
+import { fonts, colors, spacing, typography } from '@/styles/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     letterSpacing: 0.6,
     color: colors.textSecondary,
     marginBottom: spacing.sm,
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     color: colors.textPrimary,
   },
   badge: {
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textSecondary,
   },
   chevron: {
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: signOutTint,
   },
 });

@@ -17,7 +17,7 @@ import { ProductCard } from '@/components/marketplace/ProductCard';
 import { DEFAULT_PEER_AVATAR_URI, listingsForSearchQuery } from '@/data/mockData';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { SearchStackParamList } from '@/navigation/types';
-import { colors, spacing, typography } from '@/styles/theme';
+import { fonts, colors, spacing, typography } from '@/styles/theme';
 
 export function CategoryResultsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
     color: colors.textPrimary,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,

@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DEFAULT_RECENT_SEARCHES } from '@/data/mockData';
 import type { SearchStackParamList } from '@/navigation/types';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 export function SearchQueryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   recentLabel: {
     ...typography.caption,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.textSecondary,
     marginHorizontal: spacing.md,
     marginTop: spacing.lg,

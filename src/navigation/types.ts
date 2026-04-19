@@ -66,6 +66,8 @@ export type ConversationParams = {
   /** Counterparty profile photo in thread header */
   avatarUrl?: string;
   entry: 'message' | 'offer';
+  /** Buyer's chosen offer amount (e.g. "$15.00"); only when entry === 'offer' */
+  offerAmount?: string;
 };
 
 export type MeetupDetailsParams = {

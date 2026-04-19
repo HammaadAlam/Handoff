@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CreateListingStackParamList } from '@/navigation/types';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 const ZOOMS = ['.5', '1x', '2', '5'] as const;
 
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   zoomText: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
   zoomTextOn: {
     color: '#FFF',
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   modeText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     letterSpacing: 1,
     color: '#333',
   },
@@ -242,12 +242,12 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: {
     color: '#FFF',
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 16,
   },
   link: {
     textAlign: 'center',
     color: colors.link,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 });

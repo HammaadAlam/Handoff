@@ -4,7 +4,7 @@
  */
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, radii, shadows, typography } from '@/styles/theme';
+import { fonts, colors, radii, shadows, typography } from '@/styles/theme';
 
 type Props = {
   label: string;
@@ -105,6 +105,6 @@ const styles = StyleSheet.create({
   secondaryText: {
     ...typography.button,
     color: colors.textPrimary,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
   },
 });

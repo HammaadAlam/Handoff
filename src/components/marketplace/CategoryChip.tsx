@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, radii, typography } from '@/styles/theme';
+import { fonts, colors, radii, typography } from '@/styles/theme';
 
 type Props = {
   label: string;
@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
   text: {
     ...typography.caption,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.textPrimary,
   },
   textActive: {

@@ -3,7 +3,7 @@
  */
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { authColors } from '@/screens/auth/authTheme';
-import { spacing } from '@/styles/theme';
+import { fonts, spacing } from '@/styles/theme';
 
 export function AuthFooter() {
   return (
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: authColors.primary,
   },
 });

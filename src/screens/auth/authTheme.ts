@@ -74,3 +74,32 @@ export const authStyles = StyleSheet.create({
     paddingVertical: 0,
   },
 });
+
+/** Login / Sign Up — illustration + form on solid background (no outer card) */
+export const authScreenStyles = StyleSheet.create({
+  screenFill: {
+    flex: 1,
+    backgroundColor: authColors.surface,
+  },
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  hero: {
+    width: '100%',
+    height: 192,
+    marginBottom: spacing.sm,
+    alignSelf: 'center',
+  },
+  subtitle: {
+    ...typography.subtitle,
+    fontSize: 14,
+    color: authColors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+    lineHeight: 20,
+    paddingHorizontal: spacing.xs,
+  },
+});

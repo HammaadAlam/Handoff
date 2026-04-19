@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
-import { colors, radii, typography } from '@/styles/theme';
+import { fonts, colors, radii, typography } from '@/styles/theme';
 import type { SuggestedCategory } from '@/data/mockData';
 
 type Props = {
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
   label: {
     ...typography.caption,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     marginTop: 6,
     color: colors.textPrimary,
   },

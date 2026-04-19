@@ -1,11 +1,10 @@
 /**
  * Message seller / offer thread — item context, profile strip, bubbles, composer.
- * `entry`: message vs send-offer changes the demo bubbles shown.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,29 +12,67 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import { ChatComposer } from '@/components/chat/ChatComposer';
 import { RemoteImage } from '@/components/RemoteImage';
 import { DEFAULT_PEER_AVATAR_URI } from '@/data/mockData';
 import type { RootStackParamList } from '@/navigation/types';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
+
+type ChatMessage = {
+  id: string;
+  text: string;
+  sender: 'me' | 'them';
+  createdAt: number;
+};
+
+function formatTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+const MEETUP_DETAILS_LABEL = 'Meetup details';
 
 export function ConversationScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { params } = useRoute<RouteProp<RootStackParamList, 'Conversation'>>();
-  const { title, price, imageUrl, seller, entry, avatarUrl } = params;
+  const {
+    title,
+    price,
+    imageUrl,
+    seller,
+    entry,
+    avatarUrl,
+    offerAmount: routeOfferAmount,
+  } = params;
   const peerAvatar = avatarUrl ?? DEFAULT_PEER_AVATAR_URI;
+  const insets = useSafeAreaInsets();
 
-  const [input, setInput] = useState(
-    entry === 'offer'
-      ? 'Would you be willing to negotiate?'
-      : '',
+  const [messages, setMessages] = useState<ChatMessage[]>(() =>
+    entry === 'message'
+      ? [
+          {
+            id: 'm-1',
+            text: 'Hey love your item!',
+            sender: 'me',
+            createdAt: Date.now() - 1000 * 60 * 5,
+          },
+        ]
+      : [],
   );
+  const scrollRef = useRef<ScrollView>(null);
 
-  const offerAmount = '$12.00';
+  const offerAmount = routeOfferAmount ?? '$12.00';
   const listPrice = price.includes('$') ? price : `$${price}`;
+  const initialDraft =
+    entry === 'offer' ? 'Would you be willing to negotiate?' : '';
 
   const goMeetup = (role: 'buyer' | 'seller') => {
     navigation.navigate('MeetupDetails', {
@@ -47,6 +84,21 @@ export function ConversationScreen() {
       timeLabel: 'Today - 6:30PM',
     });
   };
+
+  const handleSend = useCallback((text: string) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `m-${Date.now()}`,
+        text,
+        sender: 'me',
+        createdAt: Date.now(),
+      },
+    ]);
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -89,9 +141,13 @@ export function ConversationScreen() {
         </Pressable>
 
         <ScrollView
+          ref={scrollRef}
           style={styles.thread}
           contentContainerStyle={styles.threadContent}
           keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() =>
+            scrollRef.current?.scrollToEnd({ animated: false })
+          }
         >
           <View style={styles.profileCard}>
             <RemoteImage uri={peerAvatar} style={styles.bigAvatar} />
@@ -107,16 +163,15 @@ export function ConversationScreen() {
             <Text style={styles.stats}>67 followers   26 Listings</Text>
           </View>
 
-          <Text style={styles.dateSep}>Mar 2 2026</Text>
+          <Text style={styles.dateSep}>
+            {new Date().toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </Text>
 
-          {entry === 'message' ? (
-            <View style={styles.alignEnd}>
-              <View style={styles.bubbleOut}>
-                <Text style={styles.bubbleOutText}>Hey love your item!</Text>
-              </View>
-              <Text style={styles.ts}>10:02 p.m.</Text>
-            </View>
-          ) : (
+          {entry === 'offer' ? (
             <View style={styles.alignEnd}>
               <View style={styles.offerBubble}>
                 <Text style={styles.offerTitle}>You made an offer!</Text>
@@ -126,42 +181,57 @@ export function ConversationScreen() {
                 </View>
                 <Text style={styles.offerExp}>Expires in 23h 50m</Text>
               </View>
-              <Text style={styles.ts}>10:02 p.m.</Text>
+              <Text style={styles.ts}>{formatTime(Date.now())}</Text>
             </View>
-          )}
+          ) : null}
 
-          {entry === 'offer' && (
-            <View style={styles.demoRow}>
-              <Pressable style={styles.linkBtn} onPress={() => goMeetup('buyer')}>
-                <Text style={styles.linkBtnText}>Meetup details (buyer)</Text>
-              </Pressable>
-              <Pressable style={styles.linkBtn} onPress={() => goMeetup('seller')}>
-                <Text style={styles.linkBtnText}>Meetup details (seller)</Text>
-              </Pressable>
+          {messages.map((m) => (
+            <View
+              key={m.id}
+              style={m.sender === 'me' ? styles.alignEnd : styles.alignStart}
+            >
+              <View
+                style={m.sender === 'me' ? styles.bubbleOut : styles.bubbleIn}
+              >
+                <Text
+                  style={
+                    m.sender === 'me' ? styles.bubbleOutText : styles.bubbleInText
+                  }
+                >
+                  {m.text}
+                </Text>
+              </View>
+              <Text style={styles.ts}>{formatTime(m.createdAt)}</Text>
             </View>
-          )}
+          ))}
 
-          {entry === 'message' && (
-            <Pressable style={styles.meetupLink} onPress={() => goMeetup('buyer')}>
-              <Text style={styles.meetupLinkText}>Preview meetup location →</Text>
-            </Pressable>
-          )}
+          <Pressable
+            style={styles.meetupCta}
+            onPress={() => goMeetup('buyer')}
+            accessibilityLabel={
+              entry === 'offer'
+                ? MEETUP_DETAILS_LABEL
+                : 'Preview meetup location'
+            }
+          >
+            <Text style={styles.meetupCtaText}>
+              {entry === 'offer'
+                ? MEETUP_DETAILS_LABEL
+                : 'Preview meetup location →'}
+            </Text>
+          </Pressable>
         </ScrollView>
 
-        <View style={styles.composer}>
-          <Pressable style={styles.plusBtn}>
-            <Ionicons name="add" size={22} color={colors.primary} />
-          </Pressable>
-          <TextInput
-            style={styles.input}
-            placeholder="Message..."
-            placeholderTextColor={colors.textMuted}
-            value={input}
-            onChangeText={setInput}
+        <View style={{ paddingBottom: insets.bottom }}>
+          <ChatComposer
+            initialValue={initialDraft}
+            placeholder={
+              entry === 'offer'
+                ? 'Add a note to your offer…'
+                : 'Message…'
+            }
+            onSend={handleSend}
           />
-          <Pressable>
-            <Ionicons name="send" size={22} color={colors.primary} />
-          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -196,7 +266,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   sellerName: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 16,
     color: colors.textPrimary,
   },
@@ -222,7 +292,7 @@ const styles = StyleSheet.create({
   },
   itemTitle: {
     flex: 1,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     fontSize: 15,
   },
   thread: {
@@ -243,7 +313,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   profileName: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     fontSize: 16,
     marginBottom: 4,
   },
@@ -271,6 +341,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginBottom: spacing.md,
   },
+  alignStart: {
+    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
   bubbleOut: {
     backgroundColor: colors.primary,
     paddingHorizontal: 14,
@@ -280,7 +355,19 @@ const styles = StyleSheet.create({
     maxWidth: 280,
   },
   bubbleOutText: {
-    color: '#FFF',
+    color: colors.textInverse,
+    fontSize: 15,
+  },
+  bubbleIn: {
+    backgroundColor: colors.chipBg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.button,
+    borderBottomLeftRadius: 4,
+    maxWidth: 280,
+  },
+  bubbleInText: {
+    color: colors.textPrimary,
     fontSize: 15,
   },
   offerBubble: {
@@ -291,8 +378,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   offerTitle: {
-    color: '#FFF',
-    fontWeight: '700',
+    color: colors.textInverse,
+    fontFamily: fonts.bold,
     marginBottom: 6,
   },
   offerRow: {
@@ -302,9 +389,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   offerNew: {
-    color: '#FFF',
+    color: colors.textInverse,
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: fonts.extraBold,
   },
   offerOld: {
     color: 'rgba(255,255,255,0.65)',
@@ -320,54 +407,24 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 4,
   },
-  demoRow: {
-    gap: 8,
+  /** Same width/height for offer vs message threads */
+  meetupCta: {
+    alignSelf: 'stretch',
     marginTop: spacing.md,
-  },
-  linkBtn: {
-    alignSelf: 'center',
-    paddingVertical: 8,
-  },
-  linkBtnText: {
-    color: colors.link,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  meetupLink: {
-    marginTop: spacing.lg,
-    alignSelf: 'center',
-  },
-  meetupLinkText: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  composer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 10,
-    gap: 8,
-    backgroundColor: colors.surface,
-  },
-  plusBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.button,
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1.5,
+    borderRadius: radii.button,
+    backgroundColor: colors.bannerTint,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.primaryLight,
-    borderRadius: radii.input,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.textPrimary,
+  },
+  meetupCtaText: {
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

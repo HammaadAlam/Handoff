@@ -10,7 +10,7 @@ import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import { DEFAULT_PEER_AVATAR_URI, PLACEHOLDER_IMAGE_URI } from '@/data/mockData';
 import type { RootStackParamList } from '@/navigation/types';
-import { colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 export function FavoritesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   price: {
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     marginTop: 2,
     color: colors.textPrimary,
   },

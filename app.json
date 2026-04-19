@@ -38,7 +38,8 @@
         {
           "photosPermission": "Allow Handoff to add photos to your listings."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

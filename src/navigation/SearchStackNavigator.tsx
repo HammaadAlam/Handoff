@@ -17,7 +17,7 @@ export function SearchStackNavigator() {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
-        contentStyle: { backgroundColor: colors.surface },
+        contentStyle: { backgroundColor: colors.background },
       }}
     >
       <Stack.Screen name="SearchHome" component={SearchHomeScreen} />
@@ -29,6 +29,8 @@ export function SearchStackNavigator() {
         options={{
           presentation: 'modal',
           animation: 'slide_from_bottom',
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
         }}
       />
     </Stack.Navigator>
