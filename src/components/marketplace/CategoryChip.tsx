@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text } from 'react-native';
 import { fonts, colors, radii, typography } from '@/styles/theme';
 
 type Props = {
@@ -20,8 +20,10 @@ export function CategoryChip({ label, active, onPress }: Props) {
 
 const styles = StyleSheet.create({
   base: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    flexShrink: 0,
+    flexGrow: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: radii.button,
     backgroundColor: colors.surface,
     marginRight: 8,
@@ -34,6 +36,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.semiBold,
     color: colors.textPrimary,
+    flexShrink: 0,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   textActive: {
     color: '#FFFFFF',

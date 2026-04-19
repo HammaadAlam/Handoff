@@ -10,7 +10,14 @@ import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import { DEFAULT_PEER_AVATAR_URI, PLACEHOLDER_IMAGE_URI } from '@/data/mockData';
 import type { RootStackParamList } from '@/navigation/types';
-import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
+import {
+  colors,
+  listingCardTypography,
+  listingPriceDisplay,
+  radii,
+  spacing,
+  typography,
+} from '@/styles/theme';
 
 export function FavoritesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -65,7 +72,7 @@ export function FavoritesScreen() {
                   <Ionicons name="heart" size={20} color={colors.error} />
                 </Pressable>
               </View>
-              <Text style={styles.cardTitle} numberOfLines={2}>
+              <Text style={styles.cardTitle} numberOfLines={4} ellipsizeMode="tail">
                 {item.title}
               </Text>
               <Text style={styles.price}>{item.price}</Text>
@@ -104,6 +111,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     width: '50%',
+    minWidth: 0,
     paddingHorizontal: 6,
     marginBottom: 16,
   },
@@ -129,15 +137,13 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   cardTitle: {
-    ...typography.body,
-    fontSize: 14,
+    ...listingCardTypography.title,
     marginTop: 8,
-    color: colors.textPrimary,
+    width: '100%',
   },
   price: {
-    fontFamily: fonts.bold,
-    marginTop: 2,
-    color: colors.textPrimary,
+    ...listingPriceDisplay,
+    marginTop: 6,
   },
   empty: {
     alignItems: 'center',

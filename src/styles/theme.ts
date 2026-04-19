@@ -1,6 +1,8 @@
 /**
  * Handoff design tokens — purple-forward, campus marketplace UI.
  */
+import type { TextStyle } from 'react-native';
+import { Platform } from 'react-native';
 import { fonts } from '@/styles/fonts';
 
 export { fonts } from '@/styles/fonts';
@@ -80,3 +82,30 @@ export const typography = {
   caption: { fontFamily: fonts.regular, fontSize: 12 },
   button: { fontFamily: fonts.bold, fontSize: 15 },
 } as const;
+
+/** Listing cards — medium title + bold price (same grid/search/profile/favorites). */
+export const listingCardTypography = {
+  title: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textPrimary,
+  },
+  price: {
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    letterSpacing: -0.2,
+    color: colors.textPrimary,
+  },
+} as const;
+
+/**
+ * Price row on listing cards — aligned digits (tabular figures) and no Android top clipping.
+ */
+export const listingPriceDisplay = {
+  ...listingCardTypography.price,
+  ...(Platform.OS === 'ios'
+    ? { fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] }
+    : {}),
+  ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+};

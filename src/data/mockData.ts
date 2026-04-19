@@ -6,7 +6,7 @@
 export const DEFAULT_PEER_AVATAR_URI =
   'https://images.unsplash.com/photo-1633332755192-727a05c4013f?w=200&q=80';
 
-export const HOME_CATEGORIES = ['For You', 'Clothes', 'Furniture', 'Event'] as const;
+export const HOME_CATEGORIES = ['For You', 'Clothes', 'Furniture', 'Events'] as const;
 
 export type ListingItem = {
   id: string;

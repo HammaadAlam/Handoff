@@ -7,7 +7,9 @@ import type { InboxTabNavigation } from '@/navigation/types';
 import { useMemo, useState } from 'react';
 import {
   FlatList,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -112,7 +114,12 @@ export function InboxScreen() {
       </View>
 
       <View style={styles.filtersWrap}>
-        <View style={styles.filters}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.filtersScrollContent}
+        >
           {FILTERS.map((f) => (
             <Pressable
               key={f}
@@ -129,7 +136,7 @@ export function InboxScreen() {
               </Text>
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       <View style={styles.searchRow}>
@@ -222,13 +229,14 @@ const styles = StyleSheet.create({
   filtersWrap: {
     marginBottom: spacing.md,
   },
-  filters: {
+  filtersScrollContent: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
     gap: 8,
   },
   filterChip: {
+    flexShrink: 0,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: radii.pill,
@@ -317,17 +325,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
     alignSelf: 'stretch',
+    flexShrink: 0,
   },
   badge: {
     borderRadius: radii.pill,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    maxWidth: 130,
+    flexShrink: 0,
+    alignSelf: 'flex-end',
   },
   badgeText: {
     fontSize: 10,
     fontFamily: fonts.bold,
     textAlign: 'center',
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   deleteAction: {
     backgroundColor: colors.error,

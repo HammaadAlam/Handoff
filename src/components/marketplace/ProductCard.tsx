@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import type { ListingItem } from '@/data/mockData';
-import { fonts, colors, spacing, typography } from '@/styles/theme';
+import { colors, listingCardTypography, listingPriceDisplay, spacing } from '@/styles/theme';
 
 /** Keep in sync with `SearchPopularCard` — shared marketplace grid look */
 const IMAGE_RADIUS = 18;
@@ -36,9 +36,13 @@ export function ProductCard({ item, onPress }: Props) {
           />
         </Pressable>
       </View>
-      <Pressable onPress={onPress}>
+      <Pressable style={styles.copyPress} onPress={onPress}>
         <View style={styles.copy}>
-          <Text style={styles.title} numberOfLines={2}>
+          <Text
+            style={styles.title}
+            numberOfLines={4}
+            ellipsizeMode="tail"
+          >
             {item.title}
           </Text>
           <Text style={styles.price}>{item.price}</Text>
@@ -52,7 +56,12 @@ const styles = StyleSheet.create({
   wrap: {
     flex: 1,
     width: '100%',
+    minWidth: 0,
     marginBottom: spacing.md,
+  },
+  copyPress: {
+    alignSelf: 'stretch',
+    width: '100%',
   },
   imageShell: {
     position: 'relative',
@@ -87,20 +96,15 @@ const styles = StyleSheet.create({
   },
   copy: {
     paddingTop: 12,
+    width: '100%',
     alignItems: 'flex-start',
   },
   title: {
-    ...typography.body,
-    fontSize: 14,
-    fontFamily: fonts.medium,
-    color: colors.textPrimary,
-    lineHeight: 19,
+    ...listingCardTypography.title,
+    width: '100%',
   },
   price: {
+    ...listingPriceDisplay,
     marginTop: 6,
-    fontFamily: fonts.bold,
-    fontSize: 17,
-    color: colors.textPrimary,
-    letterSpacing: -0.2,
   },
 });

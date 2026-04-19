@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -171,7 +172,7 @@ export function SearchHomeScreen() {
                         color={colors.primary}
                       />
                     </View>
-                    <Text style={styles.catLabel} numberOfLines={1}>
+                    <Text style={styles.catLabel} numberOfLines={2}>
                       {cat.label}
                     </Text>
                   </Pressable>
@@ -183,9 +184,14 @@ export function SearchHomeScreen() {
 
         <View style={styles.popularSection}>
           <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>Popular Items</Text>
+            <View style={styles.sectionTitleBlock}>
+              <Text style={styles.sectionTitle} numberOfLines={2}>
+                Popular Items
+              </Text>
+            </View>
             <Pressable
               hitSlop={8}
+              style={styles.seeAllBtn}
               onPress={() =>
                 navigation.navigate('CategoryResults', { query: 'Popular' })
               }
@@ -196,7 +202,7 @@ export function SearchHomeScreen() {
 
           <View style={styles.popularGrid}>
             {POPULAR_LISTINGS.map((item) => (
-              <View key={item.id} style={{ width: popularColWidth }}>
+              <View key={item.id} style={{ width: popularColWidth, minWidth: 0 }}>
                 <SearchPopularCard item={item} onPress={() => openListing(item)} />
               </View>
             ))}
@@ -274,6 +280,8 @@ const styles = StyleSheet.create({
     borderColor: colors.gradientEnd,
   },
   chipsScroll: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
     gap: spacing.sm,
     paddingBottom: spacing.xs,
     alignItems: 'center',
@@ -281,6 +289,8 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexGrow: 0,
+    flexShrink: 0,
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -295,6 +305,8 @@ const styles = StyleSheet.create({
     color: colors.textInverse,
     fontSize: 13,
     textTransform: 'lowercase',
+    flexShrink: 0,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   categoryOverlap: {
     paddingHorizontal: spacing.md,
@@ -303,7 +315,7 @@ const styles = StyleSheet.create({
   categoryCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.card,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
@@ -311,6 +323,7 @@ const styles = StyleSheet.create({
   },
   catRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: spacing.md,
   },
   catCell: {
@@ -331,9 +344,12 @@ const styles = StyleSheet.create({
   catLabel: {
     ...typography.caption,
     fontSize: 10,
+    lineHeight: 13,
     fontFamily: fonts.semiBold,
     color: colors.textSecondary,
     textAlign: 'center',
+    width: '100%',
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   popularSection: {
     paddingHorizontal: spacing.md,
@@ -341,15 +357,25 @@ const styles = StyleSheet.create({
   },
   sectionHead: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  /** Lets the heading use remaining width so it is not clipped next to See All */
+  sectionTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: spacing.xs,
   },
   sectionTitle: {
     ...typography.header,
     fontSize: 18,
     fontFamily: fonts.bold,
     color: colors.textPrimary,
+    lineHeight: 22,
+  },
+  seeAllBtn: {
+    flexShrink: 0,
   },
   seeAll: {
     fontFamily: fonts.semiBold,

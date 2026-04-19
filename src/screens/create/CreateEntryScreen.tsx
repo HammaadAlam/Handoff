@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppLogo } from '@/components/AppLogo';
 import type { CreateListingStackParamList } from '@/navigation/types';
@@ -97,6 +97,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   headBlock: {
+    width: '100%',
+    alignSelf: 'stretch',
     paddingTop: spacing.md,
     paddingBottom: spacing.xl,
     alignItems: 'center',
@@ -104,8 +106,13 @@ const styles = StyleSheet.create({
   title: {
     ...typography.header,
     fontSize: 24,
+    lineHeight: 30,
     textAlign: 'center',
     color: colors.textPrimary,
+    alignSelf: 'stretch',
+    width: '100%',
+    flexShrink: 0,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   subtitle: {
     ...typography.body,
@@ -114,6 +121,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     lineHeight: 22,
     paddingHorizontal: spacing.sm,
+    alignSelf: 'stretch',
+    width: '100%',
+    flexShrink: 0,
   },
   cardPress: {
     marginBottom: spacing.lg,

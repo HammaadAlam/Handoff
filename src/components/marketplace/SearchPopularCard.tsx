@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import type { ListingItem } from '@/data/mockData';
-import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
+import { colors, listingCardTypography, listingPriceDisplay, spacing } from '@/styles/theme';
 
 type Props = {
   item: ListingItem;
@@ -22,7 +22,7 @@ export function SearchPopularCard({ item, onPress }: Props) {
 
   return (
     <Pressable
-      style={styles.card}
+      style={[styles.card, styles.cardFill]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${item.title}, ${item.price}`}
@@ -44,7 +44,11 @@ export function SearchPopularCard({ item, onPress }: Props) {
       </View>
 
       <View style={styles.copy}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text
+          style={styles.title}
+          numberOfLines={4}
+          ellipsizeMode="tail"
+        >
           {item.title}
         </Text>
         <Text style={styles.price}>{item.price}</Text>
@@ -56,6 +60,11 @@ export function SearchPopularCard({ item, onPress }: Props) {
 const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.md,
+  },
+  cardFill: {
+    width: '100%',
+    minWidth: 0,
+    alignSelf: 'stretch',
   },
   imageShell: {
     position: 'relative',
@@ -87,20 +96,15 @@ const styles = StyleSheet.create({
   },
   copy: {
     paddingTop: 12,
+    width: '100%',
     alignItems: 'flex-start',
   },
   title: {
-    ...typography.body,
-    fontSize: 14,
-    fontFamily: fonts.medium,
-    color: colors.textPrimary,
-    lineHeight: 19,
+    ...listingCardTypography.title,
+    width: '100%',
   },
   price: {
+    ...listingPriceDisplay,
     marginTop: 6,
-    fontFamily: fonts.bold,
-    fontSize: 17,
-    color: colors.textPrimary,
-    letterSpacing: -0.2,
   },
 });

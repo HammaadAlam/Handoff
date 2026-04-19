@@ -154,7 +154,7 @@ export function HomeScreen() {
         columnWrapperStyle={[styles.row, { gap: gridGutter }]}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <View style={{ width: recommendedColWidth }}>
+          <View style={{ width: recommendedColWidth, minWidth: 0 }}>
             <ProductCard
               item={item}
               onPress={() =>
@@ -201,10 +201,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   chips: {
-    flexGrow: 1,
-    paddingHorizontal: 4,
-    paddingRight: spacing.sm,
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingRight: spacing.sm,
+    paddingVertical: 2,
   },
   headerBlock: {
     marginBottom: 0,

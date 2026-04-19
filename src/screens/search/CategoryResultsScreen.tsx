@@ -59,7 +59,7 @@ export function CategoryResultsScreen() {
         columnWrapperStyle={[styles.row, { gap: gridGutter }]}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <View style={{ width: gridColWidth }}>
+          <View style={{ width: gridColWidth, minWidth: 0 }}>
             <ProductCard
               item={item}
               onPress={() =>
@@ -105,6 +105,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   list: {
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.md,
   },

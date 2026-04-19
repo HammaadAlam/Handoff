@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -38,7 +39,16 @@ import {
 } from '@/data/mockData';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { ProfileTabNavigation } from '@/navigation/types';
-import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
+import {
+  fonts,
+  colors,
+  listingCardTypography,
+  listingPriceDisplay,
+  radii,
+  shadows,
+  spacing,
+  typography,
+} from '@/styles/theme';
 
 const CAROUSEL_CARD_W = Math.min(152, Dimensions.get('window').width * 0.42);
 
@@ -50,6 +60,9 @@ const PROFILE_GRID_CELL_W = (PROFILE_GRID_INNER_W - PROFILE_GRID_GAP) / 2;
 /** Demo seller average; maps prior “98% positive” story to a /5 score */
 const PROFILE_SELLER_RATING = 4.9;
 
+/** Matches `profileIconWell` ×2 + gap so the title stays optically centered (balanced header). */
+const PROFILE_HEADER_ACTIONS_W = 38 + 10 + 38;
+
 function SellerRatingStat() {
   const r = PROFILE_SELLER_RATING;
   return (
@@ -58,17 +71,18 @@ function SellerRatingStat() {
       accessibilityRole="text"
       accessibilityLabel={`${r.toFixed(1)} out of 5 stars`}
     >
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Ionicons
-          key={i}
-          name={r >= i ? 'star' : r >= i - 0.5 ? 'star-half' : 'star-outline'}
-          size={15}
-          color={colors.ratingStar}
-        />
-      ))}
-      <Text style={styles.statRatingInline}>
-        <Text style={styles.statNumber}>{r.toFixed(1)}</Text>
-        <Text style={styles.statRatingSuffix}>/5</Text>
+      <View style={styles.statStars}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Ionicons
+            key={i}
+            name={r >= i ? 'star' : r >= i - 0.5 ? 'star-half' : 'star-outline'}
+            size={14}
+            color={colors.ratingStar}
+          />
+        ))}
+      </View>
+      <Text style={styles.statRatingScore} numberOfLines={1}>
+        {`${r.toFixed(1)}/5`}
       </Text>
     </View>
   );
@@ -100,7 +114,7 @@ function StoreCarouselCard({
           />
         </Pressable>
       </View>
-      <Text style={styles.carouselTitle} numberOfLines={2}>
+      <Text style={styles.carouselTitle} numberOfLines={4} ellipsizeMode="tail">
         {item.title}
       </Text>
       <Text style={styles.carouselPrice}>{item.price}</Text>
@@ -214,11 +228,11 @@ export function ProfileScreen() {
       {/* Profile header — white bar + tinted middle (identity + meeting strip) + tabs */}
       <View style={[styles.profileHeader, { paddingTop: insets.top }]}>
         <View style={styles.profileTopRow}>
-          <View style={styles.profileTopSide} />
+          <View style={styles.profileHeaderSide} />
           <View style={styles.profileTitleColumn}>
             <Text style={styles.profileTitle}>Profile</Text>
           </View>
-          <View style={[styles.profileTopSide, styles.profileTopActions]}>
+          <View style={styles.profileTopActions}>
             <Pressable
               style={styles.profileIconWell}
               onPress={shareProfile}
@@ -268,13 +282,13 @@ export function ProfileScreen() {
                     <SellerRatingStat />
                   </View>
                   <View style={[styles.statRow, styles.statRowDivider]}>
-                    <Text style={styles.statLine}>
-                      <Text style={styles.statNumber}>67</Text> followers
+                    <Text style={styles.statMutedLine} numberOfLines={1}>
+                      67 followers
                     </Text>
                   </View>
                   <View style={styles.statRow}>
-                    <Text style={styles.statLine}>
-                      <Text style={styles.statNumber}>18</Text> items sold
+                    <Text style={styles.statMutedLine} numberOfLines={1}>
+                      18 items sold
                     </Text>
                   </View>
                 </View>
@@ -371,15 +385,25 @@ export function ProfileScreen() {
               (activeTab === 'Shop' && shopSectionLayout.newlyListed)) && (
               <>
                 <View style={styles.sectionHead}>
-                  <Text style={styles.sectionTitle}>
-                    {activeTab === 'Sale' ? 'On sale' : 'Newly listed'}
-                  </Text>
+                  <View style={styles.sectionTitleBlock}>
+                    <Text style={styles.sectionTitle} numberOfLines={2}>
+                      {activeTab === 'Sale' ? 'On sale' : 'Newly listed'}
+                    </Text>
+                  </View>
                   {activeTab === 'Sale' ? (
-                    <Pressable hitSlop={8} onPress={() => setActiveTab('Shop')}>
+                    <Pressable
+                      hitSlop={8}
+                      style={styles.sectionHeadAction}
+                      onPress={() => setActiveTab('Shop')}
+                    >
                       <Text style={styles.seeAll}>See all</Text>
                     </Pressable>
                   ) : (
-                    <Pressable hitSlop={8} onPress={() => setManageSectionsOpen(true)}>
+                    <Pressable
+                      hitSlop={8}
+                      style={styles.sectionHeadAction}
+                      onPress={() => setManageSectionsOpen(true)}
+                    >
                       <Text style={styles.seeAll}>Edit sections</Text>
                     </Pressable>
                   )}
@@ -414,7 +438,11 @@ export function ProfileScreen() {
                   ).map((item) => (
                     <View key={item.id} style={styles.gridCell}>
                       <GridCard item={item} onPress={() => openListing(item)} />
-                      <Text style={styles.gridCaption} numberOfLines={1}>
+                      <Text
+                        style={styles.gridCaption}
+                        numberOfLines={4}
+                        ellipsizeMode="tail"
+                      >
                         {item.title}
                       </Text>
                       <Text style={styles.gridPrice}>{item.price}</Text>
@@ -507,7 +535,8 @@ const styles = StyleSheet.create({
   },
   profileMiddleBand: {
     backgroundColor: colors.bannerTint,
-    paddingBottom: spacing.xs,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   profileTopRow: {
     flexDirection: 'row',
@@ -518,21 +547,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  profileTopSide: {
-    flex: 1,
+  profileHeaderSide: {
+    width: PROFILE_HEADER_ACTIONS_W,
   },
   profileTitleColumn: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
   },
   profileTitle: {
     fontFamily: fonts.bold,
     fontSize: 17,
     color: colors.textPrimary,
     letterSpacing: -0.2,
+    textAlign: 'center',
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   profileTopActions: {
+    width: PROFILE_HEADER_ACTIONS_W,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
@@ -547,14 +581,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   identityOuter: {
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.xs,
+    paddingTop: 2,
+    paddingBottom: 2,
   },
   identity: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: spacing.md,
-    gap: spacing.sm,
+    gap: 10,
   },
   avatarPress: {},
   avatar: {
@@ -590,28 +624,35 @@ const styles = StyleSheet.create({
   },
   displayName: {
     fontFamily: fonts.bold,
-    fontSize: 19,
+    fontSize: 17,
     letterSpacing: -0.35,
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 2,
+    lineHeight: 22,
   },
   statsStack: {
     alignSelf: 'stretch',
+    paddingBottom: 0,
   },
   statRatingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 3,
+    gap: 6,
+    minWidth: 0,
+    flexWrap: 'nowrap',
   },
-  statRatingInline: {
-    marginLeft: spacing.sm,
-    fontSize: 13,
+  statStars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    flexShrink: 0,
   },
-  statRatingSuffix: {
-    fontSize: 13,
-    fontFamily: fonts.regular,
+  statRatingScore: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
     color: colors.textSecondary,
+    flexShrink: 0,
+    lineHeight: 17,
   },
   statRow: {
     paddingVertical: 2,
@@ -620,26 +661,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  statLine: {
-    fontSize: 13,
-    fontFamily: fonts.regular,
+  statMutedLine: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
     color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  statNumber: {
-    fontFamily: fonts.bold,
-    color: colors.textPrimary,
+    lineHeight: 17,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   heartWell: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
     marginLeft: 'auto',
+    flexShrink: 0,
   },
   headerStatusStrip: {
     flexDirection: 'row',
@@ -647,44 +687,62 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: colors.primaryDark,
     borderRadius: 10,
-    paddingVertical: 7,
+    paddingVertical: 8,
     paddingHorizontal: spacing.md,
     marginHorizontal: spacing.md,
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
+    marginTop: 2,
+    marginBottom: spacing.sm,
   },
   headerStatusLeft: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    marginRight: spacing.sm,
   },
   headerStatusLabel: {
+    flexShrink: 1,
     fontFamily: fonts.semiBold,
     fontSize: 13,
+    lineHeight: 17,
     color: colors.textInverse,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   headerStatusLink: {
-    fontSize: 12,
+    flexShrink: 0,
+    fontSize: 13,
     fontFamily: fonts.semiBold,
+    lineHeight: 17,
     color: colors.textInverse,
     textDecorationLine: 'underline',
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+    paddingVertical: 1,
   },
   tabRow: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.sm,
+    alignItems: 'stretch',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: spacing.xs,
   },
   tabRowOnLight: {
     backgroundColor: colors.surface,
   },
   tab: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 0,
     alignItems: 'center',
+    justifyContent: 'flex-start',
     paddingVertical: 12,
+    paddingHorizontal: 8,
+    minHeight: 44,
   },
   tabLabel: {
     fontSize: 14,
     fontFamily: fonts.medium,
     color: colors.textMuted,
+    textAlign: 'center',
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   tabLabelOn: {
     color: colors.textPrimary,
@@ -694,9 +752,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     height: 3,
-    width: 36,
+    width: '72%',
+    maxWidth: 72,
+    minWidth: 40,
     borderRadius: 2,
     backgroundColor: colors.primary,
+    alignSelf: 'center',
   },
   scroll: {
     paddingHorizontal: spacing.md,
@@ -735,14 +796,22 @@ const styles = StyleSheet.create({
   sectionHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.sm,
     marginBottom: spacing.sm,
     marginTop: spacing.sm,
+  },
+  sectionTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sectionHeadAction: {
+    flexShrink: 0,
   },
   sectionTitle: {
     fontFamily: fonts.bold,
     fontSize: 16,
     color: colors.textPrimary,
+    lineHeight: 20,
   },
   shopEmptySections: {
     ...typography.body,
@@ -791,17 +860,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   carouselTitle: {
+    ...listingCardTypography.title,
     marginTop: 8,
-    fontSize: 13,
-    fontFamily: fonts.medium,
-    color: colors.textPrimary,
-    lineHeight: 17,
+    width: '100%',
   },
   carouselPrice: {
-    marginTop: 4,
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    color: colors.textPrimary,
+    ...listingPriceDisplay,
+    marginTop: 6,
   },
   grid: {
     flexDirection: 'row',
@@ -811,6 +876,7 @@ const styles = StyleSheet.create({
   },
   gridCell: {
     width: PROFILE_GRID_CELL_W,
+    minWidth: 0,
   },
   gridCard: {},
   gridImgWrap: {
@@ -836,16 +902,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gridCaption: {
+    ...listingCardTypography.title,
     marginTop: 8,
-    fontSize: 13,
-    color: colors.textPrimary,
-    fontFamily: fonts.medium,
+    width: '100%',
+    flexShrink: 1,
   },
   gridPrice: {
-    marginTop: 2,
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    color: colors.textPrimary,
+    ...listingPriceDisplay,
+    marginTop: 6,
   },
   about: {
     paddingVertical: spacing.sm,
