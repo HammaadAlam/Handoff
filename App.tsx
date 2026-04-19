@@ -2,13 +2,13 @@
  * App root — fonts → gesture handler → safe area → root stack (tabs + transaction flows).
  */
 import {
-  Roboto_400Regular,
-  Roboto_500Medium,
-  Roboto_600SemiBold,
-  Roboto_700Bold,
-  Roboto_800ExtraBold,
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+  Poppins_800ExtraBold,
   useFonts,
-} from '@expo-google-fonts/roboto';
+} from '@expo-google-fonts/poppins';
 import { NavigationContainer } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -18,22 +18,22 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/context/AuthContext';
 import { MarketplaceProvider } from '@/context/MarketplaceContext';
 import { RootNavigator } from '@/navigation/RootNavigator';
-import { applyGlobalRoboto } from '@/styles/applyGlobalRoboto';
+import { applyGlobalFonts } from '@/styles/applyGlobalFonts';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function App() {
   const [fontsLoaded] = useFonts({
-    Roboto_400Regular,
-    Roboto_500Medium,
-    Roboto_600SemiBold,
-    Roboto_700Bold,
-    Roboto_800ExtraBold,
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    Poppins_800ExtraBold,
   });
   const appliedDefaults = useRef(false);
 
   if (fontsLoaded && !appliedDefaults.current) {
-    applyGlobalRoboto();
+    applyGlobalFonts();
     appliedDefaults.current = true;
     SplashScreen.hideAsync().catch(() => {});
   }
