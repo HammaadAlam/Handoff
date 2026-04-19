@@ -38,9 +38,12 @@ export const spacing = {
 } as const;
 
 export const radii = {
+  /** Full pill (chips, search bar) */
   pill: 999,
-  input: 28,
-  button: 28,
+  /** Text fields and rectangular CTAs */
+  input: 12,
+  /** Primary / secondary pressables */
+  button: 12,
   card: 16,
 } as const;
 

@@ -78,12 +78,14 @@ export type MeetupDetailsParams = {
 };
 
 export type RootStackParamList = {
+  Welcome: undefined;
+  Login: undefined;
+  SignUp: undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
   ItemDetail: ItemDetailParams;
   Conversation: ConversationParams;
   MeetupDetails: MeetupDetailsParams;
   Favorites: undefined;
-  Cart: undefined;
   ProfileSettings: undefined;
 };
 

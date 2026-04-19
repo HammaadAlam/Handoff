@@ -1,11 +1,12 @@
 /**
- * Meetup time & place — buyer vs seller actions (maps placeholder).
+ * Meetup time & place — buyer vs seller actions + map preview.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MeetupMapPreview } from '@/components/MeetupMapPreview';
 import { RemoteImage } from '@/components/RemoteImage';
 import { colors, radii, spacing, typography } from '@/styles/theme';
 import type { RootStackParamList } from '@/navigation/types';
@@ -61,10 +62,8 @@ export function MeetupDetailsScreen() {
             <Text style={styles.rowText}>{timeLabel}</Text>
           </View>
 
-          <View style={styles.mapPlaceholder}>
-            <Ionicons name="map-outline" size={48} color={colors.primaryLight} />
-            <Text style={styles.mapHint}>Map preview — plug in MapView or static API</Text>
-            <Text style={styles.mapSub}>{location}</Text>
+          <View style={styles.mapSection}>
+            <MeetupMapPreview location={location} />
           </View>
 
           {role === 'seller' ? (
@@ -160,29 +159,9 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.textPrimary,
   },
-  mapPlaceholder: {
-    height: 160,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
+  mapSection: {
     marginTop: spacing.md,
     marginBottom: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  mapHint: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-    paddingHorizontal: spacing.md,
-  },
-  mapSub: {
-    ...typography.caption,
-    fontWeight: '600',
-    marginTop: 4,
-    color: colors.primary,
   },
   btnPurple: {
     backgroundColor: colors.primary,

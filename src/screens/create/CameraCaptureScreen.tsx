@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CreateListingStackParamList } from '@/navigation/types';
-import { colors, spacing, typography } from '@/styles/theme';
+import { colors, radii, spacing, typography } from '@/styles/theme';
 
 const ZOOMS = ['.5', '1x', '2', '5'] as const;
 
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   zoomChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: radii.button,
   },
   zoomChipOn: {
     backgroundColor: 'rgba(255,255,255,0.25)',
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     backgroundColor: colors.primary,
-    borderRadius: 999,
+    borderRadius: radii.button,
     paddingVertical: 14,
     alignItems: 'center',
     marginBottom: spacing.md,

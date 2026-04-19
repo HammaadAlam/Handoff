@@ -3,10 +3,11 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,18 +17,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CategoryChip } from '@/components/marketplace/CategoryChip';
 import { ProductCard } from '@/components/marketplace/ProductCard';
 import { RemoteImage } from '@/components/RemoteImage';
-import { useMarketplace } from '@/context/MarketplaceContext';
 import {
   DEFAULT_PEER_AVATAR_URI,
   HOME_CATEGORIES,
   LSU_FOOTBALL_TICKETS,
   RECOMMENDED_LISTINGS,
+  type ListingItem,
   type TicketListing,
 } from '@/data/mockData';
-import {
-  navigateToCart,
-  navigateToFavorites,
-} from '@/navigation/navigateFavoritesCart';
+import { fetchRecommendedListings } from '@/services/listings';
+import { navigateToFavorites } from '@/navigation/navigateFavorites';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { HomeTabNavigation } from '@/navigation/types';
 import { colors, radii, spacing, typography } from '@/styles/theme';
@@ -48,9 +47,28 @@ function openTicket(navigation: HomeTabNavigation, t: TicketListing) {
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeTabNavigation>();
-  const { cart } = useMarketplace();
   const [activeCat, setActiveCat] = useState<string>(HOME_CATEGORIES[0]);
-  const cartCount = cart.reduce((n, l) => n + l.qty, 0);
+  const [recommended, setRecommended] =
+    useState<ListingItem[]>(RECOMMENDED_LISTINGS);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadRecommended = useCallback(async () => {
+    const items = await fetchRecommendedListings();
+    setRecommended(items);
+  }, []);
+
+  useEffect(() => {
+    void loadRecommended();
+  }, [loadRecommended]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadRecommended();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadRecommended]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -79,29 +97,12 @@ export function HomeScreen() {
           >
             <Ionicons name="heart-outline" size={24} color={colors.textPrimary} />
           </Pressable>
-          <Pressable
-            accessibilityLabel="Cart"
-            hitSlop={12}
-            style={styles.iconBtn}
-            onPress={() => navigateToCart(navigation)}
-          >
-            <View>
-              <Ionicons name="bag-outline" size={24} color={colors.textPrimary} />
-              {cartCount > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>
-                    {cartCount > 9 ? '9+' : cartCount}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </Pressable>
         </View>
       </View>
 
       <FlatList
         style={styles.list}
-        data={RECOMMENDED_LISTINGS}
+        data={recommended}
         keyExtractor={(item) => item.id}
         numColumns={2}
         ListHeaderComponent={
@@ -139,6 +140,9 @@ export function HomeScreen() {
             </View>
             <Text style={styles.sectionTitle}>Recommended For You</Text>
           </View>
+        }
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.listContent}
@@ -188,23 +192,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-  },
-  badge: {
-    position: 'absolute',
-    right: -4,
-    top: -4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '800',
   },
   chips: {
     flexGrow: 1,

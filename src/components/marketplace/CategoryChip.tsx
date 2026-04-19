@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
   base: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: radii.pill,
+    borderRadius: radii.button,
     backgroundColor: colors.surface,
     marginRight: 8,
   },

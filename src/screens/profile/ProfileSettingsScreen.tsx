@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/context/AuthContext';
 import { PROFILE_MY_ITEMS } from '@/data/mockData';
 import type { RootStackParamList } from '@/navigation/types';
 import { colors, spacing, typography } from '@/styles/theme';
@@ -74,6 +75,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export function ProfileSettingsScreen() {
   const navigation = useNavigation<Nav>();
+  const { signOut } = useAuth();
   const listingsCount = PROFILE_MY_ITEMS.length;
 
   const stub = (title: string) => () =>
@@ -151,7 +153,13 @@ export function ProfileSettingsScreen() {
           onPress={() =>
             Alert.alert('Sign out', 'Are you sure you want to sign out?', [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Sign Out', style: 'destructive', onPress: () => {} },
+              {
+                text: 'Sign Out',
+                style: 'destructive',
+                onPress: () => {
+                  void signOut();
+                },
+              },
             ])
           }
         >

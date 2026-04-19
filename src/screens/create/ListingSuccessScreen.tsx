@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 340,
     backgroundColor: colors.primary,
-    borderRadius: 20,
+    borderRadius: radii.card,
     padding: spacing.xl,
     alignItems: 'center',
   },

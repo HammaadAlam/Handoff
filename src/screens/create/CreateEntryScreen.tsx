@@ -74,7 +74,7 @@ export function CreateEntryScreen() {
 
       <View style={styles.banner}>
         <View style={styles.bannerLogo}>
-          <AppLogo width={72} height={52} />
+          <AppLogo width={56} height={42} />
         </View>
         <View style={styles.bannerText}>
           <Text style={styles.bannerMain}>
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   },
   cardPress: {
     marginBottom: spacing.lg,
-    borderRadius: 18,
+    borderRadius: radii.button,
     overflow: 'hidden',
     ...shadows.soft,
   },
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
-    borderRadius: 18,
+    borderRadius: radii.button,
     gap: 14,
   },
   iconCircle: {
@@ -155,11 +155,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: colors.bannerTint,
     borderRadius: radii.card,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
     marginTop: spacing.sm,
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -172,13 +172,15 @@ const styles = StyleSheet.create({
   },
   bannerMain: {
     ...typography.body,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textPrimary,
-    lineHeight: 21,
+    lineHeight: 18,
   },
   bannerNote: {
     ...typography.caption,
-    marginTop: 10,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 6,
     color: colors.textSecondary,
   },
 });

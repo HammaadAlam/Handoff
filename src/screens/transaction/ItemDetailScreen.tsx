@@ -16,7 +16,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import { DEFAULT_PEER_AVATAR_URI, type ListingItem } from '@/data/mockData';
@@ -48,7 +51,8 @@ export function ItemDetailScreen() {
 
   const images = galleryUrls?.length ? galleryUrls : [imageUrl, imageUrl, imageUrl, imageUrl];
   const [slide, setSlide] = useState(0);
-  const { toggleFavorite, isFavorite, addToCart } = useMarketplace();
+  const insets = useSafeAreaInsets();
+  const { toggleFavorite, isFavorite } = useMarketplace();
 
   const listingItem: ListingItem = useMemo(
     () => ({
@@ -155,14 +159,12 @@ export function ItemDetailScreen() {
         </Text>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Pressable
-          style={styles.btnCart}
-          onPress={() => addToCart(listingItem)}
-        >
-          <Ionicons name="bag-outline" size={22} color={colors.primary} />
-          <Text style={styles.btnCartText}>Add to cart</Text>
-        </Pressable>
+      <View
+        style={[
+          styles.footer,
+          { paddingBottom: spacing.md + insets.bottom },
+        ]}
+      >
         <Pressable
           style={styles.btnPrimary}
           onPress={() => openConversation('message')}
@@ -295,26 +297,10 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     gap: 10,
     backgroundColor: colors.surface,
-  },
-  btnCart: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderRadius: radii.button,
-    paddingVertical: 12,
-    backgroundColor: colors.bannerTint,
-  },
-  btnCartText: {
-    ...typography.button,
-    color: colors.primary,
   },
   btnPrimary: {
     backgroundColor: colors.primary,

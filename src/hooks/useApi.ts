@@ -1,5 +1,5 @@
 /**
- * API layer placeholder — point `API_BASE` at your Express server or Firebase callable.
+ * API layer placeholder — point `API_BASE` at your Express server or Supabase Edge Function.
  */
 import { useCallback, useState } from 'react';
 

@@ -1,5 +1,5 @@
 /**
- * Open Favorites / Cart on the root stack from tab or nested navigators.
+ * Open Favorites on the root stack from tab or nested navigators.
  */
 import type { NavigationProp, ParamListBase } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,8 +16,4 @@ function getRoot(
 
 export function navigateToFavorites(navigation: NavigationProp<ParamListBase>) {
   getRoot(navigation)?.navigate('Favorites');
-}
-
-export function navigateToCart(navigation: NavigationProp<ParamListBase>) {
-  getRoot(navigation)?.navigate('Cart');
 }
