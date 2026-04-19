@@ -7,12 +7,18 @@ export const DEFAULT_PEER_AVATAR_URI =
   'https://images.unsplash.com/photo-1633332755192-727a05c4013f?w=200&q=80';
 
 export const HOME_CATEGORIES = ['For You', 'Clothes', 'Furniture', 'Events'] as const;
+export type HomeCategory = (typeof HOME_CATEGORIES)[number];
 
 export type ListingItem = {
   id: string;
   title: string;
   price: string;
   imageUrl: string;
+  /** Home category chips + richer listing details for filters/forms demos */
+  category?: HomeCategory;
+  condition?: 'New' | 'Like New' | 'Good' | 'Fair';
+  brand?: string;
+  size?: string;
   /** Rich search / popular card (optional) */
   rating?: number;
   reviewCount?: number;
@@ -53,32 +59,221 @@ export const SEARCH_GRID_CATEGORIES: SearchGridCategory[] = [
 
 export const RECOMMENDED_LISTINGS: ListingItem[] = [
   {
-    id: '1',
+    id: 'home-furn-1',
     title: 'White Cabinet',
     price: '$50',
     imageUrl:
       'https://images.unsplash.com/photo-1595428776513-d54e20fe486c?w=400&q=80',
+    category: 'Furniture',
+    condition: 'Good',
+    brand: 'IKEA',
   },
   {
-    id: '2',
+    id: 'home-event-1',
     title: 'Sociology Textbook',
     price: '$25',
     imageUrl:
       'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80',
+    category: 'For You',
+    condition: 'Like New',
+    brand: 'Pearson',
   },
   {
-    id: '3',
+    id: 'home-cloth-1',
+    title: 'Vintage LSU Hoodie',
+    price: '$35',
+    imageUrl:
+      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
+    category: 'Clothes',
+    condition: 'Good',
+    size: 'M',
+    brand: 'Champion',
+  },
+  {
+    id: 'home-furn-2',
     title: 'Cozy Chair',
     price: '$200',
     imageUrl:
       'https://images.unsplash.com/photo-1567538096639-e914c58b9e55?w=400&q=80',
+    category: 'Furniture',
+    condition: 'Like New',
+    brand: 'West Elm',
   },
   {
-    id: '4',
+    id: 'home-event-2',
+    title: 'Student Section Pass',
+    price: '$42',
+    imageUrl:
+      'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=400&q=80',
+    category: 'Events',
+    condition: 'New',
+    brand: 'Ticketmaster',
+  },
+  {
+    id: 'home-furn-3',
     title: 'Black Cabinet',
     price: '$50',
     imageUrl:
       'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80',
+    category: 'Furniture',
+    condition: 'Fair',
+    brand: 'Mainstays',
+  },
+  {
+    id: 'home-cloth-2',
+    title: 'Nike Running Shorts',
+    price: '$18',
+    imageUrl:
+      'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=400&q=80',
+    category: 'Clothes',
+    condition: 'Like New',
+    size: 'L',
+    brand: 'Nike',
+  },
+  {
+    id: 'home-cloth-3',
+    title: 'Levi Jeans',
+    price: '$28',
+    imageUrl:
+      'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&q=80',
+    category: 'Clothes',
+    condition: 'Good',
+    size: '32x30',
+    brand: 'Levi',
+  },
+  {
+    id: 'home-furn-4',
+    title: 'Desk Lamp',
+    price: '$16',
+    imageUrl:
+      'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=400&q=80',
+    category: 'Furniture',
+    condition: 'Good',
+    brand: 'Target',
+  },
+  {
+    id: 'home-event-3',
+    title: 'Concert Floor Ticket',
+    price: '$60',
+    imageUrl:
+      'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&q=80',
+    category: 'Events',
+    condition: 'New',
+    brand: 'AXS',
+  },
+  {
+    id: 'home-cloth-4',
+    title: 'Formal Blazer',
+    price: '$52',
+    imageUrl:
+      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400&q=80',
+    category: 'Clothes',
+    condition: 'Like New',
+    size: '40R',
+    brand: 'H&M',
+  },
+  {
+    id: 'home-furn-5',
+    title: 'Twin Bed Frame',
+    price: '$85',
+    imageUrl:
+      'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&q=80',
+    category: 'Furniture',
+    condition: 'Good',
+    brand: 'Zinus',
+  },
+  {
+    id: 'home-cloth-5',
+    title: 'Campus Windbreaker',
+    price: '$30',
+    imageUrl:
+      'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&q=80',
+    category: 'Clothes',
+    condition: 'Good',
+    size: 'M',
+    brand: 'Columbia',
+  },
+  {
+    id: 'home-event-4',
+    title: 'Basketball Rivalry Ticket',
+    price: '$38',
+    imageUrl:
+      'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&q=80',
+    category: 'Events',
+    condition: 'New',
+    brand: 'SeatGeek',
+  },
+  {
+    id: 'home-furn-6',
+    title: 'Bookshelf — 5 Tier',
+    price: '$58',
+    imageUrl:
+      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&q=80',
+    category: 'Furniture',
+    condition: 'Like New',
+    brand: 'Sauder',
+  },
+  {
+    id: 'home-cloth-6',
+    title: 'Adidas Sneakers',
+    price: '$48',
+    imageUrl:
+      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80',
+    category: 'Clothes',
+    condition: 'Good',
+    size: '10',
+    brand: 'Adidas',
+  },
+  {
+    id: 'home-event-5',
+    title: 'Comedy Night Seat',
+    price: '$22',
+    imageUrl:
+      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&q=80',
+    category: 'Events',
+    condition: 'New',
+    brand: 'Eventbrite',
+  },
+  {
+    id: 'home-furn-7',
+    title: 'Wood Coffee Table',
+    price: '$42',
+    imageUrl:
+      'https://images.unsplash.com/photo-1582582621959-48d27397dc69?w=400&q=80',
+    category: 'Furniture',
+    condition: 'Fair',
+    brand: 'IKEA',
+  },
+  {
+    id: 'home-cloth-7',
+    title: 'Graphic Tee Pack',
+    price: '$20',
+    imageUrl:
+      'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&q=80',
+    category: 'Clothes',
+    condition: 'New',
+    size: 'M',
+    brand: 'Uniqlo',
+  },
+  {
+    id: 'home-foryou-2',
+    title: 'Mini Fridge 3.2 cu ft',
+    price: '$95',
+    imageUrl:
+      'https://images.unsplash.com/photo-1586201375761-83865001e31b?w=400&q=80',
+    category: 'For You',
+    condition: 'Good',
+    brand: 'Frigidaire',
+  },
+  {
+    id: 'home-foryou-3',
+    title: 'Sociology Textbook',
+    price: '$18',
+    imageUrl:
+      'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80',
+    category: 'For You',
+    condition: 'Fair',
+    brand: 'Cengage',
   },
 ];
 
@@ -481,6 +676,9 @@ export const LSU_FOOTBALL_TICKETS: TicketListing[] = [
     venue: 'Tiger Stadium',
     imageUrl:
       'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600&q=80',
+    category: 'Events',
+    condition: 'New',
+    brand: 'Ticketmaster',
   },
   {
     id: 'lsu-tix-2',
@@ -490,6 +688,9 @@ export const LSU_FOOTBALL_TICKETS: TicketListing[] = [
     venue: 'Tiger Stadium',
     imageUrl:
       'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=600&q=80',
+    category: 'Events',
+    condition: 'New',
+    brand: 'SeatGeek',
   },
   {
     id: 'lsu-tix-3',
@@ -499,6 +700,9 @@ export const LSU_FOOTBALL_TICKETS: TicketListing[] = [
     venue: 'Tiger Stadium',
     imageUrl:
       'https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=600&q=80',
+    category: 'Events',
+    condition: 'New',
+    brand: 'Ticketmaster',
   },
   {
     id: 'lsu-tix-4',
@@ -508,5 +712,48 @@ export const LSU_FOOTBALL_TICKETS: TicketListing[] = [
     venue: 'Tiger Stadium',
     imageUrl:
       'https://images.unsplash.com/photo-1459865264687-595d652de67e?w=600&q=80',
+    category: 'Events',
+    condition: 'New',
+    brand: 'StubHub',
+  },
+  {
+    id: 'lsu-tix-5',
+    title: 'LSU vs Florida',
+    price: '$88',
+    subtitle: 'Oct 11 · 6:30 PM',
+    venue: 'Tiger Stadium',
+    imageUrl:
+      'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600&q=80',
+    category: 'Events',
+    condition: 'New',
+    brand: 'Ticketmaster',
+  },
+  {
+    id: 'lsu-tix-6',
+    title: 'Tailgate Bundle (2)',
+    price: '$130',
+    subtitle: 'Sep 13 · 2:00 PM',
+    venue: 'South Stadium Lot',
+    imageUrl:
+      'https://images.unsplash.com/photo-1471295253337-3ceaaedca402?w=600&q=80',
+    category: 'Events',
+    condition: 'New',
+    brand: 'Local Seller',
   },
 ];
+
+export function filterListingsForHomeCategory(
+  listings: ListingItem[],
+  category: HomeCategory
+): ListingItem[] {
+  if (category === 'For You') return listings;
+  return listings.filter((listing) => listing.category === category);
+}
+
+export function filterEventsForHomeCategory(
+  events: TicketListing[],
+  category: HomeCategory
+): TicketListing[] {
+  if (category === 'For You' || category === 'Events') return events;
+  return [];
+}

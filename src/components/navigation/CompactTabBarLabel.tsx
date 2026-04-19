@@ -39,6 +39,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 11,
     lineHeight: 13,
+    marginTop: 2,
     textAlign: 'center',
     width: '100%',
   },

@@ -3,7 +3,7 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -20,9 +20,12 @@ import { ProductCard } from '@/components/marketplace/ProductCard';
 import { RemoteImage } from '@/components/RemoteImage';
 import {
   DEFAULT_PEER_AVATAR_URI,
+  filterEventsForHomeCategory,
+  filterListingsForHomeCategory,
   HOME_CATEGORIES,
   LSU_FOOTBALL_TICKETS,
   RECOMMENDED_LISTINGS,
+  type HomeCategory,
   type ListingItem,
   type TicketListing,
 } from '@/data/mockData';
@@ -46,6 +49,13 @@ function openTicket(navigation: HomeTabNavigation, t: TicketListing) {
   });
 }
 
+function isTicketListing(item: ListingItem): item is TicketListing {
+  return (
+    typeof (item as TicketListing).subtitle === 'string' &&
+    typeof (item as TicketListing).venue === 'string'
+  );
+}
+
 export function HomeScreen() {
   const navigation = useNavigation<HomeTabNavigation>();
   const { width } = useWindowDimensions();
@@ -54,10 +64,26 @@ export function HomeScreen() {
   const gridGutter = spacing.sm;
   const gridInnerWidth = width - gridInset * 2;
   const recommendedColWidth = (gridInnerWidth - gridGutter) / 2;
-  const [activeCat, setActiveCat] = useState<string>(HOME_CATEGORIES[0]);
+  const [activeCat, setActiveCat] = useState<HomeCategory>(HOME_CATEGORIES[0]);
   const [recommended, setRecommended] =
     useState<ListingItem[]>(RECOMMENDED_LISTINGS);
   const [refreshing, setRefreshing] = useState(false);
+  const showTicketStrip = activeCat === 'For You';
+  const visibleRecommended = useMemo(
+    () => filterListingsForHomeCategory(recommended, activeCat),
+    [recommended, activeCat]
+  );
+  const visibleTickets = useMemo(
+    () => filterEventsForHomeCategory(LSU_FOOTBALL_TICKETS, activeCat),
+    [activeCat]
+  );
+  const verticalFeed = useMemo<ListingItem[]>(
+    () =>
+      activeCat === 'Events'
+        ? [...visibleTickets, ...visibleRecommended]
+        : visibleRecommended,
+    [activeCat, visibleTickets, visibleRecommended]
+  );
 
   const loadRecommended = useCallback(async () => {
     const items = await fetchRecommendedListings();
@@ -109,43 +135,50 @@ export function HomeScreen() {
 
       <FlatList
         style={styles.list}
-        data={recommended}
+        data={verticalFeed}
         keyExtractor={(item) => item.id}
         numColumns={2}
         ListHeaderComponent={
           <View style={styles.headerBlock}>
-            <View style={styles.ticketSection}>
-              <Text style={styles.ticketSectionTitle}>LSU Football Tickets</Text>
-              <Text style={styles.ticketSectionSub}>
-                Sample campus sales — tap a game
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.ticketScroll}
-              >
-                {LSU_FOOTBALL_TICKETS.map((t) => (
-                  <Pressable
-                    key={t.id}
-                    style={styles.ticketCard}
-                    onPress={() => openTicket(navigation, t)}
-                  >
-                    <RemoteImage uri={t.imageUrl} style={styles.ticketImg} />
-                    <Text style={styles.ticketTitle} numberOfLines={2}>
-                      {t.title}
-                    </Text>
-                    <Text style={styles.ticketMeta} numberOfLines={1}>
-                      {t.subtitle}
-                    </Text>
-                    <Text style={styles.ticketVenue} numberOfLines={1}>
-                      {t.venue}
-                    </Text>
-                    <Text style={styles.ticketPrice}>{t.price}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
+            {showTicketStrip && visibleTickets.length > 0 ? (
+              <View style={styles.ticketSection}>
+                <Text style={styles.ticketSectionTitle}>LSU Tickets</Text>
+                <Text style={styles.ticketSectionSub}>
+                  Sample campus sales — tap a game
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.ticketScroll}
+                >
+                  {visibleTickets.map((t) => (
+                    <Pressable
+                      key={t.id}
+                      style={styles.ticketCard}
+                      onPress={() => openTicket(navigation, t)}
+                    >
+                      <RemoteImage uri={t.imageUrl} style={styles.ticketImg} />
+                      <Text style={styles.ticketTitle} numberOfLines={2}>
+                        {t.title}
+                      </Text>
+                      <Text style={styles.ticketMeta} numberOfLines={1}>
+                        {t.subtitle}
+                      </Text>
+                      <Text style={styles.ticketVenue} numberOfLines={1}>
+                        {t.venue}
+                      </Text>
+                      <Text style={styles.ticketPrice}>{t.price}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
             <Text style={styles.sectionTitle}>Recommended For You</Text>
+            {verticalFeed.length === 0 ? (
+              <Text style={styles.emptyCopy}>
+                No {activeCat.toLowerCase()} listings yet. Try another category.
+              </Text>
+            ) : null}
           </View>
         }
         refreshControl={
@@ -158,13 +191,15 @@ export function HomeScreen() {
             <ProductCard
               item={item}
               onPress={() =>
-                navigateToItemDetail(navigation, {
-                  listingId: item.id,
-                  title: item.title,
-                  price: item.price,
-                  imageUrl: item.imageUrl,
-                  sellerAvatarUrl: DEFAULT_PEER_AVATAR_URI,
-                })
+                isTicketListing(item)
+                  ? openTicket(navigation, item)
+                  : navigateToItemDetail(navigation, {
+                      listingId: item.id,
+                      title: item.title,
+                      price: item.price,
+                      imageUrl: item.imageUrl,
+                      sellerAvatarUrl: DEFAULT_PEER_AVATAR_URI,
+                    })
               }
             />
           </View>
@@ -278,6 +313,11 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
+  },
+  emptyCopy: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
   },
   listContent: {
     paddingBottom: spacing.xl,
