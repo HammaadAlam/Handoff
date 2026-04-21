@@ -1,8 +1,9 @@
--- Run in Supabase: SQL Editor → New query → paste → Run.
--- Then Table Editor → listings to confirm rows (or use seed below).
+-- Handoff marketplace schema — run in Supabase SQL Editor (idempotent for existing projects).
+-- Full demo data: run supabase/seed.sql after this (or `npm run db:emit-seed` then paste).
 
 create extension if not exists "pgcrypto";
 
+-- Legacy core table (kept for upgrades)
 create table if not exists public.listings (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -15,30 +16,60 @@ create table if not exists public.listings (
 create index if not exists listings_status_created_at_idx
   on public.listings (status, created_at desc);
 
-alter table public.listings enable row level security;
+-- Seller storefronts (seed UUIDs match src/data/seedCatalog.ts)
+create table if not exists public.profiles (
+  id uuid primary key,
+  handle text unique not null,
+  display_name text not null,
+  avatar_url text not null,
+  bio text not null default '',
+  campus text not null default '',
+  primary_meetup_spot text not null default '',
+  rating_avg numeric(2,1) not null default 5.0,
+  review_count int not null default 0,
+  items_sold int not null default 0,
+  followers_count int not null default 0,
+  is_verified_edu boolean not null default false,
+  created_at timestamptz not null default now()
+);
 
--- Anyone with the anon key can read active listings (typical marketplace feed).
+create index if not exists profiles_handle_idx on public.profiles (handle);
+
+-- Rich listing columns (nullable until backfilled)
+alter table public.listings add column if not exists seller_id uuid references public.profiles(id) on delete cascade;
+alter table public.listings add column if not exists description text not null default '';
+alter table public.listings add column if not exists category text;
+alter table public.listings add column if not exists condition text;
+alter table public.listings add column if not exists brand text;
+alter table public.listings add column if not exists size text;
+alter table public.listings add column if not exists location_label text;
+alter table public.listings add column if not exists posted_at timestamptz not null default now();
+
+create index if not exists listings_seller_id_idx on public.listings (seller_id);
+create index if not exists listings_category_idx on public.listings (category);
+
+-- RLS
+alter table public.listings enable row level security;
+alter table public.profiles enable row level security;
+
+drop policy if exists "listings_select_active" on public.listings;
 create policy "listings_select_active"
   on public.listings
   for select
   using (status = 'active');
 
--- Writes from the app should use Supabase Auth; run inserts as service role from a backend,
--- or add policies for authenticated users when you wire sign-in.
--- Example (uncomment after enabling Supabase Auth in the app):
--- create policy "listings_insert_own"
---   on public.listings
---   for insert
---   to authenticated
---   with check (true);
+drop policy if exists "listings_select_sold_removed_own" on public.listings;
+-- Allow reading non-active rows only when authenticated as owner (future); for demo, active-only is enough.
 
--- Optional seed: runs only when `listings` is empty (re-run safe).
-insert into public.listings (title, price, image_url, status)
-select title, price, image_url, status
-from (values
-  ('White Cabinet', '$50', 'https://images.unsplash.com/photo-1595428776513-d54e20fe486c?w=400&q=80', 'active'),
-  ('Sociology Textbook', '$25', 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80', 'active'),
-  ('Cozy Chair', '$200', 'https://images.unsplash.com/photo-1567538096639-e914c58b9e55?w=400&q=80', 'active'),
-  ('Black Cabinet', '$50', 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80', 'active')
-) as seed(title, price, image_url, status)
-where not exists (select 1 from public.listings limit 1);
+drop policy if exists "profiles_select_all" on public.profiles;
+create policy "profiles_select_all"
+  on public.profiles
+  for select
+  using (true);
+
+-- Remove legacy 4-row seed that has no seller_id (optional; safe if table empty)
+-- Prefer running supabase/seed.sql for a clean catalog.
+
+-- Feature tables (favorites, follows, listing_images, conversations, messages,
+-- offers, meetups, reviews) + RLS live in supabase/migrations/0002_features.sql.
+-- Paste that file next, or the bundled supabase/full_setup.sql (npm run db:bundle).

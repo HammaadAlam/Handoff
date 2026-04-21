@@ -85,6 +85,11 @@ export function HomeScreen() {
     [activeCat, visibleTickets, visibleRecommended]
   );
 
+  const gridSectionTitle =
+    activeCat === 'For You'
+      ? 'Recommended for you'
+      : `${activeCat} on campus`;
+
   const loadRecommended = useCallback(async () => {
     const items = await fetchRecommendedListings();
     setRecommended(items);
@@ -105,6 +110,20 @@ export function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.brandBar}>
+        <View style={styles.brandSide} />
+        <Text style={styles.brandTitle}>HandOff</Text>
+        <View style={styles.brandSide}>
+          <Pressable
+            accessibilityLabel="Favorites"
+            hitSlop={12}
+            style={styles.iconBtn}
+            onPress={() => navigateToFavorites(navigation)}
+          >
+            <Ionicons name="heart-outline" size={24} color={colors.textPrimary} />
+          </Pressable>
+        </View>
+      </View>
       <View style={styles.topBar}>
         <ScrollView
           horizontal
@@ -121,16 +140,6 @@ export function HomeScreen() {
             />
           ))}
         </ScrollView>
-        <View style={styles.rightIcons}>
-          <Pressable
-            accessibilityLabel="Favorites"
-            hitSlop={12}
-            style={styles.iconBtn}
-            onPress={() => navigateToFavorites(navigation)}
-          >
-            <Ionicons name="heart-outline" size={24} color={colors.textPrimary} />
-          </Pressable>
-        </View>
       </View>
 
       <FlatList
@@ -173,7 +182,7 @@ export function HomeScreen() {
                 </ScrollView>
               </View>
             ) : null}
-            <Text style={styles.sectionTitle}>Recommended For You</Text>
+            <Text style={styles.sectionTitle}>{gridSectionTitle}</Text>
             {verticalFeed.length === 0 ? (
               <Text style={styles.emptyCopy}>
                 No {activeCat.toLowerCase()} listings yet. Try another category.
@@ -198,7 +207,14 @@ export function HomeScreen() {
                       title: item.title,
                       price: item.price,
                       imageUrl: item.imageUrl,
-                      sellerAvatarUrl: DEFAULT_PEER_AVATAR_URI,
+                      seller: item.sellerHandle,
+                      sellerProfileId: item.sellerId,
+                      sellerAvatarUrl:
+                        item.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+                      description: item.description,
+                      condition: item.condition,
+                      categoryLabel: item.category,
+                      meetupLocation: item.location,
                     })
               }
             />
@@ -217,6 +233,26 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
   },
+  brandBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  brandSide: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  brandTitle: {
+    fontFamily: fonts.extraBold,
+    fontSize: 24,
+    letterSpacing: -0.5,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -229,11 +265,6 @@ const styles = StyleSheet.create({
   },
   iconBtn: {
     padding: 4,
-  },
-  rightIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
   },
   chips: {
     flexDirection: 'row',

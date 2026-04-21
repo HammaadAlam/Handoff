@@ -2,12 +2,31 @@
  * Static demo data for marketplace UI — replace with API responses later.
  */
 
+import {
+  getSeedProfileByHandle,
+  getSeedProfileById,
+  PROFILE_DEMO_HANDLE,
+  SEED_LISTINGS,
+  type SeedListing,
+} from './seedCatalog';
+
 /** Fallback peer avatar for chats when none is passed (HTTPS, works offline after cache) */
 export const DEFAULT_PEER_AVATAR_URI =
   'https://images.unsplash.com/photo-1633332755192-727a05c4013f?w=200&q=80';
 
 export const HOME_CATEGORIES = ['For You', 'Clothes', 'Furniture', 'Events'] as const;
 export type HomeCategory = (typeof HOME_CATEGORIES)[number];
+
+const HOME_CATEGORY_SET = new Set<string>(HOME_CATEGORIES);
+
+/** Normalized home chip category from a listing (for filtering). */
+export function listingHomeCategory(listing: ListingItem): HomeCategory | undefined {
+  const raw = listing.category?.trim();
+  if (raw && HOME_CATEGORY_SET.has(raw)) {
+    return raw as HomeCategory;
+  }
+  return undefined;
+}
 
 export type ListingItem = {
   id: string;
@@ -26,7 +45,54 @@ export type ListingItem = {
   postedAgo?: string;
   imageBadge?: 'boost' | 'urgent';
   trust?: 'verified' | 'premium';
+  sellerId?: string;
+  sellerHandle?: string;
+  sellerAvatarUrl?: string;
+  description?: string;
 };
+
+function seedListingToItem(s: SeedListing): ListingItem {
+  const p = getSeedProfileById(s.sellerId);
+  if (!p) {
+    throw new Error(`seedCatalog: missing profile for seller ${s.sellerId}`);
+  }
+  return {
+    id: s.id,
+    title: s.title,
+    price: s.price,
+    imageUrl: s.imageUrl,
+    category: s.category,
+    condition: s.condition,
+    brand: s.brand,
+    size: s.size,
+    location: s.locationLabel,
+    postedAgo: s.postedAgo,
+    description: s.description,
+    sellerId: s.sellerId,
+    sellerHandle: p.handle,
+    sellerAvatarUrl: p.avatarUrl,
+    trust: p.isVerifiedEdu ? 'verified' : undefined,
+  };
+}
+
+/** Active listings from seed catalog (Supabase parity — see supabase/seed.sql). */
+export const RECOMMENDED_LISTINGS: ListingItem[] = SEED_LISTINGS.filter(
+  (l) => l.status === 'active',
+).map(seedListingToItem);
+
+const _profileDemo = getSeedProfileByHandle(PROFILE_DEMO_HANDLE)!;
+const _demoShopActive = SEED_LISTINGS.filter(
+  (l) => l.sellerId === _profileDemo.id && l.status === 'active',
+);
+
+/** Profile tab — carousels + grid for demo seller (`PROFILE_DEMO_HANDLE` in seedCatalog). */
+export const PROFILE_FEATURED_LISTINGS: ListingItem[] = _demoShopActive
+  .slice(0, 4)
+  .map(seedListingToItem);
+export const PROFILE_BEST_SELLERS: ListingItem[] = _demoShopActive
+  .slice(4, 9)
+  .map(seedListingToItem);
+export const PROFILE_MY_ITEMS: ListingItem[] = _demoShopActive.map(seedListingToItem);
 
 /** Search home — horizontal suggestion chips */
 export const SEARCH_CHIP_SUGGESTIONS = [
@@ -55,226 +121,6 @@ export const SEARCH_GRID_CATEGORIES: SearchGridCategory[] = [
   { id: 'g8', label: 'Service', icon: 'construct-outline' },
   { id: 'g9', label: 'Furniture', icon: 'bed-outline' },
   { id: 'g10', label: 'Tech', icon: 'hardware-chip-outline' },
-];
-
-export const RECOMMENDED_LISTINGS: ListingItem[] = [
-  {
-    id: 'home-furn-1',
-    title: 'White Cabinet',
-    price: '$50',
-    imageUrl:
-      'https://images.unsplash.com/photo-1595428776513-d54e20fe486c?w=400&q=80',
-    category: 'Furniture',
-    condition: 'Good',
-    brand: 'IKEA',
-  },
-  {
-    id: 'home-event-1',
-    title: 'Sociology Textbook',
-    price: '$25',
-    imageUrl:
-      'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80',
-    category: 'For You',
-    condition: 'Like New',
-    brand: 'Pearson',
-  },
-  {
-    id: 'home-cloth-1',
-    title: 'Vintage LSU Hoodie',
-    price: '$35',
-    imageUrl:
-      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
-    category: 'Clothes',
-    condition: 'Good',
-    size: 'M',
-    brand: 'Champion',
-  },
-  {
-    id: 'home-furn-2',
-    title: 'Cozy Chair',
-    price: '$200',
-    imageUrl:
-      'https://images.unsplash.com/photo-1567538096639-e914c58b9e55?w=400&q=80',
-    category: 'Furniture',
-    condition: 'Like New',
-    brand: 'West Elm',
-  },
-  {
-    id: 'home-event-2',
-    title: 'Student Section Pass',
-    price: '$42',
-    imageUrl:
-      'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=400&q=80',
-    category: 'Events',
-    condition: 'New',
-    brand: 'Ticketmaster',
-  },
-  {
-    id: 'home-furn-3',
-    title: 'Black Cabinet',
-    price: '$50',
-    imageUrl:
-      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80',
-    category: 'Furniture',
-    condition: 'Fair',
-    brand: 'Mainstays',
-  },
-  {
-    id: 'home-cloth-2',
-    title: 'Nike Running Shorts',
-    price: '$18',
-    imageUrl:
-      'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=400&q=80',
-    category: 'Clothes',
-    condition: 'Like New',
-    size: 'L',
-    brand: 'Nike',
-  },
-  {
-    id: 'home-cloth-3',
-    title: 'Levi Jeans',
-    price: '$28',
-    imageUrl:
-      'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&q=80',
-    category: 'Clothes',
-    condition: 'Good',
-    size: '32x30',
-    brand: 'Levi',
-  },
-  {
-    id: 'home-furn-4',
-    title: 'Desk Lamp',
-    price: '$16',
-    imageUrl:
-      'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=400&q=80',
-    category: 'Furniture',
-    condition: 'Good',
-    brand: 'Target',
-  },
-  {
-    id: 'home-event-3',
-    title: 'Concert Floor Ticket',
-    price: '$60',
-    imageUrl:
-      'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&q=80',
-    category: 'Events',
-    condition: 'New',
-    brand: 'AXS',
-  },
-  {
-    id: 'home-cloth-4',
-    title: 'Formal Blazer',
-    price: '$52',
-    imageUrl:
-      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400&q=80',
-    category: 'Clothes',
-    condition: 'Like New',
-    size: '40R',
-    brand: 'H&M',
-  },
-  {
-    id: 'home-furn-5',
-    title: 'Twin Bed Frame',
-    price: '$85',
-    imageUrl:
-      'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&q=80',
-    category: 'Furniture',
-    condition: 'Good',
-    brand: 'Zinus',
-  },
-  {
-    id: 'home-cloth-5',
-    title: 'Campus Windbreaker',
-    price: '$30',
-    imageUrl:
-      'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&q=80',
-    category: 'Clothes',
-    condition: 'Good',
-    size: 'M',
-    brand: 'Columbia',
-  },
-  {
-    id: 'home-event-4',
-    title: 'Basketball Rivalry Ticket',
-    price: '$38',
-    imageUrl:
-      'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&q=80',
-    category: 'Events',
-    condition: 'New',
-    brand: 'SeatGeek',
-  },
-  {
-    id: 'home-furn-6',
-    title: 'Bookshelf — 5 Tier',
-    price: '$58',
-    imageUrl:
-      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&q=80',
-    category: 'Furniture',
-    condition: 'Like New',
-    brand: 'Sauder',
-  },
-  {
-    id: 'home-cloth-6',
-    title: 'Adidas Sneakers',
-    price: '$48',
-    imageUrl:
-      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80',
-    category: 'Clothes',
-    condition: 'Good',
-    size: '10',
-    brand: 'Adidas',
-  },
-  {
-    id: 'home-event-5',
-    title: 'Comedy Night Seat',
-    price: '$22',
-    imageUrl:
-      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&q=80',
-    category: 'Events',
-    condition: 'New',
-    brand: 'Eventbrite',
-  },
-  {
-    id: 'home-furn-7',
-    title: 'Wood Coffee Table',
-    price: '$42',
-    imageUrl:
-      'https://images.unsplash.com/photo-1582582621959-48d27397dc69?w=400&q=80',
-    category: 'Furniture',
-    condition: 'Fair',
-    brand: 'IKEA',
-  },
-  {
-    id: 'home-cloth-7',
-    title: 'Graphic Tee Pack',
-    price: '$20',
-    imageUrl:
-      'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&q=80',
-    category: 'Clothes',
-    condition: 'New',
-    size: 'M',
-    brand: 'Uniqlo',
-  },
-  {
-    id: 'home-foryou-2',
-    title: 'Mini Fridge 3.2 cu ft',
-    price: '$95',
-    imageUrl:
-      'https://images.unsplash.com/photo-1586201375761-83865001e31b?w=400&q=80',
-    category: 'For You',
-    condition: 'Good',
-    brand: 'Frigidaire',
-  },
-  {
-    id: 'home-foryou-3',
-    title: 'Sociology Textbook',
-    price: '$18',
-    imageUrl:
-      'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80',
-    category: 'For You',
-    condition: 'Fair',
-    brand: 'Cengage',
-  },
 ];
 
 export type SuggestedCategory = {
@@ -485,7 +331,16 @@ export function listingsForSearchQuery(query: string): ListingItem[] {
   const q = query.trim().toLowerCase();
   if (q.includes('cabinet')) return CABINET_LISTINGS;
   if (q.includes('popular')) return POPULAR_LISTINGS;
-  return TRENDING_LISTINGS;
+  if (!q) return TRENDING_LISTINGS;
+  const pool = RECOMMENDED_LISTINGS;
+  const hits = pool.filter(
+    (l) =>
+      l.title.toLowerCase().includes(q) ||
+      l.brand?.toLowerCase().includes(q) ||
+      l.category?.toLowerCase().includes(q) ||
+      l.sellerHandle?.toLowerCase().includes(q),
+  );
+  return hits.length > 0 ? hits.slice(0, 48) : TRENDING_LISTINGS;
 }
 
 export type InboxFilter = 'All' | 'Selling' | 'Buying' | 'Archived';
@@ -574,86 +429,6 @@ export const MOCK_CONVERSATIONS: ConversationRow[] = [
     seller: 'campususer',
     peerAvatarUrl:
       'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&q=80',
-  },
-];
-
-/** Profile tab — Featured / Best Sellers carousels (matches layout mockups) */
-export const PROFILE_FEATURED_LISTINGS: ListingItem[] = [
-  {
-    id: 'pf1',
-    title: 'Khaki shorts',
-    price: '$22',
-    imageUrl:
-      'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=400&q=80',
-  },
-  {
-    id: 'pf2',
-    title: 'Long sleeve',
-    price: '$35',
-    imageUrl:
-      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
-  },
-  {
-    id: 'pf3',
-    title: 'Pattern shirt',
-    price: '$28',
-    imageUrl:
-      'https://images.unsplash.com/photo-1596755094514-f87e34085b87?w=400&q=80',
-  },
-  {
-    id: 'pf4',
-    title: 'Sneakers',
-    price: '$90',
-    imageUrl:
-      'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&q=80',
-  },
-];
-
-export const PROFILE_BEST_SELLERS: ListingItem[] = [
-  {
-    id: 'pb1',
-    title: 'Blazer',
-    price: '$75',
-    imageUrl:
-      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400&q=80',
-  },
-  {
-    id: 'pb2',
-    title: 'Graphic tee',
-    price: '$18',
-    imageUrl:
-      'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&q=80',
-  },
-  {
-    id: 'pb3',
-    title: 'Socks (3-pack)',
-    price: '$12',
-    imageUrl:
-      'https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=400&q=80',
-  },
-];
-
-export const PROFILE_MY_ITEMS: ListingItem[] = [
-  {
-    id: 'pm1',
-    title: 'Jacket',
-    price: '$120',
-    imageUrl:
-      'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&q=80',
-  },
-  {
-    id: 'pm2',
-    title: 'Jeans',
-    price: '$45',
-    imageUrl:
-      'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&q=80',
-  },
-  {
-    id: 'pm3',
-    title: 'Sneakers',
-    price: '$80',
-    imageUrl:
-      'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&q=80',
   },
 ];
 
@@ -747,7 +522,7 @@ export function filterListingsForHomeCategory(
   category: HomeCategory
 ): ListingItem[] {
   if (category === 'For You') return listings;
-  return listings.filter((listing) => listing.category === category);
+  return listings.filter((listing) => listingHomeCategory(listing) === category);
 }
 
 export function filterEventsForHomeCategory(

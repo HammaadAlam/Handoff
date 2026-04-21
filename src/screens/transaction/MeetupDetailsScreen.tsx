@@ -21,7 +21,11 @@ export function MeetupDetailsScreen() {
     imageUrl,
     location = 'LSU Student Union',
     timeLabel = 'Today - 6:30PM',
+    peerHandle,
+    peerName,
+    peerAvatarUrl,
   } = params;
+  const peerLabel = peerName ?? peerHandle;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -45,6 +49,42 @@ export function MeetupDetailsScreen() {
               <Text style={styles.itemPrice}>{price}</Text>
             </View>
           </View>
+
+          {peerLabel ? (
+            <Pressable
+              style={styles.peerRow}
+              onPress={() =>
+                peerHandle
+                  ? navigation.navigate('PublicProfile', { handle: peerHandle })
+                  : undefined
+              }
+              accessibilityLabel={`View ${peerLabel}'s profile`}
+              disabled={!peerHandle}
+            >
+              {peerAvatarUrl ? (
+                <RemoteImage uri={peerAvatarUrl} style={styles.peerAvatar} />
+              ) : (
+                <View style={[styles.peerAvatar, styles.peerAvatarFallback]}>
+                  <Ionicons name="person" size={16} color={colors.textMuted} />
+                </View>
+              )}
+              <View style={styles.peerMeta}>
+                <Text style={styles.peerRole}>
+                  {role === 'buyer' ? 'Seller' : 'Buyer'}
+                </Text>
+                <Text style={styles.peerName} numberOfLines={1}>
+                  {peerLabel}
+                </Text>
+              </View>
+              {peerHandle ? (
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              ) : null}
+            </Pressable>
+          ) : null}
 
           <View style={styles.divider} />
 
@@ -143,6 +183,42 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
     marginVertical: spacing.md,
+  },
+  peerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: spacing.md,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: radii.button,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  peerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.chipBg,
+  },
+  peerAvatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  peerMeta: {
+    flex: 1,
+    minWidth: 0,
+  },
+  peerRole: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  peerName: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginTop: 1,
   },
   label: {
     fontFamily: fonts.bold,

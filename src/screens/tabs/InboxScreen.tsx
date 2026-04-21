@@ -2,13 +2,15 @@
  * Inbox — filters, search, conversation rows (matches messaging mockup).
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { InboxTabNavigation } from '@/navigation/types';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,7 +25,9 @@ import {
   type InboxFilter,
 } from '@/data/mockData';
 import { RemoteImage } from '@/components/RemoteImage';
+import { useAuth } from '@/context/AuthContext';
 import { navigateToConversation } from '@/navigation/navigateConversation';
+import { fetchInboxRows } from '@/services/conversations';
 import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 const FILTERS: InboxFilter[] = ['All', 'Selling', 'Buying', 'Archived'];
@@ -52,10 +56,48 @@ function matchesFilter(row: ConversationRow, filter: InboxFilter): boolean {
 
 export function InboxScreen() {
   const navigation = useNavigation<InboxTabNavigation>();
+  const { user } = useAuth();
   const [filter, setFilter] = useState<InboxFilter>('All');
   const [query, setQuery] = useState('');
   const [rows, setRows] = useState<ConversationRow[]>(MOCK_CONVERSATIONS);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(true);
+  const requestIdRef = useRef(0);
+
+  const load = useCallback(
+    async (opts: { showSpinner: boolean }) => {
+      const reqId = ++requestIdRef.current;
+      if (opts.showSpinner) setLoading(true);
+      try {
+        const fresh = await fetchInboxRows({
+          sessionUserId: user?.id ?? null,
+        });
+        if (reqId === requestIdRef.current) setRows(fresh);
+      } finally {
+        if (reqId === requestIdRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    },
+    [user?.id],
+  );
+
+  useEffect(() => {
+    void load({ showSpinner: true });
+  }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load({ showSpinner: false });
+    }, [load]),
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void load({ showSpinner: false });
+  }, [load]);
 
   const data = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -76,6 +118,7 @@ export function InboxScreen() {
       seller: item.seller,
       avatarUrl: item.peerAvatarUrl,
       entry: 'message',
+      conversationId: item.id,
     });
   };
 
@@ -159,8 +202,17 @@ export function InboxScreen() {
         data={data}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={
-          <Text style={styles.empty}>No conversations match.</Text>
+          loading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : (
+            <Text style={styles.empty}>No conversations match.</Text>
+          )
         }
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         renderItem={({ item }) => {
@@ -294,6 +346,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.lg,
     ...typography.body,
+  },
+  loadingWrap: {
+    paddingTop: spacing.xl,
+    alignItems: 'center',
   },
   sep: {
     height: 1,

@@ -1,15 +1,25 @@
 /**
- * In-memory favorites (demo). Replace with API + persisted store later.
+ * Favorites store: hydrates from public.favorites when Supabase is configured
+ * (anon demo viewer = PROFILE_DEMO_HANDLE seed profile) and persists toggles
+ * optimistically. Falls back to in-memory state when Supabase is unavailable.
  */
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
 import type { ListingItem } from '@/data/mockData';
+import { useAuth } from '@/context/AuthContext';
+import {
+  addFavorite,
+  fetchFavoriteListings,
+  removeFavorite,
+} from '@/services/favorites';
+import { isSupabaseConfigured } from '@/services/supabase';
 
 type MarketplaceContextValue = {
   favorites: ListingItem[];
@@ -20,21 +30,52 @@ type MarketplaceContextValue = {
 const MarketplaceContext = createContext<MarketplaceContextValue | null>(null);
 
 export function MarketplaceProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [favorites, setFavorites] = useState<ListingItem[]>([]);
+  const sessionUserId = user?.id ?? null;
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    let cancelled = false;
+    void (async () => {
+      const rows = await fetchFavoriteListings({ sessionUserId });
+      if (!cancelled) setFavorites(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionUserId]);
 
   const favIds = useMemo(
     () => new Set(favorites.map((f) => f.id)),
     [favorites],
   );
 
-  const toggleFavorite = useCallback((item: ListingItem) => {
-    setFavorites((prev) => {
-      if (prev.some((p) => p.id === item.id)) {
-        return prev.filter((p) => p.id !== item.id);
-      }
-      return [...prev, item];
-    });
-  }, []);
+  const toggleFavorite = useCallback(
+    (item: ListingItem) => {
+      const wasFavorite = favIds.has(item.id);
+      setFavorites((prev) =>
+        wasFavorite
+          ? prev.filter((p) => p.id !== item.id)
+          : [item, ...prev.filter((p) => p.id !== item.id)],
+      );
+      if (!isSupabaseConfigured()) return;
+
+      void (async () => {
+        const ok = wasFavorite
+          ? await removeFavorite({ sessionUserId, listingId: item.id })
+          : await addFavorite({ sessionUserId, listingId: item.id });
+        if (!ok) {
+          setFavorites((prev) =>
+            wasFavorite
+              ? [item, ...prev.filter((p) => p.id !== item.id)]
+              : prev.filter((p) => p.id !== item.id),
+          );
+        }
+      })();
+    },
+    [favIds, sessionUserId],
+  );
 
   const isFavorite = useCallback((id: string) => favIds.has(id), [favIds]);
 

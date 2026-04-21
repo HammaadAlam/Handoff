@@ -4,7 +4,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -20,8 +20,15 @@ import {
 } from 'react-native-safe-area-context';
 import { ChatComposer } from '@/components/chat/ChatComposer';
 import { RemoteImage } from '@/components/RemoteImage';
+import { useAuth } from '@/context/AuthContext';
 import { DEFAULT_PEER_AVATAR_URI } from '@/data/mockData';
 import type { RootStackParamList } from '@/navigation/types';
+import {
+  fetchConversationPeer,
+  fetchMessages,
+  sendMessage,
+  type ThreadMessage,
+} from '@/services/conversations';
 import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 type ChatMessage = {
@@ -40,6 +47,15 @@ function formatTime(ts: number): string {
 
 const MEETUP_DETAILS_LABEL = 'Meetup details';
 
+function toChatMessage(m: ThreadMessage): ChatMessage {
+  return {
+    id: m.id,
+    text: m.body,
+    sender: m.sender,
+    createdAt: new Date(m.createdAt).getTime(),
+  };
+}
+
 export function ConversationScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { params } = useRoute<RouteProp<RootStackParamList, 'Conversation'>>();
@@ -51,23 +67,52 @@ export function ConversationScreen() {
     entry,
     avatarUrl,
     offerAmount: routeOfferAmount,
+    conversationId,
   } = params;
-  const peerAvatar = avatarUrl ?? DEFAULT_PEER_AVATAR_URI;
+  const { user } = useAuth();
+  const sessionUserId = user?.id ?? null;
+  const [peerAvatar, setPeerAvatar] = useState<string>(
+    avatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+  );
+  const [peerName, setPeerName] = useState<string>(seller);
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    entry === 'message'
-      ? [
+    conversationId || entry !== 'message'
+      ? []
+      : [
           {
             id: 'm-1',
             text: 'Hey love your item!',
             sender: 'me',
             createdAt: Date.now() - 1000 * 60 * 5,
           },
-        ]
-      : [],
+        ],
   );
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (!conversationId) return;
+    let cancelled = false;
+    void (async () => {
+      const [msgs, peer] = await Promise.all([
+        fetchMessages({ conversationId, sessionUserId }),
+        fetchConversationPeer({ conversationId, sessionUserId }),
+      ]);
+      if (cancelled) return;
+      setMessages(msgs.map(toChatMessage));
+      if (peer) {
+        setPeerName(peer.handle);
+        setPeerAvatar(peer.avatarUrl);
+      }
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: false });
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, sessionUserId]);
 
   const offerAmount = routeOfferAmount ?? '$12.00';
   const listPrice = price.includes('$') ? price : `$${price}`;
@@ -82,23 +127,42 @@ export function ConversationScreen() {
       imageUrl,
       location: 'LSU Student Union',
       timeLabel: 'Today - 6:30PM',
+      peerHandle: peerName,
+      peerName,
+      peerAvatarUrl: peerAvatar,
     });
   };
 
-  const handleSend = useCallback((text: string) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `m-${Date.now()}`,
+  const handleSend = useCallback(
+    async (text: string) => {
+      const optimisticId = `local-${Date.now()}`;
+      const optimistic: ChatMessage = {
+        id: optimisticId,
         text,
         sender: 'me',
         createdAt: Date.now(),
-      },
-    ]);
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    });
-  }, []);
+      };
+      setMessages((prev) => [...prev, optimistic]);
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      });
+
+      if (!conversationId) return;
+      const saved = await sendMessage({
+        conversationId,
+        body: text,
+        sessionUserId,
+      });
+      if (!saved) {
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+        return;
+      }
+      setMessages((prev) =>
+        prev.map((m) => (m.id === optimisticId ? toChatMessage(saved) : m)),
+      );
+    },
+    [conversationId, sessionUserId],
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -111,13 +175,19 @@ export function ConversationScreen() {
           <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-          <View style={styles.sellerHead}>
+          <Pressable
+            style={styles.sellerHead}
+            onPress={() =>
+              navigation.navigate('PublicProfile', { handle: peerName })
+            }
+            accessibilityLabel={`View ${peerName}'s profile`}
+          >
             <RemoteImage uri={peerAvatar} style={styles.sellerAvatar} />
             <View>
-              <Text style={styles.sellerName}>{seller}</Text>
+              <Text style={styles.sellerName}>{peerName}</Text>
               <Text style={styles.sellerStatus}>Active Yesterday</Text>
             </View>
-          </View>
+          </Pressable>
           <Pressable hitSlop={12}>
             <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
           </Pressable>
@@ -149,9 +219,15 @@ export function ConversationScreen() {
             scrollRef.current?.scrollToEnd({ animated: false })
           }
         >
-          <View style={styles.profileCard}>
+          <Pressable
+            style={styles.profileCard}
+            onPress={() =>
+              navigation.navigate('PublicProfile', { handle: peerName })
+            }
+            accessibilityLabel={`View ${peerName}'s profile`}
+          >
             <RemoteImage uri={peerAvatar} style={styles.bigAvatar} />
-            <Text style={styles.profileName}>{seller} &gt;</Text>
+            <Text style={styles.profileName}>{peerName} &gt;</Text>
             <View style={styles.stars}>
               <Ionicons name="star" size={16} color={colors.warning} />
               <Ionicons name="star" size={16} color={colors.warning} />
@@ -161,7 +237,7 @@ export function ConversationScreen() {
               <Text style={styles.reviewCount}> (17)</Text>
             </View>
             <Text style={styles.stats}>67 followers   26 Listings</Text>
-          </View>
+          </Pressable>
 
           <Text style={styles.dateSep}>
             {new Date().toLocaleDateString(undefined, {

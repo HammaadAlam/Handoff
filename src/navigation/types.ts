@@ -47,6 +47,8 @@ export type ItemDetailParams = {
   price: string;
   imageUrl: string;
   seller?: string;
+  /** Canonical seller profile id; prefer this over seller handle when available. */
+  sellerProfileId?: string;
   /** Shown in chat header when messaging from this listing */
   sellerAvatarUrl?: string;
   categoryLabel?: string;
@@ -68,6 +70,8 @@ export type ConversationParams = {
   entry: 'message' | 'offer';
   /** Buyer's chosen offer amount (e.g. "$15.00"); only when entry === 'offer' */
   offerAmount?: string;
+  /** Supabase conversation id — present when opened from Inbox or a known thread */
+  conversationId?: string;
 };
 
 export type MeetupDetailsParams = {
@@ -77,6 +81,10 @@ export type MeetupDetailsParams = {
   imageUrl: string;
   location?: string;
   timeLabel?: string;
+  /** Counterparty profile info — when present, shown as a tappable chip */
+  peerHandle?: string;
+  peerName?: string;
+  peerAvatarUrl?: string;
 };
 
 export type RootStackParamList = {
@@ -89,6 +97,13 @@ export type RootStackParamList = {
   MeetupDetails: MeetupDetailsParams;
   Favorites: undefined;
   ProfileSettings: undefined;
+  PublicProfile: PublicProfileParams;
+};
+
+/** Read-only view of another seller's profile */
+export type PublicProfileParams = {
+  handle?: string;
+  profileId?: string;
 };
 
 export type RootStackNav = NativeStackNavigationProp<RootStackParamList>;

@@ -10,6 +10,23 @@ export type UserProfile = {
   handle?: string;
 };
 
+/** Public seller storefront row (matches `public.profiles` in Supabase). */
+export type PublicProfile = {
+  id: string;
+  handle: string;
+  displayName: string;
+  avatarUrl: string;
+  bio: string;
+  campus: string;
+  primaryMeetupSpot: string;
+  ratingAvg: number;
+  reviewCount: number;
+  itemsSold: number;
+  followersCount: number;
+  isVerifiedEdu: boolean;
+  createdAt: string;
+};
+
 export type ListingStatus = 'active' | 'sold' | 'removed';
 
 export type ListingDoc = {

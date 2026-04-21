@@ -38,6 +38,28 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Supabase — bundled paste file (regenerate: npm run db:bundle)
+supabase/full_setup.sql
+
+# Ephemeral local DB/MCP batch artifacts (source of truth: supabase/seed.sql + seedCatalog)
+.run/
+.mcp-*.json
+.mcp-*.txt
+.mega-seed.sql
+.one-shot-seed.sql
+.seed-*.sql
+
 # generated native folders
 /ios
 /android
+
+# editor + local caches
+.vscode/
+.idea/
+*.log
+coverage/
+.eslintcache
+
+# Supabase local CLI state
+.supabase/
+supabase/.temp/
