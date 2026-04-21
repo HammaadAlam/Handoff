@@ -6,7 +6,10 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "db:emit-seed": "tsx scripts/emit-marketplace-seed.ts",
+    "db:bundle": "node scripts/bundle-full-setup.mjs",
+    "db:apply": "node --env-file=.env scripts/apply-supabase-sql.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/poppins": "^0.4.1",
@@ -36,6 +39,8 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.3",
+    "postgres": "^3.4.5",
+    "tsx": "^4.19.2",
     "typescript": "~5.9.2"
   },
   "private": true

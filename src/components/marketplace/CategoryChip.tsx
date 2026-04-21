@@ -22,8 +22,8 @@ const styles = StyleSheet.create({
   base: {
     flexShrink: 0,
     flexGrow: 0,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: radii.button,
     backgroundColor: colors.surface,
     marginRight: 8,
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   },
   text: {
     ...typography.caption,
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.semiBold,
     color: colors.textPrimary,
     flexShrink: 0,

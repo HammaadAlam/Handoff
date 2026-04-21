@@ -14,6 +14,7 @@ import { ItemDetailScreen } from '@/screens/transaction/ItemDetailScreen';
 import { MeetupDetailsScreen } from '@/screens/transaction/MeetupDetailsScreen';
 import { FavoritesScreen } from '@/screens/marketplace/FavoritesScreen';
 import { ProfileSettingsScreen } from '@/screens/profile/ProfileSettingsScreen';
+import { PublicProfileScreen } from '@/screens/profile/PublicProfileScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 import type { RootStackParamList } from './types';
 import { colors } from '@/styles/theme';
@@ -71,6 +72,7 @@ export function RootNavigator() {
       <Stack.Screen name="MeetupDetails" component={MeetupDetailsScreen} />
       <Stack.Screen name="Favorites" component={FavoritesScreen} />
       <Stack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />
+      <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
     </Stack.Navigator>
   );
 }

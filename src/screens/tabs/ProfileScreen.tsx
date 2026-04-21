@@ -3,11 +3,14 @@
  * Layout inspired by marketplace store pages; colors use Handoff theme tokens.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -32,13 +35,13 @@ import { useMarketplace } from '@/context/MarketplaceContext';
 import {
   DEFAULT_PEER_AVATAR_URI,
   PLACEHOLDER_IMAGE_URI,
-  PROFILE_BEST_SELLERS,
-  PROFILE_FEATURED_LISTINGS,
   PROFILE_MY_ITEMS,
   type ListingItem,
 } from '@/data/mockData';
+import { PROFILE_DEMO_HANDLE, SEED_PROFILES } from '@/data/seedCatalog';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { ProfileTabNavigation } from '@/navigation/types';
+import { fetchRecommendedListings } from '@/services/listings';
 import {
   fonts,
   colors,
@@ -57,34 +60,61 @@ const PROFILE_GRID_INNER_W = Dimensions.get('window').width - spacing.md * 2;
 const PROFILE_GRID_GAP = spacing.sm;
 const PROFILE_GRID_CELL_W = (PROFILE_GRID_INNER_W - PROFILE_GRID_GAP) / 2;
 
-/** Demo seller average; maps prior “98% positive” story to a /5 score */
-const PROFILE_SELLER_RATING = 4.9;
+const demoProfile =
+  SEED_PROFILES.find((p) => p.handle === PROFILE_DEMO_HANDLE) ?? SEED_PROFILES[0];
+/** Maps rating to marketplace-style “% positive” copy */
+const PROFILE_POSITIVE_PCT = Math.round((demoProfile.ratingAvg / 5) * 100);
+const PROFILE_FOLLOWERS = demoProfile.followersCount;
+const PROFILE_ITEMS_SOLD = demoProfile.itemsSold;
+const PROFILE_SHOP_TITLE = demoProfile.displayName;
 
-/** Matches `profileIconWell` ×2 + gap so the title stays optically centered (balanced header). */
-const PROFILE_HEADER_ACTIONS_W = 38 + 10 + 38;
+/** Width of the right action cluster (2 icons + gap) — mirrored on the left for centered title. */
+const PROFILE_HEADER_ACTIONS_W = 28 + 16 + 28;
 
-function SellerRatingStat() {
-  const r = PROFILE_SELLER_RATING;
+/** Scroll distance over which the profile hero collapses into the compact shop bar. */
+const PROFILE_COLLAPSE_SCROLL = 140;
+/** Until `onLayout` runs, avoid clipping the hero (then height snaps to measured content). */
+const PROFILE_HERO_EXPANDED_FALLBACK = 176;
+const PROFILE_COMPACT_BAR_H = 72;
+/** Keep full hero height for the first fraction of scroll so stats are not clipped while fading. */
+const PROFILE_HERO_HEIGHT_HOLD_UNTIL = 0.38;
+/** Extra bottom inset inside the lavender band so the rating row clears the tab edge. */
+const PROFILE_HERO_BAND_EXTRA_BOTTOM = 2;
+
+/** Stacked seller stats — marketplace-style lines with bold leading numbers. */
+function ProfileIdentityMetaExpanded() {
   return (
     <View
-      style={styles.statRatingRow}
+      style={styles.identityMetaLines}
       accessibilityRole="text"
-      accessibilityLabel={`${r.toFixed(1)} out of 5 stars`}
+      accessibilityLabel={`${PROFILE_POSITIVE_PCT} percent positive feedback, ${PROFILE_FOLLOWERS} followers, ${PROFILE_ITEMS_SOLD} items sold`}
     >
-      <View style={styles.statStars}>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Ionicons
-            key={i}
-            name={r >= i ? 'star' : r >= i - 0.5 ? 'star-half' : 'star-outline'}
-            size={14}
-            color={colors.ratingStar}
-          />
-        ))}
-      </View>
-      <Text style={styles.statRatingScore} numberOfLines={1}>
-        {`${r.toFixed(1)}/5`}
+      <Text style={styles.identityMetaLine}>
+        <Text style={styles.identityMetaBold}>{PROFILE_POSITIVE_PCT}%</Text>
+        <Text style={styles.identityMetaRest}> positive feedback</Text>
+      </Text>
+      <Text style={styles.identityMetaLine}>
+        <Text style={styles.identityMetaBold}>{PROFILE_FOLLOWERS}</Text>
+        <Text style={styles.identityMetaRest}> followers</Text>
+      </Text>
+      <Text style={styles.identityMetaLine}>
+        <Text style={styles.identityMetaBold}>{PROFILE_ITEMS_SOLD}</Text>
+        <Text style={styles.identityMetaRest}> items sold</Text>
       </Text>
     </View>
+  );
+}
+
+function ProfileIdentityMetaCompact() {
+  return (
+    <Text style={styles.identityMetaCompactRoot} numberOfLines={1}>
+      <Text style={styles.identityMetaCompactBold}>{PROFILE_POSITIVE_PCT}%</Text>
+      <Text style={styles.identityMetaCompactRest}> positive · </Text>
+      <Text style={styles.identityMetaCompactBold}>{PROFILE_FOLLOWERS}</Text>
+      <Text style={styles.identityMetaCompactRest}> followers · </Text>
+      <Text style={styles.identityMetaCompactBold}>{PROFILE_ITEMS_SOLD}</Text>
+      <Text style={styles.identityMetaCompactRest}> sold</Text>
+    </Text>
   );
 }
 
@@ -161,6 +191,108 @@ export function ProfileScreen() {
     useState<ShopSectionLayout>(DEFAULT_SHOP_LAYOUT);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<ProfileTab>('Shop');
+  const [expandedHeroInteractable, setExpandedHeroInteractable] = useState(true);
+  const [heroExpandedHeight, setHeroExpandedHeight] = useState(
+    PROFILE_HERO_EXPANDED_FALLBACK,
+  );
+  const [storeListings, setStoreListings] = useState<ListingItem[]>(PROFILE_MY_ITEMS);
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollYRef = useRef(0);
+
+  const heroSlotMax = Math.max(PROFILE_COMPACT_BAR_H, heroExpandedHeight);
+
+  const heroSlotHeight = useMemo(
+    () =>
+      scrollY.interpolate({
+        inputRange: [
+          0,
+          PROFILE_COLLAPSE_SCROLL * PROFILE_HERO_HEIGHT_HOLD_UNTIL,
+          PROFILE_COLLAPSE_SCROLL,
+        ],
+        outputRange: [
+          heroSlotMax,
+          heroSlotMax,
+          PROFILE_COMPACT_BAR_H,
+        ],
+        extrapolate: 'clamp',
+      }),
+    [scrollY, heroSlotMax],
+  );
+
+  const avatarSize = scrollY.interpolate({
+    inputRange: [0, PROFILE_COLLAPSE_SCROLL],
+    outputRange: [78, 40],
+    extrapolate: 'clamp',
+  });
+  const avatarRadius = scrollY.interpolate({
+    inputRange: [0, PROFILE_COLLAPSE_SCROLL],
+    outputRange: [39, 20],
+    extrapolate: 'clamp',
+  });
+
+  const bandPadV = scrollY.interpolate({
+    inputRange: [
+      0,
+      PROFILE_COLLAPSE_SCROLL * PROFILE_HERO_HEIGHT_HOLD_UNTIL,
+      PROFILE_COLLAPSE_SCROLL,
+    ],
+    outputRange: [spacing.sm, spacing.sm, 8],
+    extrapolate: 'clamp',
+  });
+  const bandPadBottom = scrollY.interpolate({
+    inputRange: [
+      0,
+      PROFILE_COLLAPSE_SCROLL * PROFILE_HERO_HEIGHT_HOLD_UNTIL,
+      PROFILE_COLLAPSE_SCROLL,
+    ],
+    outputRange: [
+      spacing.sm + PROFILE_HERO_BAND_EXTRA_BOTTOM,
+      spacing.sm + PROFILE_HERO_BAND_EXTRA_BOTTOM,
+      8,
+    ],
+    extrapolate: 'clamp',
+  });
+
+  const ratingRowOpacity = scrollY.interpolate({
+    inputRange: [PROFILE_COLLAPSE_SCROLL * 0.3, PROFILE_COLLAPSE_SCROLL * 0.65],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const compactSubOpacity = scrollY.interpolate({
+    inputRange: [PROFILE_COLLAPSE_SCROLL * 0.36, PROFILE_COLLAPSE_SCROLL * 0.74],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  /** Collapse the stacked-stats shell from 3-line tall → compact 1-line as the rating fades. */
+  const statsShellHeight = scrollY.interpolate({
+    inputRange: [
+      PROFILE_COLLAPSE_SCROLL * 0.3,
+      PROFILE_COLLAPSE_SCROLL * 0.7,
+    ],
+    outputRange: [48, 22],
+    extrapolate: 'clamp',
+  });
+  /** Nudge the compact stat line up slightly at full collapse so it clears the tab row. */
+  const statsCompactTranslateY = scrollY.interpolate({
+    inputRange: [
+      PROFILE_COLLAPSE_SCROLL * 0.5,
+      PROFILE_COLLAPSE_SCROLL,
+    ],
+    outputRange: [0, -4],
+    extrapolate: 'clamp',
+  });
+
+  const meetingStripOpacity = scrollY.interpolate({
+    inputRange: [0, PROFILE_COLLAPSE_SCROLL * 0.42],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const meetingStripMaxH = scrollY.interpolate({
+    inputRange: [0, PROFILE_COLLAPSE_SCROLL * 0.52],
+    outputRange: [96, 0],
+    extrapolate: 'clamp',
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -185,22 +317,46 @@ export function ProfileScreen() {
     }
   }, [tabBarOrder, activeTab, prefsLoaded]);
 
+  const loadStoreListings = useCallback(async () => {
+    const all = await fetchRecommendedListings();
+    const mine = all.filter((item) => item.sellerHandle === PROFILE_DEMO_HANDLE);
+    setStoreListings(mine.length > 0 ? mine : PROFILE_MY_ITEMS);
+  }, []);
+
+  useEffect(() => {
+    void loadStoreListings();
+  }, [loadStoreListings]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadStoreListings();
+    }, [loadStoreListings]),
+  );
+
+  const featuredListings = useMemo(() => storeListings.slice(0, 8), [storeListings]);
+  const saleListings = useMemo(() => storeListings.slice(0, 10), [storeListings]);
+  const allListings = storeListings;
+
   const openListing = (item: ListingItem) => {
     navigateToItemDetail(navigation, {
       listingId: item.id,
       title: item.title,
       price: item.price,
       imageUrl: item.imageUrl,
-      seller: 'fahdhkhattak',
-      sellerAvatarUrl: DEFAULT_PEER_AVATAR_URI,
+      seller: item.sellerHandle ?? PROFILE_DEMO_HANDLE,
+      sellerProfileId: item.sellerId,
+      sellerAvatarUrl: item.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+      description: item.description,
+      condition: item.condition,
+      categoryLabel: item.category,
+      meetupLocation: item.location,
     });
   };
 
   const shareProfile = async () => {
     try {
       await Share.share({
-        message:
-          'Check out fahdhkhattak on Handoff — campus marketplace.\nhttps://handoff.app/u/fahdhkhattak',
+        message: `Check out ${PROFILE_SHOP_TITLE} on Handoff — campus marketplace.\nhttps://handoff.app/u/${PROFILE_DEMO_HANDLE}`,
       });
     } catch {
       Alert.alert('Share', 'Could not open the share sheet.');
@@ -216,8 +372,8 @@ export function ProfileScreen() {
         onClose={() => setManageSectionsOpen(false)}
         tabOrder={tabBarOrder}
         shopLayout={shopSectionLayout}
-        featuredCount={PROFILE_FEATURED_LISTINGS.length}
-        saleListingCount={PROFILE_BEST_SELLERS.length}
+        featuredCount={featuredListings.length}
+        saleListingCount={saleListings.length}
         onApply={({ tabOrder, shopLayout }) => {
           setTabBarOrder(tabOrder);
           setShopSectionLayout(shopLayout);
@@ -234,87 +390,152 @@ export function ProfileScreen() {
           </View>
           <View style={styles.profileTopActions}>
             <Pressable
-              style={styles.profileIconWell}
+              style={styles.profileIconBtn}
+              hitSlop={12}
               onPress={shareProfile}
               accessibilityLabel="Share profile"
             >
-              <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
+              <Ionicons name="share-outline" size={24} color={colors.textPrimary} />
             </Pressable>
             <Pressable
-              style={styles.profileIconWell}
+              style={styles.profileIconBtn}
+              hitSlop={12}
               onPress={() => navigation.navigate('ProfileSettings')}
               accessibilityLabel="Settings"
             >
-              <Ionicons name="settings-outline" size={20} color={colors.textPrimary} />
+              <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
             </Pressable>
           </View>
         </View>
 
-        <View style={styles.profileMiddleBand}>
-          <View style={styles.identityOuter}>
-            <View style={styles.identity}>
-              <Pressable
-                onPress={() => {
-                  if (!profilePhotoReady) setProfilePhotoReady(true);
-                  else Alert.alert('Profile photo', 'Replace photo (demo).');
-                }}
-                style={styles.avatarPress}
-              >
-                {profilePhotoReady ? (
-                  <RemoteImage uri={DEFAULT_PEER_AVATAR_URI} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <RemoteImage
-                      uri={PLACEHOLDER_IMAGE_URI}
-                      style={styles.avatarPhImage}
-                      contentFit="cover"
-                    />
-                    <View style={styles.avatarPhOverlay}>
-                      <Ionicons name="camera" size={22} color={colors.primary} />
+        <Animated.View
+          style={[styles.profileCollapsibleSlot, { height: heroSlotHeight }]}
+        >
+          <Animated.View
+            pointerEvents={expandedHeroInteractable ? 'auto' : 'none'}
+            style={styles.expandedHeroLayer}
+          >
+            <Animated.View
+              style={[
+                styles.profileMiddleBand,
+                { paddingTop: bandPadV, paddingBottom: bandPadBottom },
+              ]}
+              onLayout={(e) => {
+                if (scrollYRef.current > 2) return;
+                const h = Math.round(e.nativeEvent.layout.height);
+                setHeroExpandedHeight((prev) => (prev === h ? prev : h));
+              }}
+            >
+              <View style={styles.identityOuter}>
+                <View style={styles.identity}>
+                  <Animated.View
+                    style={[
+                      styles.avatarAnimatedWrap,
+                      !profilePhotoReady && styles.avatarPlaceholderRing,
+                      {
+                        width: avatarSize,
+                        height: avatarSize,
+                        borderRadius: avatarRadius,
+                      },
+                    ]}
+                  >
+                    <Pressable
+                      onPress={() => {
+                        if (!profilePhotoReady) setProfilePhotoReady(true);
+                        else Alert.alert('Profile photo', 'Replace photo (demo).');
+                      }}
+                      style={styles.avatarPressFill}
+                    >
+                      {profilePhotoReady ? (
+                        <RemoteImage
+                          uri={DEFAULT_PEER_AVATAR_URI}
+                          style={styles.avatarFill}
+                        />
+                      ) : (
+                        <View style={styles.avatarPlaceholderFill}>
+                          <RemoteImage
+                            uri={PLACEHOLDER_IMAGE_URI}
+                            style={styles.avatarPhImage}
+                            contentFit="cover"
+                          />
+                          <View style={styles.avatarPhOverlay}>
+                            <Ionicons name="camera" size={20} color={colors.primary} />
+                          </View>
+                        </View>
+                      )}
+                    </Pressable>
+                  </Animated.View>
+                  <View style={styles.identityText}>
+                    <View style={styles.identityNameRow}>
+                      <Text style={styles.displayName} numberOfLines={1}>
+                        {PROFILE_SHOP_TITLE}
+                      </Text>
+                      <Pressable
+                        style={styles.heartWell}
+                        hitSlop={10}
+                        onPress={() =>
+                          Alert.alert('Saved', 'Pinning your shop is coming soon.')
+                        }
+                        accessibilityLabel="Favorite shop"
+                      >
+                        <Ionicons
+                          name="heart-outline"
+                          size={20}
+                          color={colors.textPrimary}
+                        />
+                      </Pressable>
                     </View>
-                  </View>
-                )}
-              </Pressable>
-              <View style={styles.identityText}>
-                <Text style={styles.displayName}>fahdhkhattak</Text>
-                <View style={styles.statsStack}>
-                  <View style={[styles.statRow, styles.statRowDivider]}>
-                    <SellerRatingStat />
-                  </View>
-                  <View style={[styles.statRow, styles.statRowDivider]}>
-                    <Text style={styles.statMutedLine} numberOfLines={1}>
-                      67 followers
-                    </Text>
-                  </View>
-                  <View style={styles.statRow}>
-                    <Text style={styles.statMutedLine} numberOfLines={1}>
-                      18 items sold
-                    </Text>
+                    <Animated.View
+                      style={[
+                        styles.ratingCrossfadeShell,
+                        { height: statsShellHeight },
+                      ]}
+                    >
+                      <Animated.View
+                        style={[
+                          styles.ratingCrossfadeLayer,
+                          { opacity: ratingRowOpacity },
+                        ]}
+                      >
+                        <ProfileIdentityMetaExpanded />
+                      </Animated.View>
+                      <Animated.View
+                        style={[
+                          styles.ratingCrossfadeLayerAbs,
+                          {
+                            opacity: compactSubOpacity,
+                            transform: [{ translateY: statsCompactTranslateY }],
+                          },
+                        ]}
+                      >
+                        <ProfileIdentityMetaCompact />
+                      </Animated.View>
+                    </Animated.View>
                   </View>
                 </View>
               </View>
-              <Pressable
-                style={styles.heartWell}
-                hitSlop={10}
-                onPress={() => Alert.alert('Saved', 'Pinning your shop is coming soon.')}
-                accessibilityLabel="Favorite shop"
-              >
-                <Ionicons name="heart-outline" size={22} color={colors.primary} />
-              </Pressable>
-            </View>
-          </View>
 
-          <Pressable
-            style={styles.headerStatusStrip}
-            onPress={() => Alert.alert('Events', 'Campus events are coming soon.')}
-          >
-            <View style={styles.headerStatusLeft}>
-              <Ionicons name="pulse" size={15} color={colors.success} />
-              <Text style={styles.headerStatusLabel}>Meeting times</Text>
-            </View>
-            <Text style={styles.headerStatusLink}>See events</Text>
-          </Pressable>
-        </View>
+              <Animated.View
+                style={{
+                  opacity: meetingStripOpacity,
+                  maxHeight: meetingStripMaxH,
+                  overflow: 'hidden',
+                }}
+              >
+                <Pressable
+                  style={styles.headerStatusStrip}
+                  onPress={() => Alert.alert('Events', 'Campus events are coming soon.')}
+                >
+                  <View style={styles.headerStatusLeft}>
+                    <Ionicons name="pulse" size={15} color={colors.success} />
+                    <Text style={styles.headerStatusLabel}>Meeting times</Text>
+                  </View>
+                  <Text style={styles.headerStatusLink}>See events</Text>
+                </Pressable>
+              </Animated.View>
+            </Animated.View>
+          </Animated.View>
+        </Animated.View>
 
         <View style={[styles.tabRow, styles.tabRowOnLight]}>
           {tabBarOrder.map((t) => {
@@ -329,8 +550,24 @@ export function ProfileScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
+        style={styles.scrollFlex}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          {
+            useNativeDriver: false,
+            listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+              const y = e.nativeEvent.contentOffset.y;
+              scrollYRef.current = y;
+              const next = y < PROFILE_COLLAPSE_SCROLL * 0.88;
+              setExpandedHeroInteractable((prev) =>
+                prev === next ? prev : next,
+              );
+            },
+          },
+        )}
         contentContainerStyle={[
           styles.scroll,
           { paddingBottom: showShopChrome ? 88 + insets.bottom : spacing.xxl },
@@ -344,15 +581,18 @@ export function ProfileScreen() {
                   style={styles.searchPill}
                   onPress={() => setManageSectionsOpen(true)}
                 >
-                  <Ionicons name="menu-outline" size={18} color={colors.textPrimary} />
-                  <Text style={styles.searchPillText}>Categories</Text>
+                  <Ionicons name="menu-outline" size={18} color={colors.textMuted} />
+                  <Text style={styles.searchPillLabel}>Categories</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.searchPill, styles.searchPillGrow]}
                   onPress={() => Alert.alert('Search', 'Search your listings is coming soon.')}
                 >
                   <Ionicons name="search-outline" size={18} color={colors.textMuted} />
-                  <Text style={styles.searchPillMuted} numberOfLines={1}>
+                  <Text
+                    style={[styles.searchPillLabel, styles.searchPillLabelFlex]}
+                    numberOfLines={1}
+                  >
                     Search all items
                   </Text>
                 </Pressable>
@@ -370,7 +610,7 @@ export function ProfileScreen() {
                   style={styles.carouselRail}
                   contentContainerStyle={styles.carouselContent}
                 >
-                  {PROFILE_FEATURED_LISTINGS.map((item) => (
+                  {featuredListings.map((item) => (
                     <StoreCarouselCard
                       key={item.id}
                       item={item}
@@ -414,7 +654,7 @@ export function ProfileScreen() {
                   style={styles.carouselRail}
                   contentContainerStyle={styles.carouselContent}
                 >
-                  {PROFILE_BEST_SELLERS.map((item) => (
+                  {saleListings.map((item) => (
                     <StoreCarouselCard
                       key={item.id}
                       item={item}
@@ -433,8 +673,8 @@ export function ProfileScreen() {
                 </View>
                 <View style={styles.grid}>
                   {(activeTab === 'Sale'
-                    ? PROFILE_MY_ITEMS.slice(0, 2)
-                    : PROFILE_MY_ITEMS
+                    ? allListings.slice(0, 2)
+                    : allListings
                   ).map((item) => (
                     <View key={item.id} style={styles.gridCell}>
                       <GridCard item={item} onPress={() => openListing(item)} />
@@ -469,7 +709,9 @@ export function ProfileScreen() {
               Sellin clothes for a livin&apos; — DM for bundles. Campus pickup most days.
             </Text>
             <View style={styles.aboutStats}>
-              <Text style={styles.aboutLine}>Items sold: 18</Text>
+              <Text style={styles.aboutLine}>
+                Items sold: {PROFILE_ITEMS_SOLD}
+              </Text>
               <Text style={styles.aboutLine}>Member since 2024</Text>
             </View>
             <View style={styles.aboutActions}>
@@ -494,7 +736,7 @@ export function ProfileScreen() {
             </Text>
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
 
       {showShopChrome ? (
         <View
@@ -530,13 +772,101 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
   },
+  scrollFlex: {
+    flex: 1,
+  },
   profileHeader: {
     backgroundColor: colors.surface,
   },
+  profileCollapsibleSlot: {
+    overflow: 'hidden',
+    backgroundColor: colors.bannerTint,
+  },
+  expandedHeroLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
   profileMiddleBand: {
     backgroundColor: colors.bannerTint,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+  },
+  avatarAnimatedWrap: {
+    overflow: 'hidden',
+    backgroundColor: colors.chipBg,
+  },
+  /** Ring sits on the outer circle so it stays centered (inner dashed borders clip badly on iOS). */
+  avatarPlaceholderRing: {
+    borderWidth: 2,
+    borderColor: colors.primaryLight,
+    backgroundColor: colors.surface,
+  },
+  avatarPressFill: {
+    flex: 1,
+  },
+  avatarFill: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholderFill: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.bannerTint,
+  },
+  ratingCrossfadeShell: {
+    position: 'relative',
+    marginTop: 2,
+    alignSelf: 'stretch',
+    overflow: 'hidden',
+  },
+  ratingCrossfadeLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-start',
+  },
+  ratingCrossfadeLayerAbs: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-start',
+  },
+  identityMetaLines: {
+    gap: 0,
+    alignSelf: 'stretch',
+  },
+  identityMetaLine: {
+    fontSize: 12,
+    lineHeight: 15,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+  },
+  identityMetaBold: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    lineHeight: 15,
+    color: colors.textPrimary,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+  },
+  identityMetaRest: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 15,
+    color: colors.textSecondary,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+  },
+  identityMetaCompactRoot: {
+    fontSize: 11,
+    lineHeight: 18,
+    paddingVertical: 1,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+  },
+  identityMetaCompactBold: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    lineHeight: 18,
+    color: colors.textPrimary,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+  },
+  identityMetaCompactRest: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   profileTopRow: {
     flexDirection: 'row',
@@ -558,10 +888,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   profileTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 17,
+    ...typography.header,
     color: colors.textPrimary,
-    letterSpacing: -0.2,
     textAlign: 'center',
     ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
@@ -570,42 +898,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.md,
   },
-  profileIconWell: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.bannerTint,
+  profileIconBtn: {
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
   identityOuter: {
-    paddingTop: 2,
-    paddingBottom: 2,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   identity: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
     gap: 10,
-  },
-  avatarPress: {},
-  avatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: colors.chipBg,
-  },
-  avatarPlaceholder: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: colors.primaryLight,
-    borderStyle: 'dashed',
-    backgroundColor: colors.bannerTint,
   },
   avatarPhImage: {
     width: '100%',
@@ -622,63 +931,32 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  displayName: {
-    fontFamily: fonts.bold,
-    fontSize: 17,
-    letterSpacing: -0.35,
-    color: colors.textPrimary,
-    marginBottom: 2,
-    lineHeight: 22,
-  },
-  statsStack: {
-    alignSelf: 'stretch',
-    paddingBottom: 0,
-  },
-  statRatingRow: {
+  identityNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
     minWidth: 0,
-    flexWrap: 'nowrap',
+    paddingTop: 2,
   },
-  statStars: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    flexShrink: 0,
-  },
-  statRatingScore: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: colors.textSecondary,
-    flexShrink: 0,
-    lineHeight: 17,
-  },
-  statRow: {
-    paddingVertical: 2,
-  },
-  statRowDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  statMutedLine: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: colors.textSecondary,
-    lineHeight: 17,
-    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+  displayName: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: fonts.bold,
+    fontSize: 20,
+    letterSpacing: -0.4,
+    color: colors.textPrimary,
+    marginBottom: 0,
+    lineHeight: 26,
   },
   heartWell: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    marginLeft: 'auto',
     flexShrink: 0,
   },
   headerStatusStrip: {
@@ -686,12 +964,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.primaryDark,
-    borderRadius: 10,
-    paddingVertical: 8,
+    borderRadius: radii.pill,
+    paddingVertical: 6,
     paddingHorizontal: spacing.md,
     marginHorizontal: spacing.md,
-    marginTop: 2,
-    marginBottom: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: 0,
   },
   headerStatusLeft: {
     flex: 1,
@@ -717,7 +995,7 @@ const styles = StyleSheet.create({
     color: colors.textInverse,
     textDecorationLine: 'underline',
     ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
-    paddingVertical: 1,
+    paddingVertical: 0,
   },
   tabRow: {
     flexDirection: 'row',
@@ -765,7 +1043,7 @@ const styles = StyleSheet.create({
   },
   searchRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
     marginBottom: spacing.lg,
   },
   searchPill: {
@@ -783,15 +1061,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  searchPillText: {
+  searchPillLabel: {
     fontSize: 13,
-    fontFamily: fonts.semiBold,
-    color: colors.textPrimary,
-  },
-  searchPillMuted: {
-    fontSize: 13,
+    fontFamily: fonts.regular,
+    lineHeight: 18,
     color: colors.textMuted,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+  },
+  searchPillLabelFlex: {
     flex: 1,
+    minWidth: 0,
   },
   sectionHead: {
     flexDirection: 'row',

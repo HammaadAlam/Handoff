@@ -7,7 +7,6 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import {
-  Alert,
   Dimensions,
   FlatList,
   NativeScrollEvent,
@@ -48,6 +47,7 @@ export function ItemDetailScreen() {
     price,
     imageUrl,
     seller = 'Seller',
+    sellerProfileId,
     sellerAvatarUrl,
     categoryLabel = 'General',
     condition = 'Slightly Used',
@@ -244,8 +244,12 @@ export function ItemDetailScreen() {
           <Pressable
             style={[styles.card, styles.sellerCard, shadows.soft]}
             onPress={() =>
-              Alert.alert('Seller', `${seller}'s full profile is coming soon.`)
+              navigation.navigate('PublicProfile', {
+                profileId: sellerProfileId,
+                handle: seller,
+              })
             }
+            accessibilityLabel={`View ${seller}'s profile`}
           >
             <RemoteImage uri={sellerAvatar} style={styles.sellerAvatar} />
             <View style={styles.sellerMeta}>
