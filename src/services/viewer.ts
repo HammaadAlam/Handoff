@@ -20,6 +20,9 @@ export async function resolveViewerProfileId(
       .eq('auth_user_id', sessionUserId)
       .maybeSingle();
     if (data?.id) return data.id as string;
+    // Signed-in account with no linked profile should stay isolated (fresh account),
+    // not fall back to the demo storefront identity.
+    return null;
   }
   if (cachedDemoProfileId !== undefined) return cachedDemoProfileId;
   const { data } = await supabase

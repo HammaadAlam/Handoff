@@ -31,6 +31,7 @@ import {
   type ShopSectionLayout,
 } from '@/constants/profileTabs';
 import { RemoteImage } from '@/components/RemoteImage';
+import { useAuth } from '@/context/AuthContext';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import {
   DEFAULT_PEER_AVATAR_URI,
@@ -39,6 +40,7 @@ import {
   type ListingItem,
 } from '@/data/mockData';
 import { PROFILE_DEMO_HANDLE, SEED_PROFILES } from '@/data/seedCatalog';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { ProfileTabNavigation } from '@/navigation/types';
 import { fetchRecommendedListings } from '@/services/listings';
@@ -82,37 +84,53 @@ const PROFILE_HERO_HEIGHT_HOLD_UNTIL = 0.38;
 const PROFILE_HERO_BAND_EXTRA_BOTTOM = 2;
 
 /** Stacked seller stats — marketplace-style lines with bold leading numbers. */
-function ProfileIdentityMetaExpanded() {
+function ProfileIdentityMetaExpanded({
+  positivePct,
+  followers,
+  itemsSold,
+}: {
+  positivePct: number;
+  followers: number;
+  itemsSold: number;
+}) {
   return (
     <View
       style={styles.identityMetaLines}
       accessibilityRole="text"
-      accessibilityLabel={`${PROFILE_POSITIVE_PCT} percent positive feedback, ${PROFILE_FOLLOWERS} followers, ${PROFILE_ITEMS_SOLD} items sold`}
+      accessibilityLabel={`${positivePct} percent positive feedback, ${followers} followers, ${itemsSold} items sold`}
     >
       <Text style={styles.identityMetaLine}>
-        <Text style={styles.identityMetaBold}>{PROFILE_POSITIVE_PCT}%</Text>
+        <Text style={styles.identityMetaBold}>{positivePct}%</Text>
         <Text style={styles.identityMetaRest}> positive feedback</Text>
       </Text>
       <Text style={styles.identityMetaLine}>
-        <Text style={styles.identityMetaBold}>{PROFILE_FOLLOWERS}</Text>
+        <Text style={styles.identityMetaBold}>{followers}</Text>
         <Text style={styles.identityMetaRest}> followers</Text>
       </Text>
       <Text style={styles.identityMetaLine}>
-        <Text style={styles.identityMetaBold}>{PROFILE_ITEMS_SOLD}</Text>
+        <Text style={styles.identityMetaBold}>{itemsSold}</Text>
         <Text style={styles.identityMetaRest}> items sold</Text>
       </Text>
     </View>
   );
 }
 
-function ProfileIdentityMetaCompact() {
+function ProfileIdentityMetaCompact({
+  positivePct,
+  followers,
+  itemsSold,
+}: {
+  positivePct: number;
+  followers: number;
+  itemsSold: number;
+}) {
   return (
     <Text style={styles.identityMetaCompactRoot} numberOfLines={1}>
-      <Text style={styles.identityMetaCompactBold}>{PROFILE_POSITIVE_PCT}%</Text>
+      <Text style={styles.identityMetaCompactBold}>{positivePct}%</Text>
       <Text style={styles.identityMetaCompactRest}> positive · </Text>
-      <Text style={styles.identityMetaCompactBold}>{PROFILE_FOLLOWERS}</Text>
+      <Text style={styles.identityMetaCompactBold}>{followers}</Text>
       <Text style={styles.identityMetaCompactRest}> followers · </Text>
-      <Text style={styles.identityMetaCompactBold}>{PROFILE_ITEMS_SOLD}</Text>
+      <Text style={styles.identityMetaCompactBold}>{itemsSold}</Text>
       <Text style={styles.identityMetaCompactRest}> sold</Text>
     </Text>
   );
@@ -184,6 +202,15 @@ function GridCard({
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileTabNavigation>();
   const insets = useSafeAreaInsets();
+  const { user, authBypass } = useAuth();
+  const viewerProfileId = useViewerProfileId();
+  const usingDemoProfile = authBypass || !user;
+  const accountHandle = user?.email?.split('@')[0] ?? 'new_user';
+  const profileHandle = usingDemoProfile ? PROFILE_DEMO_HANDLE : accountHandle;
+  const profileTitle = usingDemoProfile ? PROFILE_SHOP_TITLE : accountHandle;
+  const positivePct = usingDemoProfile ? PROFILE_POSITIVE_PCT : 0;
+  const followersCount = usingDemoProfile ? PROFILE_FOLLOWERS : 0;
+  const itemsSoldCount = usingDemoProfile ? PROFILE_ITEMS_SOLD : 0;
   const [manageSectionsOpen, setManageSectionsOpen] = useState(false);
   const [profilePhotoReady, setProfilePhotoReady] = useState(false);
   const [tabBarOrder, setTabBarOrder] = useState<ProfileTab[]>([...PROFILE_TABS]);
@@ -319,9 +346,13 @@ export function ProfileScreen() {
 
   const loadStoreListings = useCallback(async () => {
     const all = await fetchRecommendedListings();
-    const mine = all.filter((item) => item.sellerHandle === PROFILE_DEMO_HANDLE);
-    setStoreListings(mine.length > 0 ? mine : PROFILE_MY_ITEMS);
-  }, []);
+    const mine = usingDemoProfile
+      ? all.filter((item) => item.sellerHandle === PROFILE_DEMO_HANDLE)
+      : viewerProfileId
+        ? all.filter((item) => item.sellerId === viewerProfileId)
+        : [];
+    setStoreListings(mine.length > 0 ? mine : usingDemoProfile ? PROFILE_MY_ITEMS : []);
+  }, [usingDemoProfile, viewerProfileId]);
 
   useEffect(() => {
     void loadStoreListings();
@@ -343,7 +374,7 @@ export function ProfileScreen() {
       title: item.title,
       price: item.price,
       imageUrl: item.imageUrl,
-      seller: item.sellerHandle ?? PROFILE_DEMO_HANDLE,
+      seller: item.sellerHandle ?? profileHandle,
       sellerProfileId: item.sellerId,
       sellerAvatarUrl: item.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
       description: item.description,
@@ -356,7 +387,7 @@ export function ProfileScreen() {
   const shareProfile = async () => {
     try {
       await Share.share({
-        message: `Check out ${PROFILE_SHOP_TITLE} on Handoff — campus marketplace.\nhttps://handoff.app/u/${PROFILE_DEMO_HANDLE}`,
+        message: `Check out ${profileTitle} on Handoff — campus marketplace.\nhttps://handoff.app/u/${profileHandle}`,
       });
     } catch {
       Alert.alert('Share', 'Could not open the share sheet.');
@@ -468,7 +499,7 @@ export function ProfileScreen() {
                   <View style={styles.identityText}>
                     <View style={styles.identityNameRow}>
                       <Text style={styles.displayName} numberOfLines={1}>
-                        {PROFILE_SHOP_TITLE}
+                        {profileTitle}
                       </Text>
                       <Pressable
                         style={styles.heartWell}
@@ -497,7 +528,11 @@ export function ProfileScreen() {
                           { opacity: ratingRowOpacity },
                         ]}
                       >
-                        <ProfileIdentityMetaExpanded />
+                        <ProfileIdentityMetaExpanded
+                          positivePct={positivePct}
+                          followers={followersCount}
+                          itemsSold={itemsSoldCount}
+                        />
                       </Animated.View>
                       <Animated.View
                         style={[
@@ -508,7 +543,11 @@ export function ProfileScreen() {
                           },
                         ]}
                       >
-                        <ProfileIdentityMetaCompact />
+                        <ProfileIdentityMetaCompact
+                          positivePct={positivePct}
+                          followers={followersCount}
+                          itemsSold={itemsSoldCount}
+                        />
                       </Animated.View>
                     </Animated.View>
                   </View>
@@ -710,7 +749,7 @@ export function ProfileScreen() {
             </Text>
             <View style={styles.aboutStats}>
               <Text style={styles.aboutLine}>
-                Items sold: {PROFILE_ITEMS_SOLD}
+                Items sold: {itemsSoldCount}
               </Text>
               <Text style={styles.aboutLine}>Member since 2024</Text>
             </View>

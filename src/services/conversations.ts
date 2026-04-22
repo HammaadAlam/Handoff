@@ -90,11 +90,11 @@ function deriveStatus(
 export async function fetchInboxRows(args: {
   sessionUserId: string | null;
 }): Promise<ConversationRow[]> {
-  if (!isSupabaseConfigured()) return MOCK_CONVERSATIONS;
+  if (!isSupabaseConfigured()) return args.sessionUserId ? [] : MOCK_CONVERSATIONS;
 
   const supabase = getSupabase();
   const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
-  if (!viewerId) return MOCK_CONVERSATIONS;
+  if (!viewerId) return args.sessionUserId ? [] : MOCK_CONVERSATIONS;
 
   const { data: convs, error } = await supabase
     .from('conversations')
