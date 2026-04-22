@@ -75,6 +75,19 @@ function seedListingToItem(s: SeedListing): ListingItem {
   };
 }
 
+const MOCK_FALLBACK_PROFILE =
+  getSeedProfileByHandle(PROFILE_DEMO_HANDLE) ?? getSeedProfileById(SEED_LISTINGS[0].sellerId)!;
+
+function withMockSeller(item: ListingItem): ListingItem {
+  return {
+    ...item,
+    sellerId: item.sellerId ?? MOCK_FALLBACK_PROFILE.id,
+    sellerHandle: item.sellerHandle ?? MOCK_FALLBACK_PROFILE.handle,
+    sellerAvatarUrl: item.sellerAvatarUrl ?? MOCK_FALLBACK_PROFILE.avatarUrl,
+    trust: item.trust ?? (MOCK_FALLBACK_PROFILE.isVerifiedEdu ? 'verified' : undefined),
+  };
+}
+
 /** Active listings from seed catalog (Supabase parity — see supabase/seed.sql). */
 export const RECOMMENDED_LISTINGS: ListingItem[] = SEED_LISTINGS.filter(
   (l) => l.status === 'active',
@@ -169,7 +182,7 @@ export const SUGGESTED_CATEGORIES: SuggestedCategory[] = [
 ];
 
 /** Demo grid for category / text search (e.g. "Cabinets") */
-export const CABINET_LISTINGS: ListingItem[] = [
+export const CABINET_LISTINGS: ListingItem[] = ([
   {
     id: 'cab1',
     title: 'White Cabinet',
@@ -198,11 +211,11 @@ export const CABINET_LISTINGS: ListingItem[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80',
   },
-];
+] as ListingItem[]).map(withMockSeller);
 
 export const DEFAULT_RECENT_SEARCHES = ['Calculator', 'Chairs', 'Textbook'] as const;
 
-export const TRENDING_LISTINGS: ListingItem[] = [
+export const TRENDING_LISTINGS: ListingItem[] = ([
   {
     id: 't1',
     title: 'Swivel chair',
@@ -245,10 +258,10 @@ export const TRENDING_LISTINGS: ListingItem[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80',
   },
-];
+] as ListingItem[]).map(withMockSeller);
 
 /** Search landing “Popular items” grid — badges, ratings, location */
-export const POPULAR_LISTINGS: ListingItem[] = [
+export const POPULAR_LISTINGS: ListingItem[] = ([
   {
     id: 'p1',
     title: 'Willow Creek desk',
@@ -259,7 +272,7 @@ export const POPULAR_LISTINGS: ListingItem[] = [
     reviewCount: 60,
     location: 'LSU North Hall',
     postedAgo: '3d ago',
-    imageBadge: 'boost',
+    imageBadge: 'boost' as const,
     trust: 'verified',
   },
   {
@@ -272,7 +285,7 @@ export const POPULAR_LISTINGS: ListingItem[] = [
     reviewCount: 42,
     location: 'Highland Rd',
     postedAgo: '1d ago',
-    imageBadge: 'urgent',
+    imageBadge: 'urgent' as const,
     trust: 'premium',
   },
   {
@@ -297,7 +310,7 @@ export const POPULAR_LISTINGS: ListingItem[] = [
     reviewCount: 31,
     location: 'Campus edge',
     postedAgo: '2d ago',
-    imageBadge: 'boost',
+    imageBadge: 'boost' as const,
   },
   {
     id: 'p5',
@@ -321,10 +334,10 @@ export const POPULAR_LISTINGS: ListingItem[] = [
     reviewCount: 14,
     location: 'Greek row',
     postedAgo: '4d ago',
-    imageBadge: 'urgent',
+    imageBadge: 'urgent' as const,
     trust: 'premium',
   },
-];
+] as ListingItem[]).map(withMockSeller);
 
 /** Pick a result set for the category / search results screen */
 export function listingsForSearchQuery(query: string): ListingItem[] {
@@ -360,6 +373,8 @@ export type ConversationRow = {
   price: string;
   imageUrl: string;
   seller: string;
+  /** Canonical counterparty profile id (profiles.id) */
+  peerUserId: string;
   /** Shown in inbox row + chat header */
   peerAvatarUrl: string;
 };
@@ -378,6 +393,7 @@ export const MOCK_CONVERSATIONS: ConversationRow[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&q=80',
     seller: 'fahdhkhattak',
+    peerUserId: getSeedProfileByHandle('fahdhkhattak')?.id ?? _profileDemo.id,
     peerAvatarUrl:
       'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80',
   },
@@ -394,6 +410,7 @@ export const MOCK_CONVERSATIONS: ConversationRow[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=200&q=80',
     seller: 'hammaadalam',
+    peerUserId: getSeedProfileByHandle('hammaadalam')?.id ?? _profileDemo.id,
     peerAvatarUrl:
       'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80',
   },
@@ -410,6 +427,7 @@ export const MOCK_CONVERSATIONS: ConversationRow[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1587145820266-a5951ee6c620?w=200&q=80',
     seller: 'tylermgates',
+    peerUserId: getSeedProfileByHandle('tylermgates')?.id ?? _profileDemo.id,
     peerAvatarUrl:
       'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80',
   },
@@ -427,6 +445,7 @@ export const MOCK_CONVERSATIONS: ConversationRow[] = [
     imageUrl:
       'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=200&q=80',
     seller: 'campususer',
+    peerUserId: getSeedProfileByHandle('campususer')?.id ?? _profileDemo.id,
     peerAvatarUrl:
       'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&q=80',
   },
@@ -442,7 +461,7 @@ export type TicketListing = ListingItem & {
   venue: string;
 };
 
-export const LSU_FOOTBALL_TICKETS: TicketListing[] = [
+const LSU_FOOTBALL_TICKETS_RAW: TicketListing[] = [
   {
     id: 'lsu-tix-1',
     title: 'LSU vs Ole Miss',
@@ -516,6 +535,15 @@ export const LSU_FOOTBALL_TICKETS: TicketListing[] = [
     brand: 'Local Seller',
   },
 ];
+
+export const LSU_FOOTBALL_TICKETS: TicketListing[] = LSU_FOOTBALL_TICKETS_RAW.map(
+  (ticket): TicketListing => ({
+  ...ticket,
+  sellerId: ticket.sellerId ?? MOCK_FALLBACK_PROFILE.id,
+  sellerHandle: ticket.sellerHandle ?? 'tiger_tickets',
+  sellerAvatarUrl: ticket.sellerAvatarUrl ?? MOCK_FALLBACK_PROFILE.avatarUrl,
+})
+);
 
 export function filterListingsForHomeCategory(
   listings: ListingItem[],

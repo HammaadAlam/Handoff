@@ -22,6 +22,8 @@ import { ChatComposer } from '@/components/chat/ChatComposer';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useAuth } from '@/context/AuthContext';
 import { DEFAULT_PEER_AVATAR_URI } from '@/data/mockData';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
+import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
 import type { RootStackParamList } from '@/navigation/types';
 import {
   fetchConversationPeer,
@@ -64,17 +66,21 @@ export function ConversationScreen() {
     price,
     imageUrl,
     seller,
+    peerUserId,
+    peerDisplayName,
     entry,
     avatarUrl,
     offerAmount: routeOfferAmount,
     conversationId,
   } = params;
   const { user } = useAuth();
+  const viewerProfileId = useViewerProfileId();
   const sessionUserId = user?.id ?? null;
   const [peerAvatar, setPeerAvatar] = useState<string>(
     avatarUrl ?? DEFAULT_PEER_AVATAR_URI,
   );
-  const [peerName, setPeerName] = useState<string>(seller);
+  const [peerName, setPeerName] = useState<string>(peerDisplayName ?? seller);
+  const [peerId, setPeerId] = useState<string | null>(peerUserId ?? null);
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
@@ -102,6 +108,7 @@ export function ConversationScreen() {
       if (cancelled) return;
       setMessages(msgs.map(toChatMessage));
       if (peer) {
+        setPeerId(peer.id);
         setPeerName(peer.handle);
         setPeerAvatar(peer.avatarUrl);
       }
@@ -119,6 +126,20 @@ export function ConversationScreen() {
   const initialDraft =
     entry === 'offer' ? 'Would you be willing to negotiate?' : '';
 
+  const openPeerProfile = useCallback(() => {
+    if (!peerId) return;
+    navigateToUserProfile(
+      navigation,
+      {
+        userId: peerId,
+        displayName: peerName,
+        avatarUrl: peerAvatar,
+        handle: peerName,
+      },
+      viewerProfileId
+    );
+  }, [navigation, peerAvatar, peerId, peerName, viewerProfileId]);
+
   const goMeetup = (role: 'buyer' | 'seller') => {
     navigation.navigate('MeetupDetails', {
       role,
@@ -127,6 +148,7 @@ export function ConversationScreen() {
       imageUrl,
       location: 'LSU Student Union',
       timeLabel: 'Today - 6:30PM',
+      peerUserId: peerId ?? undefined,
       peerHandle: peerName,
       peerName,
       peerAvatarUrl: peerAvatar,
@@ -177,10 +199,9 @@ export function ConversationScreen() {
           </Pressable>
           <Pressable
             style={styles.sellerHead}
-            onPress={() =>
-              navigation.navigate('PublicProfile', { handle: peerName })
-            }
+            onPress={openPeerProfile}
             accessibilityLabel={`View ${peerName}'s profile`}
+            disabled={!peerId}
           >
             <RemoteImage uri={peerAvatar} style={styles.sellerAvatar} />
             <View>
@@ -202,6 +223,7 @@ export function ConversationScreen() {
               price,
               imageUrl,
               seller,
+              sellerProfileId: peerId ?? undefined,
             })
           }
         >
@@ -221,10 +243,9 @@ export function ConversationScreen() {
         >
           <Pressable
             style={styles.profileCard}
-            onPress={() =>
-              navigation.navigate('PublicProfile', { handle: peerName })
-            }
+            onPress={openPeerProfile}
             accessibilityLabel={`View ${peerName}'s profile`}
+            disabled={!peerId}
           >
             <RemoteImage uri={peerAvatar} style={styles.bigAvatar} />
             <Text style={styles.profileName}>{peerName} &gt;</Text>

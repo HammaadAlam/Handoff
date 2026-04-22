@@ -127,7 +127,7 @@ function ReviewRow({ item }: { item: PublicReview }) {
 
 export function PublicProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { params } = useRoute<RouteProp<RootStackParamList, 'PublicProfile'>>();
+  const { params } = useRoute<RouteProp<RootStackParamList, 'UserProfile'>>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const sessionUserId = user?.id ?? null;
@@ -141,14 +141,14 @@ export function PublicProfileScreen() {
     async (showSpinner: boolean) => {
       if (showSpinner) setLoading(true);
       const data = await fetchPublicProfile({
+        userId: params.userId,
         handle: params.handle,
-        profileId: params.profileId,
         sessionUserId,
       });
       setBundle(data);
       setLoading(false);
     },
-    [params.handle, params.profileId, sessionUserId],
+    [params.handle, params.userId, sessionUserId],
   );
 
   useEffect(() => {
@@ -212,6 +212,8 @@ export function PublicProfileScreen() {
       price: '',
       imageUrl: profile.avatarUrl,
       seller: profile.handle,
+      peerUserId: profile.id,
+      peerDisplayName: profile.displayName,
       avatarUrl: profile.avatarUrl,
       entry: 'message',
     });

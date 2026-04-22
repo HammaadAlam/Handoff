@@ -50,7 +50,13 @@ export function SearchHomeScreen() {
       title: item.title,
       price: item.price,
       imageUrl: item.imageUrl,
-      sellerAvatarUrl: DEFAULT_PEER_AVATAR_URI,
+      seller: item.sellerHandle,
+      sellerProfileId: item.sellerId,
+      sellerAvatarUrl: item.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+      description: item.description,
+      condition: item.condition,
+      categoryLabel: item.category,
+      meetupLocation: item.location,
     });
   };
 

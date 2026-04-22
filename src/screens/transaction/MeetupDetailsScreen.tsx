@@ -8,6 +8,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MeetupMapPreview } from '@/components/MeetupMapPreview';
 import { RemoteImage } from '@/components/RemoteImage';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
+import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
 import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -21,10 +23,12 @@ export function MeetupDetailsScreen() {
     imageUrl,
     location = 'LSU Student Union',
     timeLabel = 'Today - 6:30PM',
+    peerUserId,
     peerHandle,
     peerName,
     peerAvatarUrl,
   } = params;
+  const viewerProfileId = useViewerProfileId();
   const peerLabel = peerName ?? peerHandle;
 
   return (
@@ -53,13 +57,21 @@ export function MeetupDetailsScreen() {
           {peerLabel ? (
             <Pressable
               style={styles.peerRow}
-              onPress={() =>
-                peerHandle
-                  ? navigation.navigate('PublicProfile', { handle: peerHandle })
-                  : undefined
-              }
+              onPress={() => {
+                if (!peerUserId) return;
+                navigateToUserProfile(
+                  navigation,
+                  {
+                    userId: peerUserId,
+                    handle: peerHandle,
+                    displayName: peerLabel,
+                    avatarUrl: peerAvatarUrl,
+                  },
+                  viewerProfileId
+                );
+              }}
               accessibilityLabel={`View ${peerLabel}'s profile`}
-              disabled={!peerHandle}
+              disabled={!peerUserId}
             >
               {peerAvatarUrl ? (
                 <RemoteImage uri={peerAvatarUrl} style={styles.peerAvatar} />
@@ -76,7 +88,7 @@ export function MeetupDetailsScreen() {
                   {peerLabel}
                 </Text>
               </View>
-              {peerHandle ? (
+              {peerUserId ? (
                 <Ionicons
                   name="chevron-forward"
                   size={18}

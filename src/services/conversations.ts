@@ -184,7 +184,8 @@ export async function fetchInboxRows(args: {
       title: listing?.title ?? '',
       price: listing?.price ?? '',
       imageUrl: listing?.image_url ?? '',
-      seller: isSeller ? 'You' : peerHandle,
+      seller: peerHandle,
+      peerUserId: peer?.id ?? '',
       peerAvatarUrl: peer?.avatar_url ?? DEFAULT_PEER_AVATAR_URI,
     };
   });
@@ -258,6 +259,7 @@ export async function sendMessage(args: {
 
 /** Peer profile info needed to render a thread header from Inbox or deep links. */
 export type PeerInfo = {
+  id: string;
   handle: string;
   displayName: string;
   avatarUrl: string;
@@ -285,11 +287,12 @@ export async function fetchConversationPeer(args: {
 
   const { data: peer } = await supabase
     .from('profiles')
-    .select('handle, display_name, avatar_url')
+    .select('id, handle, display_name, avatar_url')
     .eq('id', peerId)
     .maybeSingle();
   if (!peer) return null;
   return {
+    id: peer.id as string,
     handle: peer.handle as string,
     displayName: peer.display_name as string,
     avatarUrl: peer.avatar_url as string,

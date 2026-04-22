@@ -138,3 +138,32 @@ export async function fetchRecommendedListings(): Promise<ListingItem[]> {
     return RECOMMENDED_LISTINGS;
   }
 }
+
+/**
+ * Public profile/shop listings for a specific seller (`profiles.id`).
+ */
+export async function fetchListingsByUserId(
+  userId: string,
+  limit = 60
+): Promise<ListingItem[]> {
+  if (!userId) return [];
+
+  if (!isSupabaseConfigured()) {
+    return RECOMMENDED_LISTINGS.filter((item) => item.sellerId === userId).slice(0, limit);
+  }
+
+  try {
+    const { data, error } = await getSupabase()
+      .from('listings')
+      .select(LISTING_WITH_PROFILE_SELECT)
+      .eq('seller_id', userId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) return [];
+    return ((data ?? []) as ListingRow[]).map(mapListingRow);
+  } catch {
+    return [];
+  }
+}

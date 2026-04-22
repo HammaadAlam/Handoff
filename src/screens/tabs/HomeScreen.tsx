@@ -29,6 +29,7 @@ import {
   type ListingItem,
   type TicketListing,
 } from '@/data/mockData';
+import { PROFILE_DEMO_HANDLE, getSeedProfileByHandle } from '@/data/seedCatalog';
 import { fetchRecommendedListings } from '@/services/listings';
 import { navigateToFavorites } from '@/navigation/navigateFavorites';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
@@ -36,12 +37,14 @@ import type { HomeTabNavigation } from '@/navigation/types';
 import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 function openTicket(navigation: HomeTabNavigation, t: TicketListing) {
+  const fallbackSellerId = getSeedProfileByHandle(PROFILE_DEMO_HANDLE)?.id;
   navigateToItemDetail(navigation, {
     listingId: t.id,
     title: t.title,
     price: t.price,
     imageUrl: t.imageUrl,
     seller: 'TigerTickets (demo)',
+    sellerProfileId: t.sellerId ?? fallbackSellerId,
     sellerAvatarUrl: DEFAULT_PEER_AVATAR_URI,
     categoryLabel: 'Tickets',
     condition: 'Mobile entry',

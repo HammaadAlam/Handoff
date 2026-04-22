@@ -26,7 +26,9 @@ import {
 } from '@/data/mockData';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useAuth } from '@/context/AuthContext';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToConversation } from '@/navigation/navigateConversation';
+import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
 import { fetchInboxRows } from '@/services/conversations';
 import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
@@ -57,6 +59,7 @@ function matchesFilter(row: ConversationRow, filter: InboxFilter): boolean {
 export function InboxScreen() {
   const navigation = useNavigation<InboxTabNavigation>();
   const { user } = useAuth();
+  const viewerProfileId = useViewerProfileId();
   const [filter, setFilter] = useState<InboxFilter>('All');
   const [query, setQuery] = useState('');
   const [rows, setRows] = useState<ConversationRow[]>(MOCK_CONVERSATIONS);
@@ -116,10 +119,26 @@ export function InboxScreen() {
       price: item.price,
       imageUrl: item.imageUrl,
       seller: item.seller,
+      peerUserId: item.peerUserId,
+      peerDisplayName: item.seller,
       avatarUrl: item.peerAvatarUrl,
       entry: 'message',
       conversationId: item.id,
     });
+  };
+
+  const openPeerProfile = (item: ConversationRow) => {
+    if (!item.peerUserId) return;
+    navigateToUserProfile(
+      navigation,
+      {
+        userId: item.peerUserId,
+        displayName: item.seller,
+        avatarUrl: item.peerAvatarUrl,
+        handle: item.seller,
+      },
+      viewerProfileId
+    );
   };
 
   const removeRow = (id: string) => {
@@ -222,23 +241,21 @@ export function InboxScreen() {
               style={styles.row}
               onPress={() => openConversation(item)}
             >
-              <RemoteImage uri={item.peerAvatarUrl} style={styles.avatarImg} />
-              <View style={styles.rowBody}>
-                <Text
-                  style={styles.rowTitle}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
+              <Pressable onPress={() => openPeerProfile(item)} hitSlop={8}>
+                <RemoteImage uri={item.peerAvatarUrl} style={styles.avatarImg} />
+              </Pressable>
+              <Pressable
+                style={styles.rowBody}
+                onPress={() => openPeerProfile(item)}
+                hitSlop={8}
+              >
+                <Text style={styles.rowTitle} numberOfLines={1} ellipsizeMode="tail">
                   {item.userItem}
                 </Text>
-                <Text
-                  style={styles.preview}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
+                <Text style={styles.preview} numberOfLines={1} ellipsizeMode="tail">
                   {item.preview}
                 </Text>
-              </View>
+              </Pressable>
               <View style={styles.meta}>
                 <Text style={styles.time} numberOfLines={1}>
                   {item.time}

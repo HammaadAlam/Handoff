@@ -72,7 +72,7 @@ export function RootNavigator() {
       <Stack.Screen name="MeetupDetails" component={MeetupDetailsScreen} />
       <Stack.Screen name="Favorites" component={FavoritesScreen} />
       <Stack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />
-      <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+      <Stack.Screen name="UserProfile" component={PublicProfileScreen} />
     </Stack.Navigator>
   );
 }

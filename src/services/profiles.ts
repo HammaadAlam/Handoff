@@ -4,10 +4,14 @@
  * and their latest reviews.
  */
 import type { ListingItem } from '@/data/mockData';
+import { RECOMMENDED_LISTINGS } from '@/data/mockData';
 import {
-  LISTING_WITH_PROFILE_SELECT,
-  mapListingRow,
-  type ListingRow,
+  PROFILE_DEMO_HANDLE,
+  getSeedProfileByHandle,
+  getSeedProfileById,
+} from '@/data/seedCatalog';
+import {
+  fetchListingsByUserId,
 } from '@/services/listings';
 import { getSupabase, isSupabaseConfigured } from '@/services/supabase';
 import { resolveViewerProfileId } from '@/services/viewer';
@@ -67,6 +71,41 @@ type ProfileRow = {
 const PROFILE_COLUMNS =
   'id, handle, display_name, avatar_url, bio, campus, primary_meetup_spot, rating_avg, review_count, items_sold, followers_count, is_verified_edu, created_at';
 
+function fallbackBundleByUser(args: {
+  userId?: string;
+  handle?: string;
+  sessionUserId: string | null;
+}): PublicProfileBundle | null {
+  const p = args.userId
+    ? getSeedProfileById(args.userId)
+    : args.handle
+      ? getSeedProfileByHandle(args.handle)
+      : undefined;
+  if (!p) return null;
+  const listings = RECOMMENDED_LISTINGS.filter((l) => l.sellerId === p.id);
+  return {
+    profile: {
+      id: p.id,
+      handle: p.handle,
+      displayName: p.displayName,
+      avatarUrl: p.avatarUrl,
+      bio: p.bio,
+      campus: p.campus,
+      primaryMeetupSpot: p.primaryMeetupSpot,
+      ratingAvg: p.ratingAvg,
+      reviewCount: p.reviewCount,
+      itemsSold: p.itemsSold,
+      followersCount: p.followersCount,
+      isVerifiedEdu: p.isVerifiedEdu,
+      createdAt: new Date().toISOString(),
+    },
+    listings,
+    reviews: [],
+    isFollowing: false,
+    isSelf: p.handle === PROFILE_DEMO_HANDLE,
+  };
+}
+
 function mapProfileRow(row: ProfileRow): PublicProfile {
   return {
     id: row.id,
@@ -86,17 +125,17 @@ function mapProfileRow(row: ProfileRow): PublicProfile {
 }
 
 export async function fetchPublicProfile(args: {
+  userId?: string;
   handle?: string;
-  profileId?: string;
   sessionUserId: string | null;
 }): Promise<PublicProfileBundle | null> {
-  if (!isSupabaseConfigured()) return null;
-  if (!args.handle && !args.profileId) return null;
+  if (!isSupabaseConfigured()) return fallbackBundleByUser(args);
+  if (!args.userId && !args.handle) return null;
 
   const supabase = getSupabase();
   const query = supabase.from('profiles').select(PROFILE_COLUMNS).limit(1);
-  const { data: profData, error: profErr } = args.profileId
-    ? await query.eq('id', args.profileId).maybeSingle()
+  const { data: profData, error: profErr } = args.userId
+    ? await query.eq('id', args.userId).maybeSingle()
     : await query.eq('handle', args.handle!).maybeSingle();
 
   if (profErr || !profData) return null;
@@ -105,14 +144,8 @@ export async function fetchPublicProfile(args: {
   const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
   const isSelf = !!viewerId && viewerId === profile.id;
 
-  const [listingsRes, reviewsRes, followRes] = await Promise.all([
-    supabase
-      .from('listings')
-      .select(LISTING_WITH_PROFILE_SELECT)
-      .eq('seller_id', profile.id)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(60),
+  const [listings, reviewsRes, followRes] = await Promise.all([
+    fetchListingsByUserId(profile.id, 60),
     supabase
       .from('reviews')
       .select(
@@ -131,9 +164,6 @@ export async function fetchPublicProfile(args: {
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
-
-  const listingRows = (listingsRes.data ?? []) as ListingRow[];
-  const listings = listingRows.map(mapListingRow);
 
   type ReviewerEmbed = {
     handle: string;
@@ -173,6 +203,30 @@ export async function fetchPublicProfile(args: {
     isFollowing: !!followRes.data,
     isSelf,
   };
+}
+
+/**
+ * Resolve canonical profile id from a known id or public handle.
+ */
+export async function resolveProfileId(args: {
+  userId?: string;
+  handle?: string;
+}): Promise<string | null> {
+  if (args.userId) return args.userId;
+
+  const handle = args.handle?.trim();
+  if (!handle) return null;
+
+  const seed = getSeedProfileByHandle(handle);
+  if (seed) return seed.id;
+
+  if (!isSupabaseConfigured()) return null;
+  const { data } = await getSupabase()
+    .from('profiles')
+    .select('id')
+    .eq('handle', handle)
+    .maybeSingle();
+  return (data?.id as string | undefined) ?? null;
 }
 
 async function ensureViewerForFollow(

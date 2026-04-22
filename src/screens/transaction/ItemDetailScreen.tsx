@@ -25,7 +25,10 @@ import {
 import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import { DEFAULT_PEER_AVATAR_URI, type ListingItem } from '@/data/mockData';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
+import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
 import { MakeOfferSheet } from '@/screens/transaction/MakeOfferSheet';
+import { resolveProfileId } from '@/services/profiles';
 import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -60,7 +63,9 @@ export function ItemDetailScreen() {
   const [slide, setSlide] = useState(0);
   const [offerOpen, setOfferOpen] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [profileResolving, setProfileResolving] = useState(false);
   const insets = useSafeAreaInsets();
+  const viewerProfileId = useViewerProfileId();
   const { width: windowW } = useWindowDimensions();
   const { toggleFavorite, isFavorite } = useMarketplace();
   /** Exact half of footer row (matches `footer` horizontal padding + `footerRow` gap) */
@@ -112,6 +117,8 @@ export function ItemDetailScreen() {
       price,
       imageUrl,
       seller,
+      peerUserId: sellerProfileId,
+      peerDisplayName: seller,
       avatarUrl: sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
       entry,
       offerAmount,
@@ -130,6 +137,30 @@ export function ItemDetailScreen() {
     descExpanded || !descLong
       ? description
       : `${description.slice(0, descPreviewLen).trim()}…`;
+
+  const openSellerProfile = async () => {
+    if (profileResolving) return;
+    setProfileResolving(true);
+    try {
+      const userId = await resolveProfileId({
+        userId: sellerProfileId,
+        handle: seller,
+      });
+      if (!userId) return;
+      navigateToUserProfile(
+        navigation,
+        {
+          userId,
+          handle: seller,
+          displayName: seller,
+          avatarUrl: sellerAvatar,
+        },
+        viewerProfileId
+      );
+    } finally {
+      setProfileResolving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -243,13 +274,9 @@ export function ItemDetailScreen() {
 
           <Pressable
             style={[styles.card, styles.sellerCard, shadows.soft]}
-            onPress={() =>
-              navigation.navigate('PublicProfile', {
-                profileId: sellerProfileId,
-                handle: seller,
-              })
-            }
+            onPress={openSellerProfile}
             accessibilityLabel={`View ${seller}'s profile`}
+            disabled={profileResolving}
           >
             <RemoteImage uri={sellerAvatar} style={styles.sellerAvatar} />
             <View style={styles.sellerMeta}>

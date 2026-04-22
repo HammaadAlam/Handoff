@@ -47,7 +47,7 @@ export type ItemDetailParams = {
   price: string;
   imageUrl: string;
   seller?: string;
-  /** Canonical seller profile id; prefer this over seller handle when available. */
+  /** Canonical seller profile id (profiles.id). */
   sellerProfileId?: string;
   /** Shown in chat header when messaging from this listing */
   sellerAvatarUrl?: string;
@@ -65,6 +65,10 @@ export type ConversationParams = {
   price: string;
   imageUrl: string;
   seller: string;
+  /** Canonical counterparty profile id (profiles.id). */
+  peerUserId?: string;
+  /** Optional fallback display name for profile header. */
+  peerDisplayName?: string;
   /** Counterparty profile photo in thread header */
   avatarUrl?: string;
   entry: 'message' | 'offer';
@@ -82,6 +86,7 @@ export type MeetupDetailsParams = {
   location?: string;
   timeLabel?: string;
   /** Counterparty profile info — when present, shown as a tappable chip */
+  peerUserId?: string;
   peerHandle?: string;
   peerName?: string;
   peerAvatarUrl?: string;
@@ -97,13 +102,15 @@ export type RootStackParamList = {
   MeetupDetails: MeetupDetailsParams;
   Favorites: undefined;
   ProfileSettings: undefined;
-  PublicProfile: PublicProfileParams;
+  UserProfile: UserProfileParams;
 };
 
 /** Read-only view of another seller's profile */
-export type PublicProfileParams = {
+export type UserProfileParams = {
+  userId: string;
+  displayName?: string;
+  avatarUrl?: string;
   handle?: string;
-  profileId?: string;
 };
 
 export type RootStackNav = NativeStackNavigationProp<RootStackParamList>;
