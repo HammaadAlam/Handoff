@@ -54,6 +54,12 @@ import {
 } from '@/styles/theme';
 
 const CAROUSEL_CARD_W = Math.min(152, Dimensions.get('window').width * 0.42);
+const PROFILE_TAB_PRIORITY: Record<ProfileTab, number> = {
+  Shop: 0,
+  About: 1,
+  Feedback: 2,
+  Sale: 3,
+};
 
 /** Two-column grid inside scroll (`paddingHorizontal: md`) — avoids bleeding past edges */
 const PROFILE_GRID_INNER_W = Dimensions.get('window').width - spacing.md * 2;
@@ -72,6 +78,12 @@ const PROFILE_COMPACT_BAR_H = 72;
 const PROFILE_HERO_HEIGHT_HOLD_UNTIL = 0.38;
 /** Extra bottom inset inside the lavender band so the rating row clears the tab edge. */
 const PROFILE_HERO_BAND_EXTRA_BOTTOM = 2;
+
+function sortProfileTabs(order: ProfileTab[]) {
+  return [...order].sort(
+    (left, right) => PROFILE_TAB_PRIORITY[left] - PROFILE_TAB_PRIORITY[right],
+  );
+}
 
 /** Stacked seller stats — marketplace-style lines with bold leading numbers. */
 function ProfileIdentityMetaExpanded({
@@ -317,11 +329,12 @@ export function ProfileScreen() {
     let cancelled = false;
     loadProfileTabPreferences().then(({ tabOrder, shopLayout }) => {
       if (cancelled) return;
-      setTabBarOrder(tabOrder);
+      const sortedTabs = sortProfileTabs(tabOrder);
+      setTabBarOrder(sortedTabs);
       setShopSectionLayout(shopLayout);
       setPrefsLoaded(true);
       setActiveTab((current) =>
-        tabOrder.includes(current) ? current : tabOrder[0] ?? 'Shop',
+        sortedTabs.includes(current) ? current : sortedTabs[0] ?? 'Shop',
       );
     });
     return () => {
@@ -407,9 +420,12 @@ export function ProfileScreen() {
         featuredCount={featuredListings.length}
         saleListingCount={saleListings.length}
         onApply={({ tabOrder, shopLayout }) => {
-          setTabBarOrder(tabOrder);
+          const sortedTabs = sortProfileTabs(tabOrder);
+          setTabBarOrder(sortedTabs);
           setShopSectionLayout(shopLayout);
-          setActiveTab((t) => (tabOrder.includes(t) ? t : tabOrder[0] ?? 'Shop'));
+          setActiveTab((t) =>
+            sortedTabs.includes(t) ? t : sortedTabs[0] ?? 'Shop',
+          );
         }}
       />
 
@@ -826,31 +842,6 @@ export function ProfileScreen() {
         )}
       </Animated.ScrollView>
 
-      {showShopChrome ? (
-        <View
-          style={[
-            styles.floatBar,
-            { bottom: spacing.sm + insets.bottom },
-            shadows.soft,
-          ]}
-        >
-          <Pressable
-            style={styles.floatHalf}
-            onPress={() => Alert.alert('Sort', 'Sorting listings is coming soon.')}
-          >
-            <Ionicons name="swap-vertical" size={18} color={colors.textPrimary} />
-            <Text style={styles.floatText}>Sort</Text>
-          </Pressable>
-          <View style={styles.floatDivider} />
-          <Pressable
-            style={styles.floatHalf}
-            onPress={() => navigation.navigate('Search', { screen: 'Filters' })}
-          >
-            <Ionicons name="options-outline" size={18} color={colors.textPrimary} />
-            <Text style={styles.floatText}>Filter</Text>
-          </Pressable>
-        </View>
-      ) : null}
     </SafeAreaView>
   );
 }
@@ -1192,12 +1183,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
     marginBottom: spacing.lg,
   },
   emptyShopTitle: {
@@ -1224,7 +1211,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   seeAll: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fonts.semiBold,
     color: colors.primary,
   },
@@ -1328,11 +1315,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radii.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xs,
     marginBottom: spacing.md,
   },
   aboutBioPlaceholder: {
@@ -1388,36 +1371,5 @@ const styles = StyleSheet.create({
   feedbackPlaceholder: {
     ...typography.body,
     color: colors.textMuted,
-  },
-  floatBar: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  floatHalf: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.lg,
-  },
-  floatDivider: {
-    width: StyleSheet.hairlineWidth,
-    alignSelf: 'stretch',
-    backgroundColor: colors.border,
-  },
-  floatText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 14,
-    color: colors.textPrimary,
   },
 });

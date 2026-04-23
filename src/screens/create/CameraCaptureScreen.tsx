@@ -22,16 +22,20 @@ import { RemoteImage } from '@/components/RemoteImage';
 
 const MAX_PHOTOS = 10;
 const GRID_GAP = 12;
+const TOTAL_STEPS = 4;
 
 function StepProgress({ active }: { active: number }) {
   return (
     <View style={styles.progressRow}>
-      {[1, 2, 3, 4, 5].map((step) => (
-        <View
-          key={step}
-          style={[styles.progressTrack, step <= active && styles.progressTrackActive]}
-        />
-      ))}
+      {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
+        const step = i + 1;
+        return (
+          <View
+            key={step}
+            style={[styles.progressTrack, step <= active && styles.progressTrackActive]}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -114,7 +118,7 @@ export function CameraCaptureScreen() {
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Add Photos</Text>
-          <Text style={styles.stepText}>Step 1 of 5</Text>
+          <Text style={styles.stepText}>Step 1 of {TOTAL_STEPS}</Text>
         </View>
         <View style={styles.headerSide} />
       </View>

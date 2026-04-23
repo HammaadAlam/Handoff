@@ -6,7 +6,6 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -15,7 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   type ListingItem,
 } from '@/data/mockData';
@@ -35,6 +34,7 @@ function haystackForListing(item: ListingItem) {
 export function SearchQueryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
   const { params } = useRoute<RouteProp<SearchStackParamList, 'SearchQuery'>>();
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState(params?.initialQuery ?? '');
   const [listings, setListings] = useState<ListingItem[]>([]);
 
@@ -72,12 +72,9 @@ export function SearchQueryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboard}
-      >
-        <View style={styles.header}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <View style={styles.screen}>
+        <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
           <Pressable
             accessibilityLabel="Close search"
             hitSlop={12}
@@ -111,7 +108,6 @@ export function SearchQueryScreen() {
               </Pressable>
             ) : null}
           </View>
-
         </View>
 
         <ScrollView
@@ -195,7 +191,7 @@ export function SearchQueryScreen() {
             </View>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -205,7 +201,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
   },
-  keyboard: {
+  screen: {
     flex: 1,
     backgroundColor: colors.surface,
   },
@@ -214,7 +210,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: spacing.md,
-    paddingTop: 6,
     paddingBottom: 12,
   },
   backButton: {

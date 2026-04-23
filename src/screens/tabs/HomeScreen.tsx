@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
   seeAllText: {
     color: colors.primaryLight,
     fontFamily: fonts.semiBold,
-    fontSize: 15,
+    fontSize: 13,
   },
   railContent: {
     paddingLeft: 16,

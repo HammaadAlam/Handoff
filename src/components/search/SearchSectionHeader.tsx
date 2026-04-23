@@ -42,8 +42,8 @@ const styles = StyleSheet.create({
   },
   action: {
     fontFamily: fonts.semiBold,
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 17,
     color: colors.primary,
   },
 });
