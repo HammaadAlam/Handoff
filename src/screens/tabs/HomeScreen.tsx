@@ -22,14 +22,11 @@ import { ProductCard } from '@/components/marketplace/ProductCard';
 import { SearchPopularCard } from '@/components/marketplace/SearchPopularCard';
 import {
   DEFAULT_PEER_AVATAR_URI,
-  LSU_FOOTBALL_TICKETS,
-  RECOMMENDED_LISTINGS,
   filterListingsForHomeCategory,
   type HomeCategory,
   type ListingItem,
   type TicketListing,
 } from '@/data/mockData';
-import { PROFILE_DEMO_HANDLE, getSeedProfileByHandle } from '@/data/seedCatalog';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { HomeTabNavigation } from '@/navigation/types';
 import { fetchRecommendedListings } from '@/services/listings';
@@ -97,18 +94,17 @@ function listingToTicketCard(item: ListingItem): TicketListing {
 }
 
 function openTicket(navigation: HomeTabNavigation, ticket: TicketListing) {
-  const fallbackSellerId = getSeedProfileByHandle(PROFILE_DEMO_HANDLE)?.id;
   navigateToItemDetail(navigation, {
     listingId: ticket.id,
     title: ticket.title,
     price: ticket.price,
     imageUrl: ticket.imageUrl,
-    seller: 'TigerTickets (demo)',
-    sellerProfileId: ticket.sellerId ?? fallbackSellerId,
+    seller: ticket.sellerHandle ?? 'Campus seller',
+    sellerProfileId: ticket.sellerId,
     sellerAvatarUrl: ticket.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
     categoryLabel: 'Tickets',
     condition: 'Mobile entry',
-    description: `${ticket.subtitle}\n${ticket.venue}\nSample LSU football ticket listing.`,
+    description: ticket.description,
     meetupLocation: ticket.venue,
   });
 }
@@ -157,8 +153,7 @@ export function HomeScreen() {
   const { width } = useWindowDimensions();
   const [activeCategory, setActiveCategory] = useState<HomeCategoryPill>('For You');
   const [bannerGroupIndex, setBannerGroupIndex] = useState(0);
-  const [recommended, setRecommended] =
-    useState<ListingItem[]>(RECOMMENDED_LISTINGS);
+  const [recommended, setRecommended] = useState<ListingItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const railGap = 12;
@@ -211,19 +206,11 @@ export function HomeScreen() {
       const eventListings = recommended
         .filter((item) => item.category === 'Events')
         .map(listingToTicketCard);
-
-      const mergedTickets = [
-        ...eventListings,
-        ...LSU_FOOTBALL_TICKETS.filter(
-          (ticket) => !eventListings.some((item) => item.id === ticket.id),
-        ),
-      ];
-
       if (activeCategory === 'Events') {
-        return mergedTickets;
+        return eventListings;
       }
 
-      return mergedTickets.slice(0, 8);
+      return eventListings.slice(0, 8);
     },
     [activeCategory, recommended],
   );

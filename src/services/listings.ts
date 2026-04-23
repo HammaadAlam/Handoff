@@ -1,9 +1,4 @@
-import {
-  RECOMMENDED_LISTINGS,
-  type HomeCategory,
-  type ListingItem,
-} from '@/data/mockData';
-import { getSeedProfileById, SEED_LISTINGS } from '@/data/seedCatalog';
+import { type HomeCategory, type ListingItem } from '@/data/mockData';
 import { getSupabase, isSupabaseConfigured } from '@/services/supabase';
 
 export type ProfileEmbed = {
@@ -62,17 +57,13 @@ function categoryFromRow(row: ListingRow): HomeCategory | undefined {
   ) {
     return t;
   }
-  const seed = SEED_LISTINGS.find((s) => s.id === row.id);
-  return seed?.category;
+  return undefined;
 }
 
 export function mapListingRow(row: ListingRow): ListingItem {
   const prof = firstProfile(row.profiles);
-  const fallback =
-    row.seller_id != null ? getSeedProfileById(row.seller_id) : undefined;
-
-  const sellerHandle = prof?.handle ?? fallback?.handle;
-  const sellerAvatarUrl = prof?.avatar_url ?? fallback?.avatarUrl;
+  const sellerHandle = prof?.handle;
+  const sellerAvatarUrl = prof?.avatar_url;
 
   const condition = row.condition as ListingItem['condition'] | undefined;
   const category = categoryFromRow(row);
@@ -92,7 +83,6 @@ export function mapListingRow(row: ListingRow): ListingItem {
     sellerId: row.seller_id ?? undefined,
     sellerHandle,
     sellerAvatarUrl,
-    trust: fallback?.isVerifiedEdu ? 'verified' : undefined,
   };
 }
 
@@ -112,9 +102,7 @@ function formatPostedAgo(iso: string): string {
  * otherwise static mock data.
  */
 export async function fetchRecommendedListings(): Promise<ListingItem[]> {
-  if (!isSupabaseConfigured()) {
-    return RECOMMENDED_LISTINGS;
-  }
+  if (!isSupabaseConfigured()) return [];
 
   try {
     const { data, error } = await getSupabase()
@@ -124,18 +112,14 @@ export async function fetchRecommendedListings(): Promise<ListingItem[]> {
       .order('created_at', { ascending: false })
       .limit(120);
 
-    if (error) {
-      return RECOMMENDED_LISTINGS;
-    }
+    if (error) return [];
 
     const rows = (data ?? []) as ListingRow[];
-    if (rows.length === 0) {
-      return RECOMMENDED_LISTINGS;
-    }
+    if (rows.length === 0) return [];
 
     return rows.map(mapListingRow);
   } catch {
-    return RECOMMENDED_LISTINGS;
+    return [];
   }
 }
 
@@ -148,9 +132,7 @@ export async function fetchListingsByUserId(
 ): Promise<ListingItem[]> {
   if (!userId) return [];
 
-  if (!isSupabaseConfigured()) {
-    return RECOMMENDED_LISTINGS.filter((item) => item.sellerId === userId).slice(0, limit);
-  }
+  if (!isSupabaseConfigured()) return [];
 
   try {
     const { data, error } = await getSupabase()

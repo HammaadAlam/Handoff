@@ -4,7 +4,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -17,12 +17,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  DEFAULT_RECENT_SEARCHES,
-  POPULAR_LISTINGS,
-  RECOMMENDED_LISTINGS,
   type ListingItem,
 } from '@/data/mockData';
 import type { SearchStackParamList } from '@/navigation/types';
+import { fetchRecommendedListings } from '@/services/listings';
 import { colors, fonts, spacing } from '@/styles/theme';
 
 const SUGGESTION_LIMIT = 6;
@@ -34,12 +32,11 @@ function haystackForListing(item: ListingItem) {
     .toLowerCase();
 }
 
-const RECENTS_STORAGE_KEY = '@handoff/search_recents_v1';
-
 export function SearchQueryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
   const { params } = useRoute<RouteProp<SearchStackParamList, 'SearchQuery'>>();
   const [query, setQuery] = useState(params?.initialQuery ?? '');
+  const [listings, setListings] = useState<ListingItem[]>([]);
 
   const trimmedQuery = query.trim();
 
@@ -49,17 +46,21 @@ export function SearchQueryScreen() {
     }
 
     const normalizedQuery = trimmedQuery.toLowerCase();
-    const mergedListings = [
-      ...RECOMMENDED_LISTINGS,
-      ...POPULAR_LISTINGS.filter(
-        (item) => !RECOMMENDED_LISTINGS.some((candidate) => candidate.id === item.id),
-      ),
-    ];
-
-    return mergedListings
+    return listings
       .filter((item) => haystackForListing(item).includes(normalizedQuery))
       .slice(0, SUGGESTION_LIMIT);
-  }, [trimmedQuery]);
+  }, [trimmedQuery, listings]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const items = await fetchRecommendedListings();
+      if (!cancelled) setListings(items);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const submit = (term: string) => {
     const nextQuery = term.trim();
@@ -129,19 +130,7 @@ export function SearchQueryScreen() {
 
               <Text style={styles.sectionLabel}>Recently searched</Text>
               <View style={styles.quickWrap}>
-                {DEFAULT_RECENT_SEARCHES.map((term) => (
-                  <Pressable
-                    key={term}
-                    onPress={() => {
-                      setQuery(term);
-                      submit(term);
-                    }}
-                    style={styles.quickChip}
-                  >
-                    <Ionicons name="time-outline" size={16} color={colors.primary} />
-                    <Text style={styles.quickText}>{term}</Text>
-                  </Pressable>
-                ))}
+                <Text style={styles.noMatches}>No recent searches yet.</Text>
               </View>
             </View>
           ) : (

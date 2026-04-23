@@ -4,8 +4,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -15,10 +16,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProductCard } from '@/components/marketplace/ProductCard';
-import { DEFAULT_PEER_AVATAR_URI, listingsForSearchQuery } from '@/data/mockData';
+import { DEFAULT_PEER_AVATAR_URI } from '@/data/mockData';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { ListingItem } from '@/data/mockData';
 import type { SearchFilters, SearchStackParamList } from '@/navigation/types';
+import { fetchRecommendedListings } from '@/services/listings';
 import { fonts, colors, spacing, typography } from '@/styles/theme';
 
 const DEFAULT_FILTERS: SearchFilters = {
@@ -66,10 +68,41 @@ export function CategoryResultsScreen() {
   const gridColWidth = (gridInnerWidth - gridGutter) / 2;
   const { params } = useRoute<RouteProp<SearchStackParamList, 'CategoryResults'>>();
   const { query, filters = DEFAULT_FILTERS } = params;
+  const [listings, setListings] = useState<ListingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const items = await fetchRecommendedListings();
+        if (!cancelled) setListings(items);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const data = useMemo(
     () => {
-      const source = listingsForSearchQuery(query);
+      const normalizedQuery = query.trim().toLowerCase();
+      const source = listings.filter((item) => {
+        if (!normalizedQuery) return true;
+        const haystack = [
+          item.title,
+          item.brand,
+          item.category,
+          item.description,
+          item.sellerHandle,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(normalizedQuery);
+      });
       const filtered = source
         .filter((item) => listingPriceValue(item) <= filters.priceMax)
         .filter((item) =>
@@ -86,7 +119,7 @@ export function CategoryResultsScreen() {
       }
       return filtered;
     },
-    [query, filters],
+    [query, filters, listings],
   );
 
   return (
@@ -113,12 +146,18 @@ export function CategoryResultsScreen() {
         columnWrapperStyle={[styles.row, { gap: gridGutter }]}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyTitle}>No items match this filter</Text>
-            <Text style={styles.emptyBody}>
-              Try removing a filter or broadening your search terms.
-            </Text>
-          </View>
+          loading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : (
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyTitle}>No items match this filter</Text>
+              <Text style={styles.emptyBody}>
+                Try removing a filter or broadening your search terms.
+              </Text>
+            </View>
+          )
         }
         renderItem={({ item }) => (
           <View style={{ width: gridColWidth, minWidth: 0 }}>
@@ -200,5 +239,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     maxWidth: 280,
+  },
+  loadingWrap: {
+    paddingTop: spacing.xl,
+    alignItems: 'center',
   },
 });

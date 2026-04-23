@@ -39,7 +39,6 @@ import {
 } from '@/services/profiles';
 import {
   ensureConversationForListing,
-  seedLocalConversation,
 } from '@/services/conversations';
 import {
   fonts,
@@ -218,16 +217,7 @@ export function PublicProfileScreen() {
           sessionUserId,
         })
       : null;
-    const localConversationId = seedLocalConversation({
-      listingId: seedListingId ?? '',
-      title: bundle?.listings[0]?.title ?? `Chat with ${profile.displayName}`,
-      price: bundle?.listings[0]?.price ?? '',
-      imageUrl: bundle?.listings[0]?.imageUrl ?? profile.avatarUrl,
-      seller: profile.handle,
-      peerUserId: profile.id,
-      peerAvatarUrl: profile.avatarUrl,
-      entry: 'message',
-    });
+    if (!conversationId) return;
     navigation.navigate('Conversation', {
       listingId: seedListingId ?? '',
       title: seedListingId ? (bundle?.listings[0]?.title ?? profile.displayName) : `Chat with ${profile.displayName}`,
@@ -238,7 +228,7 @@ export function PublicProfileScreen() {
       peerDisplayName: profile.displayName,
       avatarUrl: profile.avatarUrl,
       entry: 'message',
-      conversationId: conversationId ?? localConversationId,
+      conversationId,
     });
   };
 

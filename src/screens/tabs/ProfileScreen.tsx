@@ -36,10 +36,8 @@ import { useMarketplace } from '@/context/MarketplaceContext';
 import {
   DEFAULT_PEER_AVATAR_URI,
   PLACEHOLDER_IMAGE_URI,
-  PROFILE_MY_ITEMS,
   type ListingItem,
 } from '@/data/mockData';
-import { PROFILE_DEMO_HANDLE, SEED_PROFILES } from '@/data/seedCatalog';
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { ProfileTabNavigation } from '@/navigation/types';
@@ -61,14 +59,6 @@ const CAROUSEL_CARD_W = Math.min(152, Dimensions.get('window').width * 0.42);
 const PROFILE_GRID_INNER_W = Dimensions.get('window').width - spacing.md * 2;
 const PROFILE_GRID_GAP = spacing.sm;
 const PROFILE_GRID_CELL_W = (PROFILE_GRID_INNER_W - PROFILE_GRID_GAP) / 2;
-
-const demoProfile =
-  SEED_PROFILES.find((p) => p.handle === PROFILE_DEMO_HANDLE) ?? SEED_PROFILES[0];
-/** Maps rating to marketplace-style “% positive” copy */
-const PROFILE_POSITIVE_PCT = Math.round((demoProfile.ratingAvg / 5) * 100);
-const PROFILE_FOLLOWERS = demoProfile.followersCount;
-const PROFILE_ITEMS_SOLD = demoProfile.itemsSold;
-const PROFILE_SHOP_TITLE = demoProfile.displayName;
 
 /** Width of the right action cluster (2 icons + gap) — mirrored on the left for centered title. */
 const PROFILE_HEADER_ACTIONS_W = 28 + 16 + 28;
@@ -202,15 +192,14 @@ function GridCard({
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileTabNavigation>();
   const insets = useSafeAreaInsets();
-  const { user, authBypass } = useAuth();
+  const { user } = useAuth();
   const viewerProfileId = useViewerProfileId();
-  const usingDemoProfile = authBypass || !user;
   const accountHandle = user?.email?.split('@')[0] ?? 'new_user';
-  const profileHandle = usingDemoProfile ? PROFILE_DEMO_HANDLE : accountHandle;
-  const profileTitle = usingDemoProfile ? PROFILE_SHOP_TITLE : accountHandle;
-  const positivePct = usingDemoProfile ? PROFILE_POSITIVE_PCT : 0;
-  const followersCount = usingDemoProfile ? PROFILE_FOLLOWERS : 0;
-  const itemsSoldCount = usingDemoProfile ? PROFILE_ITEMS_SOLD : 0;
+  const profileHandle = accountHandle;
+  const profileTitle = accountHandle;
+  const positivePct = 0;
+  const followersCount = 0;
+  const itemsSoldCount = 0;
   const [manageSectionsOpen, setManageSectionsOpen] = useState(false);
   const [profilePhotoReady, setProfilePhotoReady] = useState(false);
   const [tabBarOrder, setTabBarOrder] = useState<ProfileTab[]>([...PROFILE_TABS]);
@@ -222,7 +211,7 @@ export function ProfileScreen() {
   const [heroExpandedHeight, setHeroExpandedHeight] = useState(
     PROFILE_HERO_EXPANDED_FALLBACK,
   );
-  const [storeListings, setStoreListings] = useState<ListingItem[]>(PROFILE_MY_ITEMS);
+  const [storeListings, setStoreListings] = useState<ListingItem[]>([]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollYRef = useRef(0);
@@ -346,13 +335,11 @@ export function ProfileScreen() {
 
   const loadStoreListings = useCallback(async () => {
     const all = await fetchRecommendedListings();
-    const mine = usingDemoProfile
-      ? all.filter((item) => item.sellerHandle === PROFILE_DEMO_HANDLE)
-      : viewerProfileId
-        ? all.filter((item) => item.sellerId === viewerProfileId)
-        : [];
-    setStoreListings(mine.length > 0 ? mine : usingDemoProfile ? PROFILE_MY_ITEMS : []);
-  }, [usingDemoProfile, viewerProfileId]);
+    const mine = viewerProfileId
+      ? all.filter((item) => item.sellerId === viewerProfileId)
+      : [];
+    setStoreListings(mine);
+  }, [viewerProfileId]);
 
   useEffect(() => {
     void loadStoreListings();

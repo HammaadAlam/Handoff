@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import type { ListingItem } from '@/data/mockData';
-import { colors, fonts, spacing } from '@/styles/theme';
+import { colors, fonts } from '@/styles/theme';
 
 type Props = {
   item: ListingItem;

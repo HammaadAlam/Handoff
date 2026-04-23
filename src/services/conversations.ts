@@ -7,7 +7,6 @@
  */
 import {
   DEFAULT_PEER_AVATAR_URI,
-  MOCK_CONVERSATIONS,
   type ConversationRow,
 } from '@/data/mockData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -58,14 +57,6 @@ type MeetupLite = {
   scheduled_at: string | null;
 };
 
-type LocalConversationSeed = {
-  id: string;
-  listingId: string;
-  peerUserId: string;
-  row: ConversationRow;
-};
-
-const localConversationSeeds: LocalConversationSeed[] = [];
 const localOfferAmountByConversationId = new Map<string, string>();
 const OFFER_CACHE_KEY = '@handoff/local_offer_amounts_v1';
 let offersHydrated = false;
@@ -117,66 +108,6 @@ async function setLocalOfferAmount(
   await persistOfferCache();
 }
 
-function upsertLocalSeed(seed: LocalConversationSeed): void {
-  const idx = localConversationSeeds.findIndex(
-    (s) => s.listingId === seed.listingId && s.peerUserId === seed.peerUserId,
-  );
-  if (idx >= 0) {
-    localConversationSeeds[idx] = seed;
-    return;
-  }
-  localConversationSeeds.unshift(seed);
-}
-
-function composeSeedId(listingId: string, peerUserId: string): string {
-  return `local:${listingId || 'listing'}:${peerUserId || 'peer'}`;
-}
-
-export function seedLocalConversation(args: {
-  listingId: string;
-  title: string;
-  price: string;
-  imageUrl: string;
-  seller: string;
-  peerUserId?: string;
-  peerAvatarUrl?: string;
-  entry: 'message' | 'offer';
-  offerAmount?: string;
-}): string {
-  const peerId = args.peerUserId ?? 'unknown-peer';
-  const id = composeSeedId(args.listingId, peerId);
-  const now = Date.now();
-  const preview =
-    args.entry === 'offer' && args.offerAmount
-      ? `Offer sent: ${args.offerAmount}`
-      : 'Hi! Is this still available?';
-  upsertLocalSeed({
-    id,
-    listingId: args.listingId,
-    peerUserId: peerId,
-    row: {
-      id,
-      userItem: `${args.seller} - ${args.title || 'Item'}`,
-      preview,
-      time: 'just now',
-      status: 'Pending',
-      role: 'buying',
-      archived: false,
-      listingId: args.listingId,
-      title: args.title,
-      price: args.price,
-      imageUrl: args.imageUrl,
-      seller: args.seller,
-      peerUserId: peerId,
-      peerAvatarUrl: args.peerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
-    },
-  });
-  if (args.entry === 'offer' && args.offerAmount) {
-    void setLocalOfferAmount(id, args.offerAmount);
-  }
-  return id;
-}
-
 function firstOrSelf<T>(v: T | T[] | null | undefined): T | undefined {
   if (v == null) return undefined;
   return Array.isArray(v) ? v[0] : v;
@@ -210,14 +141,11 @@ function deriveStatus(
 export async function fetchInboxRows(args: {
   sessionUserId: string | null;
 }): Promise<ConversationRow[]> {
-  if (!isSupabaseConfigured()) {
-    if (args.sessionUserId) return [...localConversationSeeds.map((s) => s.row)];
-    return [...localConversationSeeds.map((s) => s.row), ...MOCK_CONVERSATIONS];
-  }
+  if (!isSupabaseConfigured()) return [];
 
   const supabase = getSupabase();
   const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
-  if (!viewerId) return args.sessionUserId ? [] : MOCK_CONVERSATIONS;
+  if (!viewerId) return [];
 
   const { data: convs, error } = await supabase
     .from('conversations')
@@ -228,11 +156,9 @@ export async function fetchInboxRows(args: {
     .or(`buyer_id.eq.${viewerId},seller_id.eq.${viewerId}`)
     .order('last_message_at', { ascending: false, nullsFirst: false });
 
-  if (error) {
-    return MOCK_CONVERSATIONS;
-  }
+  if (error) return [];
   const rows = (convs ?? []) as ConversationLite[];
-  if (rows.length === 0) return [...localConversationSeeds.map((s) => s.row)];
+  if (rows.length === 0) return [];
 
   const convIds = rows.map((r) => r.id);
   const partnerIds = Array.from(
@@ -313,14 +239,7 @@ export async function fetchInboxRows(args: {
     };
   });
 
-  const remoteKeys = new Set(
-    remoteRows.map((r) => `${r.listingId}:${r.peerUserId || 'unknown-peer'}`),
-  );
-  const localRows = localConversationSeeds
-    .filter((s) => !remoteKeys.has(`${s.listingId}:${s.peerUserId}`))
-    .map((s) => s.row);
-
-  return [...localRows, ...remoteRows];
+  return remoteRows;
 }
 
 /** Messages for a thread, oldest → newest. */

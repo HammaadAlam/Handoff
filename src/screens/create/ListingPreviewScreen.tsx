@@ -28,7 +28,6 @@ import {
   mergeCreateListingDraft,
 } from '@/data/createListingDraft';
 import { DEFAULT_PEER_AVATAR_URI } from '@/data/mockData';
-import { PROFILE_DEMO_HANDLE, getSeedProfileByHandle } from '@/data/seedCatalog';
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import type { CreateListingStackParamList } from '@/navigation/types';
 import { fetchPublicProfile, type PublicProfile } from '@/services/profiles';
@@ -41,8 +40,6 @@ const HERO_CARD_OVERLAP = 20;
 const DEFAULT_PREVIEW_DESCRIPTION =
   'Campus pickup. Message with any questions before meeting up.';
 
-const demoProfile = getSeedProfileByHandle(PROFILE_DEMO_HANDLE);
-
 export function ListingPreviewScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<CreateListingStackParamList>>();
@@ -50,7 +47,7 @@ export function ListingPreviewScreen() {
     useRoute<RouteProp<CreateListingStackParamList, 'ListingPreview'>>();
   const insets = useSafeAreaInsets();
   const { width: windowW } = useWindowDimensions();
-  const { authBypass, user } = useAuth();
+  const { user } = useAuth();
   const viewerProfileId = useViewerProfileId();
   const draft = mergeCreateListingDraft(params?.draft);
   const [slide, setSlide] = useState(0);
@@ -104,19 +101,12 @@ export function ListingPreviewScreen() {
     typeof user?.user_metadata?.avatar_url === 'string'
       ? user.user_metadata.avatar_url
       : undefined;
-  const fallbackSeller = authBypass || !user
-    ? {
-        avatarUrl: demoProfile?.avatarUrl ?? DEFAULT_PEER_AVATAR_URI,
-        handle: demoProfile?.handle ?? PROFILE_DEMO_HANDLE,
-        ratingAvg: demoProfile?.ratingAvg ?? 0,
-        reviewCount: demoProfile?.reviewCount ?? 0,
-      }
-    : {
-        avatarUrl: metadataAvatar ?? DEFAULT_PEER_AVATAR_URI,
-        handle: accountHandle,
-        ratingAvg: 0,
-        reviewCount: 0,
-      };
+  const fallbackSeller = {
+    avatarUrl: metadataAvatar ?? DEFAULT_PEER_AVATAR_URI,
+    handle: accountHandle,
+    ratingAvg: 0,
+    reviewCount: 0,
+  };
   const sellerHandle = viewerProfile?.handle ?? fallbackSeller.handle;
   const sellerAvatarUrl = viewerProfile?.avatarUrl ?? fallbackSeller.avatarUrl;
   const sellerRatingAvg = viewerProfile?.ratingAvg ?? fallbackSeller.ratingAvg;

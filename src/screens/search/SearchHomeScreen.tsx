@@ -21,8 +21,6 @@ import { SearchSectionHeader } from '@/components/search/SearchSectionHeader';
 import { SearchTrendingCard } from '@/components/search/SearchTrendingCard';
 import {
   DEFAULT_PEER_AVATAR_URI,
-  POPULAR_LISTINGS,
-  RECOMMENDED_LISTINGS,
   type ListingItem,
 } from '@/data/mockData';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
@@ -95,91 +93,10 @@ const BROWSE_CATEGORIES = [
   },
 ] as const;
 
-const TRENDING_FALLBACKS: ListingItem[] = [
-  {
-    id: 'search-macbook-pro',
-    imageUrl:
-      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900&q=80',
-    postedAgo: '2h ago',
-    price: '$850',
-    rating: 4.9,
-    title: 'MacBook Pro M2',
-  },
-  {
-    id: 'search-ti84',
-    imageUrl:
-      'https://images.unsplash.com/photo-1564981797816-1043664bf78d?w=900&q=80',
-    postedAgo: '3h ago',
-    price: '$65',
-    rating: 4.8,
-    title: 'TI-84 Plus CE',
-  },
-  {
-    id: 'search-fridge',
-    imageUrl:
-      'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=900&q=80',
-    postedAgo: '5h ago',
-    price: '$45',
-    rating: 4.7,
-    title: 'Mini Fridge',
-  },
-  {
-    id: 'search-couch',
-    imageUrl:
-      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=900&q=80',
-    postedAgo: '1d ago',
-    price: '$120',
-    rating: 4.6,
-    title: 'Gray Couch',
-  },
-];
-
-const TRENDING_MATCHERS = [
-  ['macbook', 'laptop'],
-  ['ti-84', 'calculator'],
-  ['mini fridge', 'fridge'],
-  ['couch', 'sofa', 'chair', 'furniture'],
-] as const;
-
-function haystackForListing(item: ListingItem) {
-  return [item.title, item.brand, item.description, item.category]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-}
-
-function findListingMatch(
-  items: ListingItem[],
-  keywords: readonly string[],
-  usedIds: Set<string>,
-) {
-  return items.find((item) => {
-    if (usedIds.has(item.id)) {
-      return false;
-    }
-
-    const haystack = haystackForListing(item);
-    return keywords.some((keyword) => haystack.includes(keyword));
-  });
-}
-
-function withFallbackDetail(item: ListingItem, fallback: ListingItem): ListingItem {
-  return {
-    ...fallback,
-    ...item,
-    postedAgo: item.postedAgo ?? fallback.postedAgo,
-    price: item.price ?? fallback.price,
-    rating: item.rating ?? fallback.rating,
-    sellerAvatarUrl: item.sellerAvatarUrl ?? fallback.sellerAvatarUrl,
-    sellerHandle: item.sellerHandle ?? fallback.sellerHandle,
-  };
-}
-
 export function SearchHomeScreen() {
   const navigation = useNavigation<SearchStackNavigation>();
   const { width } = useWindowDimensions();
-  const [recommended, setRecommended] =
-    useState<ListingItem[]>(RECOMMENDED_LISTINGS);
+  const [recommended, setRecommended] = useState<ListingItem[]>([]);
 
   const horizontalPadding = 16;
   const gridGap = 12;
@@ -216,26 +133,7 @@ export function SearchHomeScreen() {
   );
 
   const trendingItems = useMemo(() => {
-    const mergedListings = [
-      ...recommended,
-      ...POPULAR_LISTINGS.filter(
-        (item) => !recommended.some((candidate) => candidate.id === item.id),
-      ),
-    ];
-
-    const usedIds = new Set<string>();
-
-    return TRENDING_MATCHERS.map((keywords, index) => {
-      const fallback = TRENDING_FALLBACKS[index];
-      const match = findListingMatch(mergedListings, keywords, usedIds);
-
-      if (!match) {
-        return fallback;
-      }
-
-      usedIds.add(match.id);
-      return withFallbackDetail(match, fallback);
-    });
+    return recommended.slice(0, 8);
   }, [recommended]);
 
   return (

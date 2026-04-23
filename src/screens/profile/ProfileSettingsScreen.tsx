@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -15,8 +16,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
-import { PROFILE_MY_ITEMS } from '@/data/mockData';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import type { RootStackParamList } from '@/navigation/types';
+import { fetchRecommendedListings } from '@/services/listings';
 import { fonts, colors, spacing, typography } from '@/styles/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -76,7 +78,25 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function ProfileSettingsScreen() {
   const navigation = useNavigation<Nav>();
   const { signOut } = useAuth();
-  const listingsCount = PROFILE_MY_ITEMS.length;
+  const viewerProfileId = useViewerProfileId();
+  const [listingsCount, setListingsCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!viewerProfileId) {
+        if (!cancelled) setListingsCount(0);
+        return;
+      }
+      const listings = await fetchRecommendedListings();
+      if (!cancelled) {
+        setListingsCount(listings.filter((item) => item.sellerId === viewerProfileId).length);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerProfileId]);
 
   const stub = (title: string) => () =>
     Alert.alert(title, 'This screen will be available in a future update.');

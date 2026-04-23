@@ -15,7 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CreateListingStackParamList } from '@/navigation/types';
 import { colors, fonts, spacing } from '@/styles/theme';
 import { RemoteImage } from '@/components/RemoteImage';

@@ -20,7 +20,7 @@ import {
 import { RectButton, Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  MOCK_CONVERSATIONS,
+  DEFAULT_PEER_AVATAR_URI,
   type ConversationRow,
   type InboxFilter,
 } from '@/data/mockData';
@@ -62,7 +62,7 @@ export function InboxScreen() {
   const viewerProfileId = useViewerProfileId();
   const [filter, setFilter] = useState<InboxFilter>('All');
   const [query, setQuery] = useState('');
-  const [rows, setRows] = useState<ConversationRow[]>(MOCK_CONVERSATIONS);
+  const [rows, setRows] = useState<ConversationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(true);
@@ -242,7 +242,10 @@ export function InboxScreen() {
               onPress={() => openConversation(item)}
             >
               <Pressable onPress={() => openPeerProfile(item)} hitSlop={8}>
-                <RemoteImage uri={item.peerAvatarUrl} style={styles.avatarImg} />
+                <RemoteImage
+                  uri={item.peerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI}
+                  style={styles.avatarImg}
+                />
               </Pressable>
               <Pressable
                 style={styles.rowBody}

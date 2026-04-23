@@ -4,12 +4,6 @@
  * and their latest reviews.
  */
 import type { ListingItem } from '@/data/mockData';
-import { RECOMMENDED_LISTINGS } from '@/data/mockData';
-import {
-  PROFILE_DEMO_HANDLE,
-  getSeedProfileByHandle,
-  getSeedProfileById,
-} from '@/data/seedCatalog';
 import {
   fetchListingsByUserId,
 } from '@/services/listings';
@@ -71,41 +65,6 @@ type ProfileRow = {
 const PROFILE_COLUMNS =
   'id, handle, display_name, avatar_url, bio, campus, primary_meetup_spot, rating_avg, review_count, items_sold, followers_count, is_verified_edu, created_at';
 
-function fallbackBundleByUser(args: {
-  userId?: string;
-  handle?: string;
-  sessionUserId: string | null;
-}): PublicProfileBundle | null {
-  const p = args.userId
-    ? getSeedProfileById(args.userId)
-    : args.handle
-      ? getSeedProfileByHandle(args.handle)
-      : undefined;
-  if (!p) return null;
-  const listings = RECOMMENDED_LISTINGS.filter((l) => l.sellerId === p.id);
-  return {
-    profile: {
-      id: p.id,
-      handle: p.handle,
-      displayName: p.displayName,
-      avatarUrl: p.avatarUrl,
-      bio: p.bio,
-      campus: p.campus,
-      primaryMeetupSpot: p.primaryMeetupSpot,
-      ratingAvg: p.ratingAvg,
-      reviewCount: p.reviewCount,
-      itemsSold: p.itemsSold,
-      followersCount: p.followersCount,
-      isVerifiedEdu: p.isVerifiedEdu,
-      createdAt: new Date().toISOString(),
-    },
-    listings,
-    reviews: [],
-    isFollowing: false,
-    isSelf: p.handle === PROFILE_DEMO_HANDLE,
-  };
-}
-
 function mapProfileRow(row: ProfileRow): PublicProfile {
   return {
     id: row.id,
@@ -129,7 +88,7 @@ export async function fetchPublicProfile(args: {
   handle?: string;
   sessionUserId: string | null;
 }): Promise<PublicProfileBundle | null> {
-  if (!isSupabaseConfigured()) return fallbackBundleByUser(args);
+  if (!isSupabaseConfigured()) return null;
   if (!args.userId && !args.handle) return null;
 
   const supabase = getSupabase();
@@ -216,9 +175,6 @@ export async function resolveProfileId(args: {
 
   const handle = args.handle?.trim();
   if (!handle) return null;
-
-  const seed = getSeedProfileByHandle(handle);
-  if (seed) return seed.id;
 
   if (!isSupabaseConfigured()) return null;
   const { data } = await getSupabase()

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
-import { fonts, colors, radii, typography } from '@/styles/theme';
+import { fonts, colors, typography } from '@/styles/theme';
 import type { SuggestedCategory } from '@/data/mockData';
 
 type Props = {

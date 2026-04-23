@@ -32,7 +32,6 @@ import { useAuth } from '@/context/AuthContext';
 import {
   createPendingOffer,
   ensureConversationForListing,
-  seedLocalConversation,
 } from '@/services/conversations';
 import { resolveProfileId } from '@/services/profiles';
 import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
@@ -143,18 +142,7 @@ export function ItemDetailScreen() {
           });
         }
       }
-      const localConversationId = seedLocalConversation({
-        listingId,
-        title,
-        price,
-        imageUrl,
-        seller,
-        peerUserId: sellerId,
-        peerAvatarUrl: sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
-        entry,
-        offerAmount,
-      });
-      const finalConversationId = conversationId ?? localConversationId;
+      if (!conversationId) return;
 
       navigation.navigate('Conversation', {
         listingId,
@@ -167,7 +155,7 @@ export function ItemDetailScreen() {
         avatarUrl: sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
         entry,
         offerAmount,
-        conversationId: finalConversationId,
+        conversationId,
       });
     } finally {
       setConversationOpening(false);

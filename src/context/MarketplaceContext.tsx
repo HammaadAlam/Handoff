@@ -51,29 +51,14 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      let cached: ListingItem[] = [];
-      // Hydrate quickly from local cache so favorites survive app restarts.
-      try {
-        const raw = await AsyncStorage.getItem(cacheKey);
-        if (!cancelled && raw) {
-          const parsed = JSON.parse(raw) as ListingItem[];
-          if (Array.isArray(parsed)) {
-            cached = parsed;
-            setFavorites(parsed);
-          }
-        }
-      } catch {
-        // Ignore malformed cache and continue.
+      if (!isSupabaseConfigured()) {
+        if (!cancelled) setFavorites([]);
+        return;
       }
-
-      if (!isSupabaseConfigured()) return;
       const rows = await fetchFavoriteListings({ sessionUserId });
       if (!cancelled) {
-        // Preserve locally cached favorites when remote is empty/unavailable,
-        // so app restarts do not clear the Favorites tab.
-        const next = rows.length > 0 ? rows : cached;
-        setFavorites(next);
-        void persistFavorites(next);
+        setFavorites(rows);
+        void persistFavorites(rows);
       }
     })();
     return () => {
@@ -88,13 +73,13 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
 
   const toggleFavorite = useCallback(
     (item: ListingItem) => {
+      if (!isSupabaseConfigured()) return;
       const wasFavorite = favIds.has(item.id);
       const next = wasFavorite
         ? favorites.filter((p) => p.id !== item.id)
         : [item, ...favorites.filter((p) => p.id !== item.id)];
       setFavorites(next);
       void persistFavorites(next);
-      if (!isSupabaseConfigured()) return;
 
       void (async () => {
         const ok = wasFavorite
