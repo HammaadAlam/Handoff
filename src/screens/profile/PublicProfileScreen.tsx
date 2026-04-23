@@ -243,6 +243,11 @@ export function PublicProfileScreen() {
       sellerAvatarUrl: item.sellerAvatarUrl ?? profile?.avatarUrl,
       description: item.description,
       condition: item.condition,
+      brand: item.brand,
+      model: item.model,
+      storage: item.storage,
+      color: item.color,
+      lowestOffer: item.lowestOffer,
       categoryLabel: item.category,
       meetupLocation: item.location,
     });

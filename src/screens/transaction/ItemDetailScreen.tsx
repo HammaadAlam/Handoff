@@ -43,9 +43,6 @@ const HERO_H = Math.min(Math.round(SCREEN_H * 0.42), 380);
 /** How far the first card sits up on the image (image shows through under the card edge) */
 const HERO_CARD_OVERLAP = 20;
 
-const DEFAULT_DESC =
-  'Great camera for photos and video — lightweight body, full-frame sensor. Works perfectly; always kept in a dry bag on campus.';
-
 export function ItemDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { params } = useRoute<RouteProp<RootStackParamList, 'ItemDetail'>>();
@@ -57,10 +54,15 @@ export function ItemDetailScreen() {
     seller = 'Seller',
     sellerProfileId,
     sellerAvatarUrl,
-    categoryLabel = 'General',
-    condition = 'Slightly Used',
-    description = DEFAULT_DESC,
-    meetupLocation = 'LSU Student Union',
+    categoryLabel,
+    condition,
+    brand,
+    model,
+    storage,
+    color,
+    lowestOffer,
+    description,
+    meetupLocation,
     galleryUrls,
   } = params;
 
@@ -93,19 +95,25 @@ export function ItemDetailScreen() {
 
   const tagPills = useMemo(
     () =>
-      [condition, categoryLabel, 'Campus meetup'].filter(
-        (t, i, a) => a.indexOf(t) === i,
-      ),
+      [condition, categoryLabel].filter(
+        (t): t is string => Boolean(t && t.trim()),
+      ).filter((t, i, a) => a.indexOf(t) === i),
     [condition, categoryLabel],
   );
 
   const specRows = useMemo(
-    () => [
-      { label: 'Category', value: categoryLabel },
-      { label: 'Condition', value: condition },
-      { label: 'Meetup', value: meetupLocation },
-    ],
-    [categoryLabel, condition, meetupLocation],
+    () => {
+      const rows: Array<{ label: string; value: string }> = [];
+      if (categoryLabel) rows.push({ label: 'Category', value: categoryLabel });
+      if (condition) rows.push({ label: 'Condition', value: condition });
+      if (brand) rows.push({ label: 'Brand', value: brand });
+      if (model) rows.push({ label: 'Model', value: model });
+      if (storage) rows.push({ label: 'Storage', value: storage });
+      if (color) rows.push({ label: 'Color', value: color });
+      if (meetupLocation) rows.push({ label: 'Meetup', value: meetupLocation });
+      return rows;
+    },
+    [categoryLabel, condition, brand, model, storage, color, meetupLocation],
   );
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -168,12 +176,14 @@ export function ItemDetailScreen() {
   };
 
   const sellerAvatar = sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI;
+  const descText = description?.trim() ?? '';
   const descPreviewLen = 180;
-  const descLong = description.length > descPreviewLen;
-  const descShown =
-    descExpanded || !descLong
-      ? description
-      : `${description.slice(0, descPreviewLen).trim()}…`;
+  const descLong = descText.length > descPreviewLen;
+  const descShown = descText
+    ? descExpanded || !descLong
+      ? descText
+      : `${descText.slice(0, descPreviewLen).trim()}…`
+    : 'No description provided.';
 
   const openSellerProfile = async () => {
     if (profileResolving) return;
@@ -269,23 +279,15 @@ export function ItemDetailScreen() {
               <Text style={styles.priceAccent}>{priceDisplay}</Text>
             </View>
             <Text style={styles.listedMeta}>Listed recently</Text>
-            <View style={styles.tagRow}>
-              {tagPills.map((t) => (
-                <View key={t} style={styles.tagPill}>
-                  <Text style={styles.tagPillText}>{t}</Text>
-                </View>
-              ))}
-            </View>
-            <Pressable
-              style={styles.curatedBanner}
-              onPress={() => {}}
-              accessibilityRole="button"
-            >
-              <Text style={styles.curatedText}>
-                Recommended item — curated for campus buyers
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.curatedBannerText} />
-            </Pressable>
+            {tagPills.length > 0 ? (
+              <View style={styles.tagRow}>
+                {tagPills.map((t) => (
+                  <View key={t} style={styles.tagPill}>
+                    <Text style={styles.tagPillText}>{t}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
 
           <View style={[styles.card, shadows.soft]}>
@@ -325,11 +327,6 @@ export function ItemDetailScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
           </Pressable>
-
-          <View style={[styles.card, shadows.soft]}>
-            <Text style={styles.sectionTitle}>Ad posted at</Text>
-            <Text style={styles.locationText}>{meetupLocation}</Text>
-          </View>
         </View>
       </ScrollView>
 
@@ -376,6 +373,7 @@ export function ItemDetailScreen() {
         imageUrl={imageUrl}
         price={price}
         variant={condition}
+        lowestOffer={lowestOffer}
         onClose={() => setOfferOpen(false)}
         onSubmit={handleOfferSubmit}
       />
@@ -497,25 +495,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.textSecondary,
   },
-  curatedBanner: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.pill,
-    backgroundColor: colors.curatedBannerBg,
-    borderWidth: 1,
-    borderColor: colors.curatedBannerBorder,
-  },
-  curatedText: {
-    flex: 1,
-    ...typography.caption,
-    fontFamily: fonts.semiBold,
-    color: colors.curatedBannerText,
-    marginRight: spacing.sm,
-  },
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -577,11 +556,6 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     ...typography.caption,
-    color: colors.textSecondary,
-  },
-  locationText: {
-    ...typography.body,
-    marginTop: spacing.sm,
     color: colors.textSecondary,
   },
   footer: {

@@ -4,12 +4,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
@@ -51,18 +52,11 @@ const PICKER_LOCATIONS: PickerLocation[] = [
     distance: '0.3 mi',
   },
   {
-    id: 'pelican-lakes',
-    name: 'Pelican Lakes',
-    address: '783 Pelican Dr',
-    coordinate: { latitude: 30.3978, longitude: -91.1898 },
-    distance: '2.5 mi',
-  },
-  {
-    id: 'cedar-hall',
-    name: 'Cedar Hall LSU',
-    address: '449 Aster St',
-    coordinate: { latitude: 30.4147, longitude: -91.1714 },
-    distance: '3.5 mi',
+    id: 'middleton-library',
+    name: 'Middleton Library',
+    address: '95 Fieldhouse Dr',
+    coordinate: { latitude: 30.4133, longitude: -91.1777 },
+    distance: '0.2 mi',
   },
   {
     id: 'law-library',
@@ -92,17 +86,64 @@ const PICKER_LOCATIONS: PickerLocation[] = [
     coordinate: { latitude: 30.4111, longitude: -91.1762 },
     distance: '0.7 mi',
   },
+  {
+    id: 'pmac',
+    name: 'Pete Maravich Assembly Center',
+    address: '1146 N Stadium Rd',
+    coordinate: { latitude: 30.4098, longitude: -91.1833 },
+    distance: '0.8 mi',
+  },
+  {
+    id: 'tiger-stadium',
+    name: 'Tiger Stadium',
+    address: '1 N Stadium Rd',
+    coordinate: { latitude: 30.4119, longitude: -91.1838 },
+    distance: '0.6 mi',
+  },
+  {
+    id: 'pelican-lakes',
+    name: 'Pelican Lakes',
+    address: '783 Pelican Dr',
+    coordinate: { latitude: 30.3978, longitude: -91.1898 },
+    distance: '2.5 mi',
+  },
+  {
+    id: 'cedar-hall',
+    name: 'Cedar Hall LSU',
+    address: '449 Aster St',
+    coordinate: { latitude: 30.4147, longitude: -91.1714 },
+    distance: '3.5 mi',
+  },
+  {
+    id: 'highland-coffee',
+    name: 'Highland Coffees',
+    address: '3350 Highland Rd',
+    coordinate: { latitude: 30.4089, longitude: -91.1714 },
+    distance: '0.9 mi',
+  },
+  {
+    id: 'chimes-northgate',
+    name: 'The Chimes (Northgate)',
+    address: '3357 Highland Rd',
+    coordinate: { latitude: 30.4094, longitude: -91.1721 },
+    distance: '1.0 mi',
+  },
 ];
+
+const TOTAL_STEPS = 4;
 
 function StepProgress({ active }: { active: number }) {
   return (
     <View style={styles.progressRow}>
-      {[1, 2, 3, 4, 5].map((step) => (
-        <View
-          key={step}
-          style={[styles.progressTrack, step <= active && styles.progressTrackActive]}
-        />
-      ))}
+      {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
+        const step = i + 1;
+        return (
+          <View
+            key={step}
+            style={[styles.progressTrack, step <= active && styles.progressTrackActive]}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -113,7 +154,9 @@ export function PickupLocationScreen() {
   const { params } =
     useRoute<RouteProp<CreateListingStackParamList, 'PickupLocation'>>();
   const draft = mergeCreateListingDraft(params?.draft);
-  const [method, setMethod] = useState<MeetupMethod>(draft.meetupMethod);
+  const [method, setMethod] = useState<MeetupMethod>(
+    draft.meetupMethod === 'ship' ? 'meet' : draft.meetupMethod,
+  );
   const [location, setLocation] = useState(draft.meetupLocation);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const selectedPickerLocation = PICKER_LOCATIONS.find(
@@ -122,7 +165,10 @@ export function PickupLocationScreen() {
       candidate.name.replace('LSU ', '') === location,
   );
 
+  const canContinue = method === 'meet' && location.trim().length > 0;
+
   const continueFlow = () => {
+    if (!canContinue) return;
     navigation.navigate('ListingPreview', {
       draft: {
         ...draft,
@@ -153,12 +199,12 @@ export function PickupLocationScreen() {
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Meet Up</Text>
-          <Text style={styles.stepText}>Step 5 of 5</Text>
+          <Text style={styles.stepText}>Step 4 of {TOTAL_STEPS}</Text>
         </View>
         <View style={styles.headerSide} />
       </View>
 
-      <StepProgress active={5} />
+      <StepProgress active={4} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionLabel}>Meetup method</Text>
@@ -170,10 +216,11 @@ export function PickupLocationScreen() {
           title="Meet in person"
         />
         <MethodCard
-          active={method === 'ship'}
+          active={false}
+          disabled
           icon="cube-outline"
-          onPress={() => setMethod('ship')}
-          subtitle="Ship to buyer"
+          onPress={() => {}}
+          subtitle="Coming soon"
           title="Shipping"
         />
 
@@ -229,7 +276,11 @@ export function PickupLocationScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={styles.primaryButton} onPress={continueFlow}>
+        <Pressable
+          style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}
+          onPress={continueFlow}
+          disabled={!canContinue}
+        >
           <Text style={styles.primaryButtonText}>Next: Preview</Text>
         </Pressable>
       </View>
@@ -254,25 +305,37 @@ function ChoosePickupLocationPage({
     ) ?? null;
   const mapRef = useRef<MapView | null>(null);
   const [tab, setTab] = useState<LocationTab>('Nearby');
-  const [selectedId, setSelectedId] = useState(
-    initialSelection?.id ?? PICKER_LOCATIONS[0].id,
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialSelection?.id ?? null,
   );
-  const [favorites, setFavorites] = useState<Set<string>>(
-    () => new Set([PICKER_LOCATIONS[0].id]),
-  );
+  const [favorites, setFavorites] = useState<Set<string>>(() => new Set());
+  const [query, setQuery] = useState('');
 
-  const locations =
-    tab === 'Nearby'
-      ? PICKER_LOCATIONS.slice(0, 3)
+  const searchResults = useMemo(() => {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) return null;
+    return PICKER_LOCATIONS.filter(
+      (candidate) =>
+        candidate.name.toLowerCase().includes(trimmed) ||
+        candidate.address.toLowerCase().includes(trimmed),
+    );
+  }, [query]);
+
+  const locations: PickerLocation[] = searchResults
+    ? searchResults
+    : tab === 'Nearby'
+      ? PICKER_LOCATIONS.slice(0, 6)
       : tab === 'Previous'
-        ? PICKER_LOCATIONS.slice(3, 6)
+        ? PICKER_LOCATIONS.slice(6)
         : PICKER_LOCATIONS.filter((candidate) => favorites.has(candidate.id));
 
   const selectedLocation =
-    PICKER_LOCATIONS.find((candidate) => candidate.id === selectedId) ??
-    PICKER_LOCATIONS[0];
+    (selectedId
+      ? PICKER_LOCATIONS.find((candidate) => candidate.id === selectedId)
+      : null) ?? null;
 
   useEffect(() => {
+    if (!selectedLocation) return;
     mapRef.current?.animateToRegion(
       {
         ...selectedLocation.coordinate,
@@ -301,11 +364,33 @@ function ChoosePickupLocationPage({
         <Pressable onPress={onBack} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Ionicons name="search-outline" size={24} color={colors.textPrimary} />
         <Text style={styles.pickerTitle}>Choose Pickup Location</Text>
-        <Pressable onPress={() => onConfirm(selectedLocation)} hitSlop={12}>
+        <Pressable
+          onPress={() => selectedLocation && onConfirm(selectedLocation)}
+          hitSlop={12}
+          disabled={!selectedLocation}
+          style={!selectedLocation && styles.pickerConfirmDisabled}
+        >
           <Ionicons name="checkmark" size={25} color={colors.textPrimary} />
         </Pressable>
+      </View>
+
+      <View style={styles.pickerSearchRow}>
+        <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search address or place near campus"
+          placeholderTextColor={colors.textMuted}
+          style={styles.pickerSearchInput}
+          autoCorrect={false}
+          returnKeyType="search"
+        />
+        {query ? (
+          <Pressable onPress={() => setQuery('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.mapCanvas}>
@@ -341,10 +426,18 @@ function ChoosePickupLocationPage({
             );
           })}
         </MapView>
-        <View style={styles.mapSelectionCard} pointerEvents="none">
-          <Text style={styles.mapSelectionTitle}>{selectedLocation.name}</Text>
-          <Text style={styles.mapSelectionMeta}>{selectedLocation.distance}</Text>
-        </View>
+        {selectedLocation ? (
+          <View style={styles.mapSelectionCard} pointerEvents="none">
+            <Text style={styles.mapSelectionTitle}>{selectedLocation.name}</Text>
+            <Text style={styles.mapSelectionMeta}>{selectedLocation.distance}</Text>
+          </View>
+        ) : (
+          <View style={styles.mapSelectionCard} pointerEvents="none">
+            <Text style={styles.mapSelectionTitle}>
+              Pick a spot on the map or from the list
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.locationTabs}>
@@ -413,29 +506,64 @@ function ChoosePickupLocationPage({
 
 function MethodCard({
   active,
+  disabled,
   icon,
   onPress,
   subtitle,
   title,
 }: {
   active: boolean;
+  disabled?: boolean;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   subtitle: string;
   title: string;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.methodCard, active && styles.activeCard]}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[
+        styles.methodCard,
+        active && styles.activeCard,
+        disabled && styles.methodCardDisabled,
+      ]}
+    >
       <View style={styles.radioColumn}>
-        <View style={[styles.radioOuter, active && styles.radioOuterOn]}>
+        <View
+          style={[
+            styles.radioOuter,
+            active && styles.radioOuterOn,
+            disabled && styles.radioOuterDisabled,
+          ]}
+        >
           {active ? <View style={styles.radioInner} /> : null}
         </View>
       </View>
       <View style={styles.locationCopy}>
-        <Text style={styles.methodTitle}>{title}</Text>
-        <Text style={styles.methodSubtitle}>{subtitle}</Text>
+        <Text style={[styles.methodTitle, disabled && styles.methodTitleDisabled]}>
+          {title}
+        </Text>
+        <Text
+          style={[
+            styles.methodSubtitle,
+            disabled && styles.methodSubtitleComingSoon,
+          ]}
+        >
+          {subtitle}
+        </Text>
       </View>
-      <Ionicons name={icon} size={22} color={active ? colors.primary : colors.textSecondary} />
+      <Ionicons
+        name={icon}
+        size={22}
+        color={
+          disabled
+            ? colors.textMuted
+            : active
+              ? colors.primary
+              : colors.textSecondary
+        }
+      />
     </Pressable>
   );
 }
@@ -683,6 +811,43 @@ const styles = StyleSheet.create({
   },
   radioOuterOn: {
     borderColor: colors.primary,
+  },
+  radioOuterDisabled: {
+    borderColor: colors.border,
+  },
+  methodCardDisabled: {
+    opacity: 0.85,
+    backgroundColor: colors.chipBg,
+  },
+  methodTitleDisabled: {
+    color: colors.textMuted,
+  },
+  methodSubtitleComingSoon: {
+    color: colors.error,
+    fontFamily: fonts.bold,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.45,
+  },
+  pickerSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  pickerSearchInput: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    paddingVertical: 4,
+  },
+  pickerConfirmDisabled: {
+    opacity: 0.4,
   },
   radioInner: {
     width: 8,

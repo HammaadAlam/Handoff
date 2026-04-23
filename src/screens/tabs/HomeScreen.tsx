@@ -3,9 +3,10 @@
  * hot listings rail, and nearby ticket rail.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -41,6 +42,17 @@ const HOME_CATEGORIES = [
 ] as const;
 
 type HomeCategoryPill = (typeof HOME_CATEGORIES)[number];
+
+const CAMPUS_OPTIONS = [
+  'LSU Campus',
+  'Southern University',
+  'Tulane',
+  'UL Lafayette',
+  'UNO',
+  'Loyola',
+  'Grambling',
+] as const;
+type CampusOption = (typeof CAMPUS_OPTIONS)[number];
 
 const BANNER_ROTATE_MS = 8_000;
 const RECENT_LISTING_LIMIT = 8;
@@ -120,6 +132,11 @@ function openListing(navigation: HomeTabNavigation, item: ListingItem) {
     sellerAvatarUrl: item.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
     description: item.description,
     condition: item.condition,
+    brand: item.brand,
+    model: item.model,
+    storage: item.storage,
+    color: item.color,
+    lowestOffer: item.lowestOffer,
     categoryLabel: item.category,
     meetupLocation: item.location,
   });
@@ -155,6 +172,23 @@ export function HomeScreen() {
   const [bannerGroupIndex, setBannerGroupIndex] = useState(0);
   const [recommended, setRecommended] = useState<ListingItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [campus, setCampus] = useState<CampusOption>('LSU Campus');
+  const [visibleCount, setVisibleCount] = useState(24);
+
+  const openCampusPicker = useCallback(() => {
+    Alert.alert(
+      'Choose campus',
+      undefined,
+      [
+        ...CAMPUS_OPTIONS.map((opt) => ({
+          text: opt,
+          onPress: () => setCampus(opt),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+      { cancelable: true },
+    );
+  }, []);
 
   const railGap = 12;
   const contentWidth = width - 32;
@@ -176,6 +210,12 @@ export function HomeScreen() {
   useEffect(() => {
     void loadRecommended();
   }, [loadRecommended]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadRecommended();
+    }, [loadRecommended]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -231,8 +271,12 @@ export function HomeScreen() {
     ]);
     const remaining = filtered.filter((item) => !usedIds.has(item.id));
     const source = remaining.length >= 4 ? remaining : [...filtered].reverse();
-    return source.slice(0, 6);
-  }, [activeCategory, hotListings, recentlyListed, recommended]);
+    return source.slice(0, Math.max(6, visibleCount));
+  }, [activeCategory, hotListings, recentlyListed, recommended, visibleCount]);
+
+  useEffect(() => {
+    setVisibleCount(24);
+  }, [activeCategory, campus]);
 
   const rotatingHeroBanners = useMemo<HomeHeroBanner[]>(
     () => [
@@ -246,11 +290,7 @@ export function HomeScreen() {
         imageUrl:
           'https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=1400&q=80',
         attendeesLabel: '15+ interested',
-        onPress: () =>
-          navigation.navigate('Search', {
-            screen: 'CategoryResults',
-            params: { query: 'Events' },
-          }),
+        onPress: () => navigation.navigate('CategoryResults', { query: 'Events' }),
       },
       {
         id: 'finals-week-mode',
@@ -262,11 +302,7 @@ export function HomeScreen() {
         imageUrl:
           'https://images.unsplash.com/photo-1513258496099-48168024aec0?w=1400&q=80',
         attendeesLabel: '20+ preparing',
-        onPress: () =>
-          navigation.navigate('Search', {
-            screen: 'CategoryResults',
-            params: { query: 'textbook' },
-          }),
+        onPress: () => navigation.navigate('CategoryResults', { query: 'textbook' }),
       },
       {
         id: 'campus-parties',
@@ -278,11 +314,7 @@ export function HomeScreen() {
         imageUrl:
           'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1400&q=80',
         attendeesLabel: '8+ browsing',
-        onPress: () =>
-          navigation.navigate('Search', {
-            screen: 'CategoryResults',
-            params: { query: 'Clothes' },
-          }),
+        onPress: () => navigation.navigate('CategoryResults', { query: 'Clothes' }),
       },
       {
         id: 'dorm-upgrade',
@@ -295,10 +327,7 @@ export function HomeScreen() {
           'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=1400&q=80',
         attendeesLabel: '10+ upgrading',
         onPress: () =>
-          navigation.navigate('Search', {
-            screen: 'CategoryResults',
-            params: { query: 'dorm essentials' },
-          }),
+          navigation.navigate('CategoryResults', { query: 'dorm essentials' }),
       },
       {
         id: 'move-out-deals',
@@ -310,11 +339,7 @@ export function HomeScreen() {
         imageUrl:
           'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1400&q=80',
         attendeesLabel: '18+ interested',
-        onPress: () =>
-          navigation.navigate('Search', {
-            screen: 'CategoryResults',
-            params: { query: 'Furniture' },
-          }),
+        onPress: () => navigation.navigate('CategoryResults', { query: 'Furniture' }),
       },
       {
         id: 'tailgate-ready',
@@ -326,11 +351,7 @@ export function HomeScreen() {
         imageUrl:
           'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=1400&q=80',
         attendeesLabel: '7+ going',
-        onPress: () =>
-          navigation.navigate('Search', {
-            screen: 'CategoryResults',
-            params: { query: 'Events' },
-          }),
+        onPress: () => navigation.navigate('CategoryResults', { query: 'Events' }),
       },
     ],
     [navigation],
@@ -364,6 +385,15 @@ export function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={160}
+        onScroll={(e) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          const distanceFromBottom =
+            contentSize.height - (contentOffset.y + layoutMeasurement.height);
+          if (distanceFromBottom < 400) {
+            setVisibleCount((current) => Math.min(current + 12, 240));
+          }
+        }}
       >
         <View style={styles.headerRow}>
           <View style={styles.headerIconButton} />
@@ -371,26 +401,26 @@ export function HomeScreen() {
           <Text style={styles.brandTitle}>HandOff</Text>
 
           <Pressable
-            accessibilityLabel="Open inbox"
+            accessibilityLabel="Open favorites"
             hitSlop={12}
-            onPress={() => navigation.navigate('Inbox')}
+            onPress={() => navigation.navigate('Favorites')}
             style={styles.headerIconButton}
           >
             <Ionicons
-              name="notifications-outline"
-              size={23}
+              name="heart-outline"
+              size={24}
               color={colors.textPrimary}
             />
-            <View style={styles.unreadDot} />
           </Pressable>
         </View>
 
         <Pressable
-          onPress={() => navigation.navigate('Search', { screen: 'SearchHome' })}
+          onPress={openCampusPicker}
           style={styles.locationRow}
+          accessibilityLabel="Change campus"
         >
           <Ionicons name="location-outline" size={18} color={colors.primaryLight} />
-          <Text style={styles.locationText}>LSU Campus</Text>
+          <Text style={styles.locationText}>{campus}</Text>
           <Ionicons name="chevron-down" size={16} color={colors.primaryLight} />
         </Pressable>
 
@@ -435,9 +465,8 @@ export function HomeScreen() {
             <Pressable
               hitSlop={8}
               onPress={() =>
-                navigation.navigate('Search', {
-                  screen: 'CategoryResults',
-                  params: { query: searchQueryForCategory(activeCategory) },
+                navigation.navigate('CategoryResults', {
+                  query: searchQueryForCategory(activeCategory),
                 })
               }
             >
@@ -518,9 +547,8 @@ export function HomeScreen() {
             <Pressable
               hitSlop={8}
               onPress={() =>
-                navigation.navigate('Search', {
-                  screen: 'CategoryResults',
-                  params: { query: searchQueryForCategory(activeCategory) },
+                navigation.navigate('CategoryResults', {
+                  query: searchQueryForCategory(activeCategory),
                 })
               }
             >
@@ -563,9 +591,8 @@ export function HomeScreen() {
             <Pressable
               hitSlop={8}
               onPress={() =>
-                navigation.navigate('Search', {
-                  screen: 'CategoryResults',
-                  params: { query: searchQueryForCategory(activeCategory) },
+                navigation.navigate('CategoryResults', {
+                  query: searchQueryForCategory(activeCategory),
                 })
               }
             >
@@ -613,17 +640,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  unreadDot: {
-    position: 'absolute',
-    top: 9,
-    right: 8,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primaryLight,
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
   brandTitle: {
     color: colors.textPrimary,
     fontFamily: fonts.extraBold,
@@ -641,9 +657,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 13,
     marginHorizontal: 4,
-  },
-  pillScroll: {
-    marginTop: 12,
   },
   pillRow: {
     flexDirection: 'row',

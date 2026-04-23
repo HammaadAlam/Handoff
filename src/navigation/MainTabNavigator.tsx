@@ -10,10 +10,10 @@ import {
 import { StyleSheet, View } from 'react-native';
 import { CompactTabBarLabel } from '@/components/navigation/CompactTabBarLabel';
 import { CreateListingStackNavigator } from '@/navigation/CreateListingStackNavigator';
-import { HomeScreen } from '@/screens/tabs/HomeScreen';
 import { InboxScreen } from '@/screens/tabs/InboxScreen';
 import { ProfileScreen } from '@/screens/tabs/ProfileScreen';
 import { colors } from '@/styles/theme';
+import { HomeStackNavigator } from './HomeStackNavigator';
 import { SearchStackNavigator } from './SearchStackNavigator';
 import type { MainTabParamList } from './types';
 
@@ -29,8 +29,12 @@ function searchTabBarStyle(route: RouteProp<MainTabParamList, 'Search'>) {
   return focusedRouteName === 'SearchQuery' ? { display: 'none' as const } : tabBarStyle;
 }
 
-const tabIcon = (outlinedName: keyof typeof Ionicons.glyphMap) => {
+const tabIcon = (
+  outlinedName: keyof typeof Ionicons.glyphMap,
+  filledName: keyof typeof Ionicons.glyphMap,
+) => {
   return ({
+    focused,
     color,
     size,
   }: {
@@ -38,7 +42,11 @@ const tabIcon = (outlinedName: keyof typeof Ionicons.glyphMap) => {
     color: string;
     size: number;
   }) => (
-    <Ionicons name={outlinedName} size={size} color={color} />
+    <Ionicons
+      name={focused ? filledName : outlinedName}
+      size={size}
+      color={focused ? colors.textPrimary : color}
+    />
   );
 };
 
@@ -63,14 +71,14 @@ export function MainTabNavigator() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
-        options={{ tabBarIcon: tabIcon('home-outline') }}
+        component={HomeStackNavigator}
+        options={{ tabBarIcon: tabIcon('home-outline', 'home') }}
       />
       <Tab.Screen
         name="Search"
         component={SearchStackNavigator}
         options={({ route }) => ({
-          tabBarIcon: tabIcon('search-outline'),
+          tabBarIcon: tabIcon('search-outline', 'search'),
           tabBarStyle: searchTabBarStyle(route),
         })}
       />
@@ -105,13 +113,13 @@ export function MainTabNavigator() {
         component={InboxScreen}
         options={{
           title: 'Chat',
-          tabBarIcon: tabIcon('chatbubble-outline'),
+          tabBarIcon: tabIcon('chatbubble-outline', 'chatbubble'),
         }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ tabBarIcon: tabIcon('person-outline') }}
+        options={{ tabBarIcon: tabIcon('person-outline', 'person') }}
       />
     </Tab.Navigator>
   );

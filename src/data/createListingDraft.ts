@@ -8,6 +8,8 @@ export type CreateListingDraft = {
   condition: string;
   description: string;
   imageUri: string;
+  /** Lowest acceptable offer ($); empty string means no floor set */
+  lowestOffer: string;
   meetupLocation: string;
   meetupMethod: MeetupMethod;
   model: string;
@@ -30,6 +32,7 @@ export const DEFAULT_CREATE_LISTING_DRAFT: CreateListingDraft = {
   condition: '',
   description: '',
   imageUri: '',
+  lowestOffer: '',
   meetupLocation: '',
   meetupMethod: 'meet',
   model: '',

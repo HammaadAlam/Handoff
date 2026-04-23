@@ -4,22 +4,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { mergeCreateListingDraft } from '@/data/createListingDraft';
 import type { CreateListingStackParamList } from '@/navigation/types';
 import { colors, fonts, spacing } from '@/styles/theme';
 
+const TOTAL_STEPS = 4;
+
 function StepProgress({ active }: { active: number }) {
   return (
     <View style={styles.progressRow}>
-      {[1, 2, 3, 4, 5].map((step) => (
-        <View
-          key={step}
-          style={[styles.progressTrack, step <= active && styles.progressTrackActive]}
-        />
-      ))}
+      {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
+        const step = i + 1;
+        return (
+          <View
+            key={step}
+            style={[styles.progressTrack, step <= active && styles.progressTrackActive]}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -30,13 +35,33 @@ export function SetPriceScreen() {
   const { params } = useRoute<RouteProp<CreateListingStackParamList, 'SetPrice'>>();
   const draft = mergeCreateListingDraft(params?.draft);
   const [price, setPrice] = useState(draft.price);
+  const [lowestOffer, setLowestOffer] = useState(draft.lowestOffer);
   const suggestedPrice = draft.price.trim();
 
+  const priceNum = useMemo(() => {
+    const cleaned = price.replace(/[^0-9.]/g, '');
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  }, [price]);
+  const lowestOfferNum = useMemo(() => {
+    const cleaned = lowestOffer.replace(/[^0-9.]/g, '');
+    if (cleaned === '') return null;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }, [lowestOffer]);
+
+  const lowestOfferValid =
+    lowestOfferNum === null ||
+    (lowestOfferNum >= 0 && (priceNum === 0 || lowestOfferNum < priceNum));
+  const canContinue = priceNum > 0 && lowestOfferValid;
+
   const continueFlow = () => {
+    if (!canContinue) return;
     navigation.navigate('PickupLocation', {
       draft: {
         ...draft,
-        price: price.trim() || draft.price,
+        price: price.trim(),
+        lowestOffer: lowestOffer.trim(),
       },
     });
   };
@@ -49,12 +74,12 @@ export function SetPriceScreen() {
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Set Price</Text>
-          <Text style={styles.stepText}>Step 4 of 5</Text>
+          <Text style={styles.stepText}>Step 3 of {TOTAL_STEPS}</Text>
         </View>
         <View style={styles.headerSide} />
       </View>
 
-      <StepProgress active={4} />
+      <StepProgress active={3} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -75,7 +100,6 @@ export function SetPriceScreen() {
             <Text style={styles.basedText}>
               {suggestedPrice ? 'Based on similar listings' : 'Add a price to continue'}
             </Text>
-            <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} />
           </View>
         </View>
 
@@ -91,6 +115,29 @@ export function SetPriceScreen() {
             value={price}
           />
         </View>
+
+        <Text style={[styles.label, styles.labelSpaced]}>
+          Lowest acceptable offer
+        </Text>
+        <Text style={styles.subLabel}>
+          Offers below this amount will be blocked automatically.
+        </Text>
+        <View style={styles.priceInputWrap}>
+          <Text style={styles.dollar}>$</Text>
+          <TextInput
+            keyboardType="number-pad"
+            onChangeText={setLowestOffer}
+            placeholder="Optional"
+            placeholderTextColor={colors.textMuted}
+            style={styles.priceInput}
+            value={lowestOffer}
+          />
+        </View>
+        {!lowestOfferValid ? (
+          <Text style={styles.fieldError}>
+            Lowest acceptable offer must be less than your price.
+          </Text>
+        ) : null}
 
         <View style={styles.tipsCard}>
           <View style={styles.tipsHeader}>
@@ -111,7 +158,11 @@ export function SetPriceScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={styles.primaryButton} onPress={continueFlow}>
+        <Pressable
+          style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}
+          onPress={continueFlow}
+          disabled={!canContinue}
+        >
           <Text style={styles.primaryButtonText}>Next: Meet Up</Text>
         </Pressable>
       </View>
@@ -225,6 +276,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 10,
   },
+  labelSpaced: {
+    marginTop: 20,
+  },
+  subLabel: {
+    color: colors.textSecondary,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    marginTop: -4,
+    marginBottom: 10,
+  },
+  fieldError: {
+    color: colors.error,
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    marginTop: 6,
+  },
   priceInputWrap: {
     minHeight: 56,
     flexDirection: 'row',
@@ -280,11 +347,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 34,
+    bottom: 0,
     paddingHorizontal: spacing.md,
     paddingTop: 12,
-    paddingBottom: 18,
+    paddingBottom: 34,
     backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   primaryButton: {
     minHeight: 52,
@@ -292,6 +361,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.45,
   },
   primaryButtonText: {
     color: colors.textInverse,

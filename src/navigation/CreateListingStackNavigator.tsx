@@ -1,5 +1,5 @@
 /**
- * Sell tab stack: choose flow → photos → review/edit → price → meetup → preview → posted.
+ * Sell tab stack: choose flow → photos → details → price → meetup → preview → posted.
  */
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { CameraCaptureScreen } from '@/screens/create/CameraCaptureScreen';
@@ -8,7 +8,6 @@ import { ListingDetailsScreen } from '@/screens/create/ListingDetailsScreen';
 import { ListingPreviewScreen } from '@/screens/create/ListingPreviewScreen';
 import { ListingSuccessScreen } from '@/screens/create/ListingSuccessScreen';
 import { PickupLocationScreen } from '@/screens/create/PickupLocationScreen';
-import { ReviewDetailsScreen } from '@/screens/create/ReviewDetailsScreen';
 import { SetPriceScreen } from '@/screens/create/SetPriceScreen';
 import { colors } from '@/styles/theme';
 import type { CreateListingStackParamList } from './types';
@@ -26,7 +25,6 @@ export function CreateListingStackNavigator() {
     >
       <Stack.Screen name="CreateEntry" component={CreateEntryScreen} />
       <Stack.Screen name="CameraCapture" component={CameraCaptureScreen} />
-      <Stack.Screen name="ReviewDetails" component={ReviewDetailsScreen} />
       <Stack.Screen name="ListingDetails" component={ListingDetailsScreen} />
       <Stack.Screen name="SetPrice" component={SetPriceScreen} />
       <Stack.Screen name="PickupLocation" component={PickupLocationScreen} />

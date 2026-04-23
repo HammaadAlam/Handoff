@@ -103,12 +103,7 @@ export function CameraCaptureScreen() {
     const imageUri = photos[0];
     const draft = { imageUri };
 
-    if (mode === 'quick') {
-      navigation.navigate('ReviewDetails', { draft });
-      return;
-    }
-
-    navigation.navigate('ListingDetails', { mode: 'manual', draft });
+    navigation.navigate('ListingDetails', { mode, draft });
   };
 
   return (

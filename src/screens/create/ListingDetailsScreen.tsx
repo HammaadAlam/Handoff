@@ -1,5 +1,6 @@
 /**
- * Edit listing details after quick review or manual photo entry.
+ * Single combined "Details" step — merges the previous review + edit screens into
+ * one form so sellers only touch listing metadata once before continuing to pricing.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -25,17 +26,60 @@ import {
 import type { CreateListingStackParamList } from '@/navigation/types';
 import { colors, fonts, spacing } from '@/styles/theme';
 
-type PickerKind = 'category' | 'condition' | 'brand';
+type PickerKind =
+  | 'category'
+  | 'condition'
+  | 'brand'
+  | 'model'
+  | 'storage'
+  | 'color';
+
+const MODEL_OPTIONS = [
+  'MacBook Pro M1',
+  'MacBook Air',
+  'iPad Air',
+  'TI-84 Plus',
+  'Desk Chair',
+  'Mini Fridge',
+  'Other',
+] as const;
+
+const STORAGE_OPTIONS = [
+  '64GB',
+  '128GB',
+  '256GB',
+  '512GB',
+  '1TB',
+  'N/A',
+] as const;
+
+const COLOR_OPTIONS = [
+  'Space Gray',
+  'Silver',
+  'Black',
+  'White',
+  'Navy',
+  'Tan',
+  'Multicolor',
+] as const;
+
+const TOTAL_STEPS = 4;
 
 function StepProgress({ active }: { active: number }) {
   return (
     <View style={styles.progressRow}>
-      {[1, 2, 3, 4, 5].map((step) => (
-        <View
-          key={step}
-          style={[styles.progressTrack, step <= active && styles.progressTrackActive]}
-        />
-      ))}
+      {Array.from({ length: TOTAL_STEPS }).map((_, index) => {
+        const step = index + 1;
+        return (
+          <View
+            key={step}
+            style={[
+              styles.progressTrack,
+              step <= active && styles.progressTrackActive,
+            ]}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -55,6 +99,9 @@ export function ListingDetailsScreen() {
   const [category, setCategory] = useState(startingDraft.category);
   const [condition, setCondition] = useState(startingDraft.condition);
   const [brand, setBrand] = useState(startingDraft.brand);
+  const [model, setModel] = useState(startingDraft.model);
+  const [storage, setStorage] = useState(startingDraft.storage);
+  const [color, setColor] = useState(startingDraft.color);
   const [acceptOffers, setAcceptOffers] = useState(startingDraft.acceptOffers);
   const [picker, setPicker] = useState<PickerKind | null>(null);
 
@@ -81,29 +128,67 @@ export function ListingDetailsScreen() {
           selected: brand,
           onSelect: setBrand,
         };
+      case 'model':
+        return {
+          title: 'Model',
+          options: MODEL_OPTIONS,
+          selected: model,
+          onSelect: setModel,
+        };
+      case 'storage':
+        return {
+          title: 'Storage',
+          options: STORAGE_OPTIONS,
+          selected: storage,
+          onSelect: setStorage,
+        };
+      case 'color':
+        return {
+          title: 'Color',
+          options: COLOR_OPTIONS,
+          selected: color,
+          onSelect: setColor,
+        };
       default:
         return null;
     }
-  }, [picker, brand, category, condition]);
+  }, [picker, brand, category, color, condition, model, storage]);
+
+  const canContinue =
+    title.trim().length > 0 &&
+    category.trim().length > 0 &&
+    condition.trim().length > 0;
 
   const continueFlow = () => {
+    if (!canContinue) return;
     navigation.navigate('SetPrice', {
       draft: {
         ...startingDraft,
         acceptOffers,
         brand,
         category,
+        color,
         condition,
         description,
+        model,
+        storage,
         title,
       },
     });
   };
 
-  const rows: Array<{ key: PickerKind; label: string; value: string }> = [
-    { key: 'category', label: 'Category', value: category },
-    { key: 'condition', label: 'Condition', value: condition },
+  const rows: Array<{
+    key: PickerKind;
+    label: string;
+    value: string;
+    required?: boolean;
+  }> = [
+    { key: 'category', label: 'Category', value: category, required: true },
+    { key: 'condition', label: 'Condition', value: condition, required: true },
     { key: 'brand', label: 'Brand', value: brand },
+    { key: 'model', label: 'Model', value: model },
+    { key: 'storage', label: 'Storage', value: storage },
+    { key: 'color', label: 'Color', value: color },
   ];
 
   return (
@@ -128,79 +213,115 @@ export function ListingDetailsScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Edit Details</Text>
-          <Text style={styles.stepText}>Step 3 of 5</Text>
+          <Text style={styles.headerTitle}>Listing Details</Text>
+          <Text style={styles.stepText}>Step 2 of {TOTAL_STEPS}</Text>
         </View>
         <View style={styles.headerSide} />
       </View>
 
-      <StepProgress active={3} />
+      <StepProgress active={2} />
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.label}>Title</Text>
-        <TextInput
-          maxLength={60}
-          onChangeText={setTitle}
-          placeholder="What are you selling?"
-          placeholderTextColor={colors.textMuted}
-          style={styles.input}
-          value={title}
-        />
-        <Text style={styles.count}>{title.length}/60</Text>
-
-        <Text style={styles.label}>Description</Text>
-        <TextInput
-          maxLength={300}
-          multiline
-          onChangeText={setDescription}
-          placeholder="Add condition, accessories, and anything buyers should know."
-          placeholderTextColor={colors.textMuted}
-          style={[styles.input, styles.textArea]}
-          textAlignVertical="top"
-          value={description}
-        />
-        <Text style={styles.count}>{description.length}/300</Text>
-
-        <View style={styles.rows}>
-          {rows.map((row) => (
-            <Pressable
-              key={row.key}
-              onPress={() => setPicker(row.key)}
-              style={styles.detailRow}
-            >
-              <Text style={styles.rowLabel}>{row.label}</Text>
-              <View style={styles.rowValueWrap}>
-                <Text style={[styles.rowValue, !row.value && styles.rowPlaceholder]}>
-                  {row.value || 'Select'}
-                </Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textPrimary} />
-              </View>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.offerRow}>
-          <View style={styles.offerCopy}>
-            <Text style={styles.rowLabel}>Accept offers</Text>
-            <Text style={styles.offerHint}>Let buyers send you offers</Text>
-          </View>
-          <Switch
-            onValueChange={setAcceptOffers}
-            thumbColor={colors.surface}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            value={acceptOffers}
+      <View style={styles.body}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.label}>
+            Title <Text style={styles.requiredMarker}>*</Text>
+          </Text>
+          <TextInput
+            maxLength={60}
+            onChangeText={setTitle}
+            placeholder="What are you selling?"
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+            value={title}
           />
-        </View>
-      </ScrollView>
+          <Text style={styles.count}>{title.length}/60</Text>
 
-      <View style={styles.footer}>
-        <Pressable style={styles.primaryButton} onPress={continueFlow}>
-          <Text style={styles.primaryButtonText}>Next: Price</Text>
-        </Pressable>
+          <Text style={styles.label}>Description</Text>
+          <TextInput
+            maxLength={300}
+            multiline
+            onChangeText={setDescription}
+            placeholder="Add condition notes, accessories, and anything buyers should know."
+            placeholderTextColor={colors.textMuted}
+            style={[styles.input, styles.textArea]}
+            textAlignVertical="top"
+            value={description}
+          />
+          <Text style={styles.count}>{description.length}/300</Text>
+
+          <View style={styles.rows}>
+            {rows.map((row) => {
+              const isSelected = !!row.value;
+              return (
+                <Pressable
+                  key={row.key}
+                  onPress={() => setPicker(row.key)}
+                  style={styles.detailRow}
+                >
+                  <Text style={styles.rowLabel}>
+                    {row.label}
+                    {row.required ? (
+                      <Text style={styles.requiredMarker}> *</Text>
+                    ) : null}
+                  </Text>
+                  <View style={styles.rowValueWrap}>
+                    <Text
+                      style={[
+                        styles.rowValue,
+                        !row.value && styles.rowPlaceholder,
+                      ]}
+                    >
+                      {row.value || 'Select'}
+                    </Text>
+                    {!isSelected ? (
+                      <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color={colors.textPrimary}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="checkmark"
+                        size={18}
+                        color={colors.primary}
+                      />
+                    )}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.offerRow}>
+            <View style={styles.offerCopy}>
+              <Text style={styles.rowLabel}>Accept offers</Text>
+              <Text style={styles.offerHint}>Let buyers send you offers</Text>
+            </View>
+            <Switch
+              onValueChange={setAcceptOffers}
+              thumbColor={colors.surface}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              value={acceptOffers}
+            />
+          </View>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <Pressable
+            style={[
+              styles.primaryButton,
+              !canContinue && styles.primaryButtonDisabled,
+            ]}
+            onPress={continueFlow}
+            disabled={!canContinue}
+          >
+            <Text style={styles.primaryButtonText}>Next: Price</Text>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -251,16 +372,22 @@ const styles = StyleSheet.create({
   progressTrackActive: {
     backgroundColor: colors.primary,
   },
+  body: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: spacing.md,
     paddingTop: 30,
-    paddingBottom: 220,
+    paddingBottom: spacing.lg,
   },
   label: {
     color: colors.textPrimary,
     fontFamily: fonts.bold,
     fontSize: 14,
     marginBottom: 8,
+  },
+  requiredMarker: {
+    color: colors.error,
   },
   input: {
     minHeight: 54,
@@ -335,14 +462,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 34,
     paddingHorizontal: spacing.md,
     paddingTop: 12,
     paddingBottom: 18,
     backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   primaryButton: {
     minHeight: 52,
@@ -350,6 +475,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.45,
   },
   primaryButtonText: {
     color: colors.textInverse,

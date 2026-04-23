@@ -35,6 +35,8 @@ type Props = {
   imageUrl: string;
   price: string;
   variant?: string;
+  /** Seller-set floor ($) that overrides the default 50% minimum when present. */
+  lowestOffer?: number;
   onClose: () => void;
   onSubmit: (offerAmount: string) => void;
 };
@@ -54,11 +56,23 @@ export function MakeOfferSheet({
   imageUrl,
   price,
   variant,
+  lowestOffer,
   onClose,
   onSubmit,
 }: Props) {
   const insets = useSafeAreaInsets();
   const currentPrice = useMemo(() => parsePrice(price), [price]);
+  /**
+   * Default floor is 50% of the listing price; if the seller set a custom
+   * `lowestOffer`, honor whichever is higher (never below 50%).
+   */
+  const floorPrice = useMemo(() => {
+    const fiftyPct = currentPrice * 0.5;
+    if (typeof lowestOffer === 'number' && Number.isFinite(lowestOffer)) {
+      return Math.max(fiftyPct, lowestOffer);
+    }
+    return fiftyPct;
+  }, [currentPrice, lowestOffer]);
   const recommended =
     PRESETS.find((p) => p.recommended) ?? PRESETS[Math.floor(PRESETS.length / 2)];
   const [selectedPct, setSelectedPct] = useState<number | null>(recommended.pct);
@@ -70,8 +84,17 @@ export function MakeOfferSheet({
   const backdropOp = useRef(new Animated.Value(0)).current;
 
   const numericAmount = parsePrice(amount);
-  const valid =
-    numericAmount > 0 && (currentPrice === 0 || numericAmount < currentPrice);
+  const belowFloor = currentPrice > 0 && numericAmount < floorPrice;
+  const aboveList = currentPrice > 0 && numericAmount >= currentPrice;
+  const valid = numericAmount > 0 && !belowFloor && !aboveList;
+  const validationMessage =
+    numericAmount <= 0
+      ? null
+      : belowFloor
+        ? `Offer must be at least ${formatMoney(floorPrice)}`
+        : aboveList
+          ? `Offer must be less than ${formatMoney(currentPrice)}`
+          : null;
 
   const onPickPreset = (pct: number) => {
     setSelectedPct(pct);
@@ -230,6 +253,13 @@ export function MakeOfferSheet({
               selectTextOnFocus
             />
           </View>
+          {validationMessage ? (
+            <Text style={styles.validationText}>{validationMessage}</Text>
+          ) : (
+            <Text style={styles.floorHint}>
+              Minimum offer: {formatMoney(floorPrice)}
+            </Text>
+          )}
           <View style={styles.divider} />
 
           <Pressable
@@ -399,9 +429,21 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     paddingVertical: 0,
   },
+  floorHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  validationText: {
+    ...typography.caption,
+    color: colors.error,
+    marginTop: 4,
+    fontFamily: fonts.semiBold,
+  },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
   sendBtn: {

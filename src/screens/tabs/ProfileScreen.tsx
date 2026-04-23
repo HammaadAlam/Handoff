@@ -41,7 +41,7 @@ import {
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { ProfileTabNavigation } from '@/navigation/types';
-import { fetchRecommendedListings } from '@/services/listings';
+import { fetchListingsByUserId } from '@/services/listings';
 import {
   fonts,
   colors,
@@ -75,27 +75,27 @@ const PROFILE_HERO_BAND_EXTRA_BOTTOM = 2;
 
 /** Stacked seller stats — marketplace-style lines with bold leading numbers. */
 function ProfileIdentityMetaExpanded({
-  positivePct,
-  followers,
+  ratingLabel,
+  following,
   itemsSold,
 }: {
-  positivePct: number;
-  followers: number;
+  ratingLabel: string;
+  following: number;
   itemsSold: number;
 }) {
   return (
     <View
       style={styles.identityMetaLines}
       accessibilityRole="text"
-      accessibilityLabel={`${positivePct} percent positive feedback, ${followers} followers, ${itemsSold} items sold`}
+      accessibilityLabel={`${ratingLabel} rating, ${following} following, ${itemsSold} items sold`}
     >
       <Text style={styles.identityMetaLine}>
-        <Text style={styles.identityMetaBold}>{positivePct}%</Text>
-        <Text style={styles.identityMetaRest}> positive feedback</Text>
+        <Text style={styles.identityMetaBold}>{ratingLabel}</Text>
+        <Text style={styles.identityMetaRest}> rating</Text>
       </Text>
       <Text style={styles.identityMetaLine}>
-        <Text style={styles.identityMetaBold}>{followers}</Text>
-        <Text style={styles.identityMetaRest}> followers</Text>
+        <Text style={styles.identityMetaBold}>{following}</Text>
+        <Text style={styles.identityMetaRest}> following</Text>
       </Text>
       <Text style={styles.identityMetaLine}>
         <Text style={styles.identityMetaBold}>{itemsSold}</Text>
@@ -106,20 +106,20 @@ function ProfileIdentityMetaExpanded({
 }
 
 function ProfileIdentityMetaCompact({
-  positivePct,
-  followers,
+  ratingLabel,
+  following,
   itemsSold,
 }: {
-  positivePct: number;
-  followers: number;
+  ratingLabel: string;
+  following: number;
   itemsSold: number;
 }) {
   return (
     <Text style={styles.identityMetaCompactRoot} numberOfLines={1}>
-      <Text style={styles.identityMetaCompactBold}>{positivePct}%</Text>
-      <Text style={styles.identityMetaCompactRest}> positive · </Text>
-      <Text style={styles.identityMetaCompactBold}>{followers}</Text>
-      <Text style={styles.identityMetaCompactRest}> followers · </Text>
+      <Text style={styles.identityMetaCompactBold}>{ratingLabel}</Text>
+      <Text style={styles.identityMetaCompactRest}> rating · </Text>
+      <Text style={styles.identityMetaCompactBold}>{following}</Text>
+      <Text style={styles.identityMetaCompactRest}> following · </Text>
       <Text style={styles.identityMetaCompactBold}>{itemsSold}</Text>
       <Text style={styles.identityMetaCompactRest}> sold</Text>
     </Text>
@@ -197,9 +197,12 @@ export function ProfileScreen() {
   const accountHandle = user?.email?.split('@')[0] ?? 'new_user';
   const profileHandle = accountHandle;
   const profileTitle = accountHandle;
-  const positivePct = 0;
-  const followersCount = 0;
+  const ratingAvg = 0;
+  const reviewCount = 0;
+  const followingCount = 0;
   const itemsSoldCount = 0;
+  const ratingLabel =
+    reviewCount > 0 ? `${ratingAvg.toFixed(1)} ★` : 'No rating yet';
   const [manageSectionsOpen, setManageSectionsOpen] = useState(false);
   const [profilePhotoReady, setProfilePhotoReady] = useState(false);
   const [tabBarOrder, setTabBarOrder] = useState<ProfileTab[]>([...PROFILE_TABS]);
@@ -334,10 +337,11 @@ export function ProfileScreen() {
   }, [tabBarOrder, activeTab, prefsLoaded]);
 
   const loadStoreListings = useCallback(async () => {
-    const all = await fetchRecommendedListings();
-    const mine = viewerProfileId
-      ? all.filter((item) => item.sellerId === viewerProfileId)
-      : [];
+    if (!viewerProfileId) {
+      setStoreListings([]);
+      return;
+    }
+    const mine = await fetchListingsByUserId(viewerProfileId);
     setStoreListings(mine);
   }, [viewerProfileId]);
 
@@ -354,6 +358,11 @@ export function ProfileScreen() {
   const featuredListings = useMemo(() => storeListings.slice(0, 8), [storeListings]);
   const saleListings = useMemo(() => storeListings.slice(0, 10), [storeListings]);
   const allListings = storeListings;
+  /**
+   * Brand-new sellers should see a single "All items" block with a helpful
+   * prompt instead of a half-empty storefront full of carousels.
+   */
+  const hasListings = storeListings.length > 0;
 
   const openListing = (item: ListingItem) => {
     navigateToItemDetail(navigation, {
@@ -366,6 +375,11 @@ export function ProfileScreen() {
       sellerAvatarUrl: item.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
       description: item.description,
       condition: item.condition,
+      brand: item.brand,
+      model: item.model,
+      storage: item.storage,
+      color: item.color,
+      lowestOffer: item.lowestOffer,
       categoryLabel: item.category,
       meetupLocation: item.location,
     });
@@ -516,8 +530,8 @@ export function ProfileScreen() {
                         ]}
                       >
                         <ProfileIdentityMetaExpanded
-                          positivePct={positivePct}
-                          followers={followersCount}
+                          ratingLabel={ratingLabel}
+                          following={followingCount}
                           itemsSold={itemsSoldCount}
                         />
                       </Animated.View>
@@ -531,8 +545,8 @@ export function ProfileScreen() {
                         ]}
                       >
                         <ProfileIdentityMetaCompact
-                          positivePct={positivePct}
-                          followers={followersCount}
+                          ratingLabel={ratingLabel}
+                          following={followingCount}
                           itemsSold={itemsSoldCount}
                         />
                       </Animated.View>
@@ -601,7 +615,7 @@ export function ProfileScreen() {
       >
         {(activeTab === 'Shop' || activeTab === 'Sale') && (
           <>
-            {activeTab === 'Shop' && (
+            {activeTab === 'Shop' && hasListings && (
               <View style={styles.searchRow}>
                 <Pressable
                   style={styles.searchPill}
@@ -625,7 +639,7 @@ export function ProfileScreen() {
               </View>
             )}
 
-            {activeTab === 'Shop' && shopSectionLayout.topPicks && (
+            {activeTab === 'Shop' && hasListings && shopSectionLayout.topPicks && (
               <>
                 <View style={styles.sectionHead}>
                   <Text style={styles.sectionTitle}>Top picks</Text>
@@ -647,7 +661,7 @@ export function ProfileScreen() {
               </>
             )}
 
-            {(activeTab === 'Sale' ||
+            {hasListings && (activeTab === 'Sale' ||
               (activeTab === 'Shop' && shopSectionLayout.newlyListed)) && (
               <>
                 <View style={styles.sectionHead}>
@@ -692,33 +706,62 @@ export function ProfileScreen() {
             )}
 
             {(activeTab === 'Sale' ||
-              (activeTab === 'Shop' && shopSectionLayout.allItems)) && (
+              (activeTab === 'Shop' &&
+                (shopSectionLayout.allItems || !hasListings))) && (
               <>
                 <View style={styles.sectionHead}>
                   <Text style={styles.sectionTitle}>All items</Text>
                 </View>
-                <View style={styles.grid}>
-                  {(activeTab === 'Sale'
-                    ? allListings.slice(0, 2)
-                    : allListings
-                  ).map((item) => (
-                    <View key={item.id} style={styles.gridCell}>
-                      <GridCard item={item} onPress={() => openListing(item)} />
-                      <Text
-                        style={styles.gridCaption}
-                        numberOfLines={4}
-                        ellipsizeMode="tail"
-                      >
-                        {item.title}
+                {hasListings ? (
+                  <View style={styles.grid}>
+                    {(activeTab === 'Sale'
+                      ? allListings.slice(0, 2)
+                      : allListings
+                    ).map((item) => (
+                      <View key={item.id} style={styles.gridCell}>
+                        <GridCard item={item} onPress={() => openListing(item)} />
+                        <Text
+                          style={styles.gridCaption}
+                          numberOfLines={4}
+                          ellipsizeMode="tail"
+                        >
+                          {item.title}
+                        </Text>
+                        <Text style={styles.gridPrice}>{item.price}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.emptyShopCard}>
+                    <Ionicons
+                      name="storefront-outline"
+                      size={36}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.emptyShopTitle}>No listings yet</Text>
+                    <Text style={styles.emptyShopBody}>
+                      Create your first listing to start selling to your campus
+                      community.
+                    </Text>
+                    <Pressable
+                      style={styles.emptyShopCta}
+                      onPress={() =>
+                        navigation.navigate('CreateListing', {
+                          screen: 'CreateEntry',
+                        })
+                      }
+                    >
+                      <Text style={styles.emptyShopCtaText}>
+                        Create a listing
                       </Text>
-                      <Text style={styles.gridPrice}>{item.price}</Text>
-                    </View>
-                  ))}
-                </View>
+                    </Pressable>
+                  </View>
+                )}
               </>
             )}
 
             {activeTab === 'Shop' &&
+              hasListings &&
               !shopSectionLayout.topPicks &&
               !shopSectionLayout.newlyListed &&
               !shopSectionLayout.allItems && (
@@ -731,14 +774,33 @@ export function ProfileScreen() {
 
         {activeTab === 'About' && (
           <View style={styles.about}>
-            <Text style={styles.aboutBio}>
-              Sellin clothes for a livin&apos; — DM for bundles. Campus pickup most days.
-            </Text>
-            <View style={styles.aboutStats}>
-              <Text style={styles.aboutLine}>
-                Items sold: {itemsSoldCount}
+            <Text style={styles.aboutSectionLabel}>Bio</Text>
+            <Pressable
+              style={styles.aboutBioField}
+              onPress={() =>
+                Alert.alert(
+                  'Edit bio',
+                  'Editing your bio from profile is coming soon.',
+                )
+              }
+              accessibilityLabel="Edit bio"
+            >
+              <Text style={styles.aboutBioPlaceholder}>
+                Tell campus shoppers what you&apos;re about. Pickup times, favorite
+                brands, bundle deals.
               </Text>
-              <Text style={styles.aboutLine}>Member since 2024</Text>
+              <Ionicons
+                name="create-outline"
+                size={18}
+                color={colors.textMuted}
+              />
+            </Pressable>
+            <View style={styles.aboutStats}>
+              <Text style={styles.aboutLine}>Items sold: {itemsSoldCount}</Text>
+              <Text style={styles.aboutLine}>
+                Following: {followingCount}
+              </Text>
+              <Text style={styles.aboutLine}>Rating: {ratingLabel}</Text>
             </View>
             <View style={styles.aboutActions}>
               <Pressable
@@ -1126,6 +1188,41 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     paddingHorizontal: spacing.md,
   },
+  emptyShopCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.lg,
+  },
+  emptyShopTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    color: colors.textPrimary,
+    marginTop: 4,
+  },
+  emptyShopBody: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  emptyShopCta: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.primary,
+    borderRadius: radii.button,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.xl,
+  },
+  emptyShopCtaText: {
+    fontFamily: fonts.bold,
+    color: colors.textInverse,
+    fontSize: 15,
+  },
   seeAll: {
     fontSize: 14,
     fontFamily: fonts.semiBold,
@@ -1219,11 +1316,30 @@ const styles = StyleSheet.create({
   about: {
     paddingVertical: spacing.sm,
   },
-  aboutBio: {
-    ...typography.body,
-    lineHeight: 22,
-    color: colors.textPrimary,
+  aboutSectionLabel: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  aboutBioField: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     marginBottom: spacing.md,
+  },
+  aboutBioPlaceholder: {
+    ...typography.body,
+    flex: 1,
+    color: colors.textMuted,
+    lineHeight: 22,
   },
   aboutStats: {
     marginBottom: spacing.lg,

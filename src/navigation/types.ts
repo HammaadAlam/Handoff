@@ -25,11 +25,16 @@ export type SearchStackParamList = {
   Filters: { query: string; filters?: SearchFilters } | undefined;
 };
 
+export type HomeStackParamList = {
+  HomeLanding: undefined;
+  CategoryResults: { query: string; filters?: SearchFilters };
+  Filters: { query: string; filters?: SearchFilters } | undefined;
+};
+
 /** Create Listing tab: entry → photos → review/edit → price → meetup → preview → success */
 export type CreateListingStackParamList = {
   CreateEntry: undefined;
   CameraCapture: { mode?: 'quick' | 'manual' } | undefined;
-  ReviewDetails: { draft?: Partial<CreateListingDraft> } | undefined;
   ListingDetails: {
     mode?: 'quick' | 'manual';
     capturedImageUri?: string;
@@ -42,7 +47,7 @@ export type CreateListingStackParamList = {
 };
 
 export type MainTabParamList = {
-  Home: undefined;
+  Home: NavigatorScreenParams<HomeStackParamList> | undefined;
   Search: NavigatorScreenParams<SearchStackParamList>;
   CreateListing: NavigatorScreenParams<CreateListingStackParamList>;
   Inbox: undefined;
@@ -65,6 +70,12 @@ export type ItemDetailParams = {
   sellerAvatarUrl?: string;
   categoryLabel?: string;
   condition?: string;
+  brand?: string;
+  model?: string;
+  storage?: string;
+  color?: string;
+  /** Seller's lowest acceptable offer in dollars (optional). */
+  lowestOffer?: number;
   description?: string;
   meetupLocation?: string;
   galleryUrls?: string[];
@@ -129,7 +140,7 @@ export type RootStackNav = NativeStackNavigationProp<RootStackParamList>;
 
 /** Use on tab screens (e.g. Home) to reach stack routes like ItemDetail */
 export type HomeTabNavigation = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'Home'>,
+  NativeStackNavigationProp<HomeStackParamList, 'HomeLanding'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 

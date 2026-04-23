@@ -6,6 +6,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   FlatList,
   NativeScrollEvent,
@@ -30,6 +31,7 @@ import {
 import { DEFAULT_PEER_AVATAR_URI } from '@/data/mockData';
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import type { CreateListingStackParamList } from '@/navigation/types';
+import { createListing } from '@/services/listings';
 import { fetchPublicProfile, type PublicProfile } from '@/services/profiles';
 import { colors, fonts, radii, shadows, spacing, typography } from '@/styles/theme';
 
@@ -53,6 +55,7 @@ export function ListingPreviewScreen() {
   const [slide, setSlide] = useState(0);
   const [descExpanded, setDescExpanded] = useState(false);
   const [viewerProfile, setViewerProfile] = useState<PublicProfile | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const images = useMemo(() => {
     const selectedImages = [
       draft.imageUri,
@@ -143,6 +146,57 @@ export function ListingPreviewScreen() {
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const nextSlide = Math.round(event.nativeEvent.contentOffset.x / SCREEN_W);
     setSlide(Math.min(Math.max(nextSlide, 0), images.length - 1));
+  };
+
+  const handlePostListing = async () => {
+    if (publishing) return;
+    if (!viewerProfileId) {
+      Alert.alert(
+        'Sign in required',
+        'You need to be signed in to publish a listing.',
+      );
+      return;
+    }
+
+    const parsedLowestOffer = (() => {
+      const raw = draft.lowestOffer?.trim();
+      if (!raw) return undefined;
+      const digits = raw.replace(/[^0-9.]/g, '');
+      const num = Number(digits);
+      return Number.isFinite(num) && num > 0 ? num : undefined;
+    })();
+
+    setPublishing(true);
+    try {
+      const created = await createListing({
+        sellerId: viewerProfileId,
+        title,
+        price: priceDisplay,
+        imageUrl: images[0] ?? '',
+        description: draft.description,
+        category: draft.category || undefined,
+        condition: draft.condition || undefined,
+        brand: draft.brand || undefined,
+        model: draft.model || undefined,
+        storage: draft.storage || undefined,
+        color: draft.color || undefined,
+        locationLabel:
+          draft.meetupMethod === 'meet' ? draft.meetupLocation || undefined : undefined,
+        lowestOffer: parsedLowestOffer,
+      });
+
+      if (!created) {
+        Alert.alert(
+          'Could not post listing',
+          'Something went wrong saving your listing. Please try again.',
+        );
+        return;
+      }
+
+      navigation.navigate('ListingSuccess', { draft });
+    } finally {
+      setPublishing(false);
+    }
   };
 
   return (
@@ -278,11 +332,18 @@ export function ListingPreviewScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Post listing"
-            onPress={() => navigation.navigate('ListingSuccess', { draft })}
-            style={[styles.btnChat, { width: footerBtnWidth }]}
+            disabled={publishing}
+            onPress={handlePostListing}
+            style={[
+              styles.btnChat,
+              { width: footerBtnWidth },
+              publishing && styles.btnChatDisabled,
+            ]}
           >
             <Ionicons name="checkmark-circle-outline" size={21} color={colors.textInverse} />
-            <Text style={styles.btnChatText}>Post Listing</Text>
+            <Text style={styles.btnChatText}>
+              {publishing ? 'Posting…' : 'Post Listing'}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -523,5 +584,8 @@ const styles = StyleSheet.create({
   btnChatText: {
     ...typography.button,
     color: colors.textInverse,
+  },
+  btnChatDisabled: {
+    opacity: 0.6,
   },
 });

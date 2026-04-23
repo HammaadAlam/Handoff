@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import type { RootStackParamList } from '@/navigation/types';
-import { fetchRecommendedListings } from '@/services/listings';
+import { fetchListingsByUserId } from '@/services/listings';
 import { fonts, colors, spacing, typography } from '@/styles/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -88,9 +88,9 @@ export function ProfileSettingsScreen() {
         if (!cancelled) setListingsCount(0);
         return;
       }
-      const listings = await fetchRecommendedListings();
+      const listings = await fetchListingsByUserId(viewerProfileId);
       if (!cancelled) {
-        setListingsCount(listings.filter((item) => item.sellerId === viewerProfileId).length);
+        setListingsCount(listings.length);
       }
     })();
     return () => {

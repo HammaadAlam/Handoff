@@ -49,7 +49,6 @@ function formatTime(ts: number): string {
 }
 
 const MEETUP_DETAILS_LABEL = 'Meetup details';
-const DEFAULT_THREAD_OPENER = 'Hi! Is this still available?';
 
 function toChatMessage(m: ThreadMessage): ChatMessage {
   return {
@@ -57,15 +56,6 @@ function toChatMessage(m: ThreadMessage): ChatMessage {
     text: m.body,
     sender: m.sender,
     createdAt: new Date(m.createdAt).getTime(),
-  };
-}
-
-function buildDefaultMessage(): ChatMessage {
-  return {
-    id: 'm-default',
-    text: DEFAULT_THREAD_OPENER,
-    sender: 'me',
-    createdAt: Date.now() - 1000 * 60,
   };
 }
 
@@ -97,13 +87,7 @@ export function ConversationScreen() {
   );
   const insets = useSafeAreaInsets();
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    conversationId || entry !== 'message'
-      ? []
-      : [
-          buildDefaultMessage(),
-        ],
-  );
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -119,13 +103,7 @@ export function ConversationScreen() {
         sessionUserId,
       });
       if (cancelled) return;
-      setMessages(
-        msgs.length > 0
-          ? msgs.map(toChatMessage)
-          : entry === 'message'
-            ? [buildDefaultMessage()]
-            : [],
-      );
+      setMessages(msgs.map(toChatMessage));
       if (latestOffer) setPersistedOfferAmount(latestOffer);
       if (peer) {
         setPeerId(peer.id);
@@ -139,7 +117,7 @@ export function ConversationScreen() {
     return () => {
       cancelled = true;
     };
-  }, [conversationId, entry, sessionUserId]);
+  }, [conversationId, sessionUserId]);
 
   const offerAmount = persistedOfferAmount ?? routeOfferAmount ?? '$12.00';
   const listPrice = price.includes('$') ? price : `$${price}`;
@@ -223,7 +201,6 @@ export function ConversationScreen() {
             <RemoteImage uri={peerAvatar} style={styles.sellerAvatar} />
             <View>
               <Text style={styles.sellerName}>{peerName}</Text>
-              <Text style={styles.sellerStatus}>Active Yesterday</Text>
             </View>
           </Pressable>
           <Pressable hitSlop={12}>
@@ -265,25 +242,19 @@ export function ConversationScreen() {
             disabled={!peerId}
           >
             <RemoteImage uri={peerAvatar} style={styles.bigAvatar} />
-            <Text style={styles.profileName}>{peerName} &gt;</Text>
-            <View style={styles.stars}>
-              <Ionicons name="star" size={16} color={colors.warning} />
-              <Ionicons name="star" size={16} color={colors.warning} />
-              <Ionicons name="star" size={16} color={colors.warning} />
-              <Ionicons name="star" size={16} color={colors.warning} />
-              <Ionicons name="star-half-outline" size={16} color={colors.warning} />
-              <Text style={styles.reviewCount}> (17)</Text>
-            </View>
-            <Text style={styles.stats}>67 followers   26 Listings</Text>
+            <Text style={styles.profileName}>{peerName}</Text>
+            <Text style={styles.viewProfileHint}>View profile</Text>
           </Pressable>
 
-          <Text style={styles.dateSep}>
-            {new Date().toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </Text>
+          {messages.length > 0 ? (
+            <Text style={styles.dateSep}>
+              {new Date(messages[0]!.createdAt).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </Text>
+          ) : null}
 
           {entry === 'offer' || !!persistedOfferAmount ? (
             <View style={styles.alignEnd}>
@@ -318,25 +289,36 @@ export function ConversationScreen() {
               <Text style={styles.ts}>{formatTime(m.createdAt)}</Text>
             </View>
           ))}
-
-          <Pressable
-            style={styles.meetupCta}
-            onPress={() => goMeetup('buyer')}
-            accessibilityLabel={
-              entry === 'offer'
-                ? MEETUP_DETAILS_LABEL
-                : 'Preview meetup location'
-            }
-          >
-            <Text style={styles.meetupCtaText}>
-              {entry === 'offer'
-                ? MEETUP_DETAILS_LABEL
-                : 'Preview meetup location →'}
-            </Text>
-          </Pressable>
         </ScrollView>
 
         <View style={{ paddingBottom: insets.bottom }}>
+          <View style={styles.meetupPillWrap}>
+            <Pressable
+              style={styles.meetupPill}
+              onPress={() => goMeetup('buyer')}
+              accessibilityLabel={
+                entry === 'offer'
+                  ? MEETUP_DETAILS_LABEL
+                  : 'Preview meetup location'
+              }
+            >
+              <Ionicons
+                name="location-outline"
+                size={14}
+                color={colors.primary}
+              />
+              <Text style={styles.meetupPillText} numberOfLines={1}>
+                {entry === 'offer'
+                  ? MEETUP_DETAILS_LABEL
+                  : 'Preview meetup location'}
+              </Text>
+              <Ionicons
+                name="chevron-forward"
+                size={14}
+                color={colors.primary}
+              />
+            </Pressable>
+          </View>
           <ChatComposer
             initialValue={initialDraft}
             placeholder={
@@ -384,10 +366,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
   },
-  sellerStatus: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
   itemBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -431,18 +409,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 4,
   },
-  stars: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  reviewCount: {
+  viewProfileHint: {
     ...typography.caption,
-    color: colors.textSecondary,
-  },
-  stats: {
-    ...typography.caption,
-    color: colors.textSecondary,
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
   },
   dateSep: {
     alignSelf: 'center',
@@ -521,24 +491,27 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 4,
   },
-  /** Same width/height for offer vs message threads */
-  meetupCta: {
-    alignSelf: 'stretch',
-    marginTop: spacing.md,
-    paddingVertical: 12,
+  meetupPillWrap: {
     paddingHorizontal: spacing.md,
-    minHeight: 48,
+    paddingTop: 6,
+    paddingBottom: 2,
+    alignItems: 'flex-start',
+  },
+  meetupPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.button,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
     backgroundColor: colors.bannerTint,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.primaryLight,
+    maxWidth: '90%',
   },
-  meetupCtaText: {
+  meetupPillText: {
     color: colors.primary,
     fontFamily: fonts.semiBold,
-    fontSize: 14,
-    textAlign: 'center',
+    fontSize: 12,
   },
 });

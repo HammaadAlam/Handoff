@@ -6,7 +6,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useRef } from 'react';
 import {
-  Alert,
   Animated,
   Easing,
   Pressable,
@@ -15,7 +14,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { goHomeFromCreateFlow } from '@/navigation/goHomeFromCreateFlow';
+import {
+  goHomeFromCreateFlow,
+  goProfileFromCreateFlow,
+} from '@/navigation/goHomeFromCreateFlow';
 import type { CreateListingStackParamList } from '@/navigation/types';
 import { colors, fonts, spacing } from '@/styles/theme';
 
@@ -183,19 +185,27 @@ export function ListingSuccessScreen() {
       </View>
 
       <View style={styles.actions}>
-        <Pressable style={styles.primaryButton} onPress={() => goHomeFromCreateFlow(navigation)}>
-          <Text style={styles.primaryButtonText}>View Listing</Text>
+        <Pressable style={styles.primaryButton} onPress={listAnother}>
+          <Ionicons name="add" size={22} color={colors.textInverse} />
+          <Text style={styles.primaryButtonText}>List another item</Text>
         </Pressable>
         <Pressable
           style={styles.secondaryButton}
-          onPress={() => Alert.alert('Share Listing', 'Sharing is coming soon.')}
+          onPress={() => goProfileFromCreateFlow(navigation)}
         >
-          <Ionicons name="share-social-outline" size={19} color={colors.primary} />
-          <Text style={styles.secondaryButtonText}>Share Listing</Text>
+          <Ionicons
+            name="person-circle-outline"
+            size={20}
+            color={colors.primary}
+          />
+          <Text style={styles.secondaryButtonText}>View listing</Text>
         </Pressable>
-        <Pressable style={styles.secondaryButton} onPress={listAnother}>
-          <Ionicons name="add" size={22} color={colors.primary} />
-          <Text style={styles.secondaryButtonText}>List Another Item</Text>
+        <Pressable
+          style={styles.secondaryButton}
+          onPress={() => goHomeFromCreateFlow(navigation)}
+        >
+          <Ionicons name="home-outline" size={20} color={colors.primary} />
+          <Text style={styles.secondaryButtonText}>Home</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -280,9 +290,11 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     minHeight: 56,
-    borderRadius: 10,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    borderRadius: 10,
     backgroundColor: colors.primary,
   },
   primaryButtonText: {

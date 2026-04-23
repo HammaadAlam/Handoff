@@ -16,7 +16,11 @@ export type ListingRow = {
   category?: string | null;
   condition?: string | null;
   brand?: string | null;
+  model?: string | null;
+  storage?: string | null;
+  color?: string | null;
   size?: string | null;
+  lowest_offer_cents?: number | null;
   location_label?: string | null;
   posted_at?: string | null;
   seller_id?: string | null;
@@ -33,11 +37,15 @@ export const LISTING_WITH_PROFILE_SELECT = `
   category,
   condition,
   brand,
+  model,
+  storage,
+  color,
   size,
+  lowest_offer_cents,
   location_label,
   posted_at,
   seller_id,
-  profiles ( handle, avatar_url, display_name )
+  profiles!listings_seller_id_fkey ( handle, avatar_url, display_name )
 ` as const;
 
 function firstProfile(
@@ -68,6 +76,11 @@ export function mapListingRow(row: ListingRow): ListingItem {
   const condition = row.condition as ListingItem['condition'] | undefined;
   const category = categoryFromRow(row);
 
+  const lowestOffer =
+    typeof row.lowest_offer_cents === 'number' && row.lowest_offer_cents >= 0
+      ? row.lowest_offer_cents / 100
+      : undefined;
+
   return {
     id: row.id,
     title: row.title,
@@ -77,7 +90,11 @@ export function mapListingRow(row: ListingRow): ListingItem {
     category,
     condition,
     brand: row.brand ?? undefined,
+    model: row.model ?? undefined,
+    storage: row.storage ?? undefined,
+    color: row.color ?? undefined,
     size: row.size ?? undefined,
+    lowestOffer,
     location: row.location_label ?? undefined,
     postedAgo: row.posted_at ? formatPostedAgo(row.posted_at) : undefined,
     sellerId: row.seller_id ?? undefined,
@@ -120,6 +137,76 @@ export async function fetchRecommendedListings(): Promise<ListingItem[]> {
     return rows.map(mapListingRow);
   } catch {
     return [];
+  }
+}
+
+export type NewListingInput = {
+  sellerId: string;
+  title: string;
+  price: string;
+  imageUrl: string;
+  description?: string;
+  category?: string;
+  condition?: string;
+  brand?: string;
+  model?: string;
+  storage?: string;
+  color?: string;
+  size?: string;
+  locationLabel?: string;
+  lowestOffer?: number;
+};
+
+/**
+ * Insert a new listing owned by the caller's profile. RLS requires
+ * `seller_id` to match the authenticated user's `profiles.id`.
+ */
+export async function createListing(
+  input: NewListingInput,
+): Promise<ListingItem | null> {
+  if (!isSupabaseConfigured()) return null;
+  if (!input.sellerId || !input.title.trim() || !input.imageUrl.trim()) {
+    return null;
+  }
+
+  const normalizePrice = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) return '$0';
+    return trimmed.startsWith('$') ? trimmed : `$${trimmed}`;
+  };
+
+  const lowestOfferCents =
+    typeof input.lowestOffer === 'number' && input.lowestOffer >= 0
+      ? Math.round(input.lowestOffer * 100)
+      : null;
+
+  try {
+    const { data, error } = await getSupabase()
+      .from('listings')
+      .insert({
+        seller_id: input.sellerId,
+        title: input.title.trim(),
+        price: normalizePrice(input.price),
+        image_url: input.imageUrl,
+        description: input.description?.trim() ?? '',
+        category: input.category ?? null,
+        condition: input.condition ?? null,
+        brand: input.brand ?? null,
+        model: input.model ?? null,
+        storage: input.storage ?? null,
+        color: input.color ?? null,
+        size: input.size ?? null,
+        location_label: input.locationLabel ?? null,
+        lowest_offer_cents: lowestOfferCents,
+        status: 'active',
+      })
+      .select(LISTING_WITH_PROFILE_SELECT)
+      .single();
+
+    if (error || !data) return null;
+    return mapListingRow(data as ListingRow);
+  } catch {
+    return null;
   }
 }
 

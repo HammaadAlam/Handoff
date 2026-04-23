@@ -22,6 +22,9 @@ export type ListingItem = {
   category?: HomeCategory;
   condition?: 'New' | 'Like New' | 'Good' | 'Fair';
   brand?: string;
+  model?: string;
+  storage?: string;
+  color?: string;
   size?: string;
   rating?: number;
   reviewCount?: number;
@@ -33,6 +36,8 @@ export type ListingItem = {
   sellerHandle?: string;
   sellerAvatarUrl?: string;
   description?: string;
+  /** Lowest acceptable offer (in dollars), set by the seller; undefined = no floor set */
+  lowestOffer?: number;
 };
 
 export type TicketListing = ListingItem & {
