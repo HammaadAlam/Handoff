@@ -30,6 +30,7 @@ export function SetPriceScreen() {
   const { params } = useRoute<RouteProp<CreateListingStackParamList, 'SetPrice'>>();
   const draft = mergeCreateListingDraft(params?.draft);
   const [price, setPrice] = useState(draft.price);
+  const suggestedPrice = draft.price.trim();
 
   const continueFlow = () => {
     navigation.navigate('PickupLocation', {
@@ -63,13 +64,17 @@ export function SetPriceScreen() {
         <View style={styles.suggestCard}>
           <View style={styles.suggestHeader}>
             <Text style={styles.cardLabel}>Suggested Price</Text>
-            <Ionicons name="sparkles" size={24} color={colors.primary} />
+            <View style={styles.sparkleBadge}>
+              <Ionicons name="sparkles" size={18} color={colors.primary} />
+            </View>
           </View>
-          <Text style={[styles.suggestedPrice, !draft.price && styles.emptyPrice]}>
-            {draft.price ? `$${draft.price}` : '--'}
+          <Text style={[styles.suggestedPrice, !suggestedPrice && styles.emptyPrice]}>
+            {suggestedPrice ? `$${suggestedPrice}` : 'Estimate pending'}
           </Text>
           <View style={styles.basedRow}>
-            <Text style={styles.basedText}>Based on similar listings</Text>
+            <Text style={styles.basedText}>
+              {suggestedPrice ? 'Based on similar listings' : 'Add a price to continue'}
+            </Text>
             <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} />
           </View>
         </View>
@@ -161,14 +166,15 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.md,
-    paddingTop: 26,
-    paddingBottom: 120,
+    paddingTop: 22,
+    paddingBottom: 220,
   },
   suggestCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: '#F8F7FC',
-    padding: 16,
-    marginBottom: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 18,
   },
   suggestHeader: {
     flexDirection: 'row',
@@ -180,21 +186,33 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 14,
   },
+  sparkleBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1ECFF',
+  },
   suggestedPrice: {
     color: colors.primary,
-    fontFamily: fonts.medium,
-    fontSize: 32,
-    letterSpacing: 2,
-    marginTop: 12,
+    fontFamily: fonts.bold,
+    fontSize: 34,
+    letterSpacing: 0.5,
+    marginTop: 14,
   },
   emptyPrice: {
     color: colors.textMuted,
+    fontFamily: fonts.semiBold,
+    fontSize: 18,
+    letterSpacing: 0,
+    marginTop: 16,
   },
   basedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 8,
+    marginTop: 10,
   },
   basedText: {
     color: colors.textSecondary,
@@ -205,40 +223,42 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontFamily: fonts.bold,
     fontSize: 14,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   priceInputWrap: {
-    minHeight: 52,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 16,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 18,
   },
   dollar: {
     color: colors.textPrimary,
-    fontFamily: fonts.medium,
-    fontSize: 20,
-    marginRight: 14,
+    fontFamily: fonts.bold,
+    fontSize: 22,
+    marginRight: 16,
   },
   priceInput: {
     flex: 1,
     color: colors.textPrimary,
-    fontFamily: fonts.medium,
-    fontSize: 20,
+    fontFamily: fonts.bold,
+    fontSize: 22,
   },
   tipsCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: '#F8F7FC',
-    marginTop: 24,
-    padding: 16,
+    marginTop: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   tipsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   tipsTitle: {
     color: colors.primary,
@@ -248,8 +268,8 @@ const styles = StyleSheet.create({
   tipRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 10,
+    gap: 9,
+    marginTop: 8,
   },
   tipText: {
     color: colors.textSecondary,
@@ -260,7 +280,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: 34,
     paddingHorizontal: spacing.md,
     paddingTop: 12,
     paddingBottom: 18,

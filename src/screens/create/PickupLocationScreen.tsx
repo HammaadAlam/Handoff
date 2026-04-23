@@ -116,6 +116,11 @@ export function PickupLocationScreen() {
   const [method, setMethod] = useState<MeetupMethod>(draft.meetupMethod);
   const [location, setLocation] = useState(draft.meetupLocation);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const selectedPickerLocation = PICKER_LOCATIONS.find(
+    (candidate) =>
+      candidate.name === location ||
+      candidate.name.replace('LSU ', '') === location,
+  );
 
   const continueFlow = () => {
     navigation.navigate('ListingPreview', {
@@ -209,7 +214,16 @@ export function PickupLocationScreen() {
           onPress={() => setShowLocationPicker(true)}
         >
           <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
-          <Text style={styles.otherText}>Choose another location</Text>
+          <View style={styles.otherCopy}>
+            <Text style={styles.otherText}>
+              {selectedPickerLocation?.name ?? 'Choose another location'}
+            </Text>
+            {selectedPickerLocation ? (
+              <Text style={styles.otherMeta}>
+                {selectedPickerLocation.address} - {selectedPickerLocation.distance}
+              </Text>
+            ) : null}
+          </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
         </Pressable>
       </ScrollView>
@@ -285,12 +299,12 @@ function ChoosePickupLocationPage({
     <SafeAreaView style={styles.pickerSafe} edges={['top']}>
       <View style={styles.pickerHeader}>
         <Pressable onPress={onBack} hitSlop={12}>
-          <Ionicons name="arrow-back" size={26} color={colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Ionicons name="search-outline" size={26} color={colors.textPrimary} />
+        <Ionicons name="search-outline" size={24} color={colors.textPrimary} />
         <Text style={styles.pickerTitle}>Choose Pickup Location</Text>
         <Pressable onPress={() => onConfirm(selectedLocation)} hitSlop={12}>
-          <Ionicons name="checkmark" size={28} color={colors.textPrimary} />
+          <Ionicons name="checkmark" size={25} color={colors.textPrimary} />
         </Pressable>
       </View>
 
@@ -318,7 +332,7 @@ function ChoosePickupLocationPage({
                 <View style={styles.realMapMarker}>
                   <Ionicons
                     name="location-sharp"
-                    size={selected ? 46 : 40}
+                    size={selected ? 36 : 31}
                     color={selected ? colors.primaryDark : colors.primary}
                   />
                   <View style={styles.realMapMarkerDot} />
@@ -382,7 +396,7 @@ function ChoosePickupLocationPage({
                 >
                   <Ionicons
                     name={favorite ? 'heart' : 'heart-outline'}
-                    size={32}
+                    size={28}
                     color={favorite ? colors.error : colors.textPrimary}
                   />
                 </Pressable>
@@ -436,10 +450,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F7FB',
   },
   pickerHeader: {
-    minHeight: 70,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 18,
+    gap: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
@@ -449,12 +463,12 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.textPrimary,
     fontFamily: fonts.bold,
-    fontSize: 20,
+    fontSize: 18,
     letterSpacing: -0.3,
     textAlign: 'center',
   },
   mapCanvas: {
-    height: 250,
+    height: 200,
     overflow: 'hidden',
     backgroundColor: '#E8EEF6',
   },
@@ -462,42 +476,42 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   realMapMarker: {
-    width: 52,
-    height: 52,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
   },
   realMapMarkerDot: {
     position: 'absolute',
-    top: 18,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    top: 14,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: colors.surface,
   },
   mapSelectionCard: {
     position: 'absolute',
     left: spacing.md,
     right: spacing.md,
-    bottom: 12,
+    bottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.94)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   mapSelectionTitle: {
     flex: 1,
     color: colors.textPrimary,
     fontFamily: fonts.bold,
-    fontSize: 14,
+    fontSize: 13,
   },
   mapSelectionMeta: {
     color: colors.textSecondary,
     fontFamily: fonts.medium,
-    fontSize: 12,
+    fontSize: 11,
   },
   locationTabs: {
     flexDirection: 'row',
@@ -508,13 +522,13 @@ const styles = StyleSheet.create({
   locationTab: {
     flex: 1,
     alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 13,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
   locationTabText: {
     color: colors.textSecondary,
     fontFamily: fonts.bold,
-    fontSize: 17,
+    fontSize: 15,
   },
   locationTabTextOn: {
     color: colors.textPrimary,
@@ -524,14 +538,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 3,
+    height: 2,
     backgroundColor: colors.primary,
   },
   locationList: {
     paddingBottom: spacing.xxl,
   },
   pickerLocationRow: {
-    minHeight: 118,
+    minHeight: 88,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -546,37 +560,37 @@ const styles = StyleSheet.create({
   pickerLocationName: {
     color: colors.textPrimary,
     fontFamily: fonts.bold,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 20,
   },
   pickerLocationMeta: {
     color: colors.textPrimary,
     fontFamily: fonts.regular,
-    fontSize: 17,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 19,
   },
   pickerRadio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 19,
+    height: 19,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 26,
+    marginRight: 22,
   },
   pickerRadioOn: {
     borderColor: colors.textPrimary,
   },
   pickerRadioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.textPrimary,
   },
   favoriteLocationButton: {
-    width: 42,
-    height: 42,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -630,7 +644,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
     paddingTop: 34,
-    paddingBottom: 120,
+    paddingBottom: 220,
   },
   sectionLabel: {
     color: colors.textPrimary,
@@ -722,17 +736,26 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingHorizontal: 16,
   },
-  otherText: {
+  otherCopy: {
     flex: 1,
+    paddingVertical: 10,
+  },
+  otherText: {
     color: colors.textPrimary,
     fontFamily: fonts.semiBold,
     fontSize: 14,
+  },
+  otherMeta: {
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    marginTop: 3,
   },
   footer: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: 34,
     paddingHorizontal: spacing.md,
     paddingTop: 12,
     paddingBottom: 18,

@@ -214,7 +214,7 @@ export function ManageSectionsModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
       <View style={styles.modalRoot}>

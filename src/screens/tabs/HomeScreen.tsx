@@ -45,7 +45,6 @@ const HOME_CATEGORIES = [
 
 type HomeCategoryPill = (typeof HOME_CATEGORIES)[number];
 
-const TICKET_STOCK = ['3 left', '5 left', '4 left', '2 left'] as const;
 const BANNER_ROTATE_MS = 8_000;
 const RECENT_LISTING_LIMIT = 8;
 const TECH_KEYWORDS = [
@@ -237,6 +236,17 @@ export function HomeScreen() {
     return source.slice(0, RECENT_LISTING_LIMIT);
   }, [activeCategory, hotListings, recommended]);
 
+  const moreCampusFinds = useMemo(() => {
+    const filtered = filterHomeListings(recommended, activeCategory);
+    const usedIds = new Set([
+      ...hotListings.map((item) => item.id),
+      ...recentlyListed.map((item) => item.id),
+    ]);
+    const remaining = filtered.filter((item) => !usedIds.has(item.id));
+    const source = remaining.length >= 4 ? remaining : [...filtered].reverse();
+    return source.slice(0, 6);
+  }, [activeCategory, hotListings, recentlyListed, recommended]);
+
   const rotatingHeroBanners = useMemo<HomeHeroBanner[]>(
     () => [
       {
@@ -369,14 +379,7 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
-          <Pressable
-            accessibilityLabel="Open profile"
-            hitSlop={12}
-            onPress={() => navigation.navigate('Profile')}
-            style={styles.headerIconButton}
-          >
-            <Ionicons name="menu-outline" size={26} color={colors.textPrimary} />
-          </Pressable>
+          <View style={styles.headerIconButton} />
 
           <Text style={styles.brandTitle}>HandOff</Text>
 
@@ -493,10 +496,9 @@ export function HomeScreen() {
             snapToAlignment="start"
             style={styles.fullBleedScroll}
           >
-            {nearbyTickets.map((ticket, index) => (
+            {nearbyTickets.map((ticket) => (
               <View key={ticket.id} style={styles.ticketWrap}>
                 <TicketCard
-                  badgeLabel={TICKET_STOCK[index % TICKET_STOCK.length]}
                   onPress={() => openTicket(navigation, ticket)}
                   ticket={ticket}
                   width={ticketCardWidth}
@@ -565,6 +567,34 @@ export function HomeScreen() {
               subtitle={tertiaryBanner.subtitle}
               title={tertiaryBanner.title}
             />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🎒 More Campus Finds</Text>
+            <Pressable
+              hitSlop={8}
+              onPress={() =>
+                navigation.navigate('Search', {
+                  screen: 'CategoryResults',
+                  params: { query: searchQueryForCategory(activeCategory) },
+                })
+              }
+            >
+              <Text style={styles.seeAllText}>See all</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.recentGrid}>
+            {moreCampusFinds.map((item) => (
+              <View key={item.id} style={{ width: recentCardWidth }}>
+                <SearchPopularCard
+                  item={item}
+                  onPress={() => openListing(navigation, item)}
+                />
+              </View>
+            ))}
           </View>
         </View>
       </ScrollView>

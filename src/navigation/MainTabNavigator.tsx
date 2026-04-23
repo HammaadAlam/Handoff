@@ -78,6 +78,7 @@ export function MainTabNavigator() {
         component={CreateListingStackNavigator}
         options={{
           title: 'List',
+          animation: 'none',
           // Keep global labels enabled; suppress only this tab's built-in label
           // and render a custom label under the FAB icon.
           tabBarLabel: () => null,

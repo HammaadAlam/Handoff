@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
     paddingTop: 30,
-    paddingBottom: 160,
+    paddingBottom: 210,
   },
   helper: {
     color: colors.textPrimary,

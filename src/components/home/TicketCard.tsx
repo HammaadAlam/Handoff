@@ -1,16 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
 import type { TicketListing } from '@/data/mockData';
-import { colors, fonts, radii } from '@/styles/theme';
+import { colors, fonts } from '@/styles/theme';
 
 type Props = {
-  badgeLabel: string;
   onPress?: () => void;
   ticket: TicketListing;
   width?: number;
 };
 
-export function TicketCard({ badgeLabel, onPress, ticket, width }: Props) {
+export function TicketCard({ onPress, ticket, width }: Props) {
   return (
     <Pressable
       onPress={onPress}
@@ -20,7 +19,19 @@ export function TicketCard({ badgeLabel, onPress, ticket, width }: Props) {
         pressed && styles.cardPressed,
       ]}
     >
-      <RemoteImage uri={ticket.imageUrl} style={styles.image} />
+      <View style={styles.imageShell}>
+        <RemoteImage
+          uri={ticket.imageUrl}
+          contentFit="cover"
+          style={styles.imageBackdrop}
+        />
+        <View style={styles.imageWash} />
+        <RemoteImage
+          uri={ticket.imageUrl}
+          contentFit="contain"
+          style={styles.image}
+        />
+      </View>
 
       <View style={styles.copy}>
         <Text numberOfLines={1} style={styles.title}>
@@ -31,9 +42,6 @@ export function TicketCard({ badgeLabel, onPress, ticket, width }: Props) {
 
         <View style={styles.bottomRow}>
           <Text style={styles.price}>{ticket.price}</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{badgeLabel}</Text>
-          </View>
         </View>
       </View>
     </Pressable>
@@ -54,9 +62,25 @@ const styles = StyleSheet.create({
   cardPressed: {
     transform: [{ scale: 0.97 }],
   },
+  imageShell: {
+    width: '100%',
+    height: 128,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: colors.chipBg,
+  },
   image: {
     width: '100%',
-    height: 108,
+    height: '100%',
+    backgroundColor: 'transparent',
+  },
+  imageBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.26,
+  },
+  imageWash: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.5)',
   },
   copy: {
     paddingHorizontal: 12,
@@ -84,7 +108,6 @@ const styles = StyleSheet.create({
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     marginTop: 10,
   },
   price: {
@@ -92,16 +115,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.extraBold,
     fontSize: 18,
     letterSpacing: -0.2,
-  },
-  badge: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: radii.input,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  badgeText: {
-    color: colors.textInverse,
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
   },
 });

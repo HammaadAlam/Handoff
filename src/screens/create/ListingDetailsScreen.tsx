@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
     paddingTop: 30,
-    paddingBottom: 120,
+    paddingBottom: 220,
   },
   label: {
     color: colors.textPrimary,
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: 34,
     paddingHorizontal: spacing.md,
     paddingTop: 12,
     paddingBottom: 18,

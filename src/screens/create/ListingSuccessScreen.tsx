@@ -40,6 +40,7 @@ export function ListingSuccessScreen() {
   const confettiProgress = useRef(
     CONFETTI_PIECES.map(() => new Animated.Value(0)),
   ).current;
+  const haloPulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const loops = confettiProgress.map((progress, index) => {
@@ -65,11 +66,29 @@ export function ListingSuccessScreen() {
     });
 
     loops.forEach((loop) => loop.start());
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(haloPulse, {
+          toValue: 1,
+          duration: 1400,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(haloPulse, {
+          toValue: 0,
+          duration: 1400,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    pulseLoop.start();
 
     return () => {
       loops.forEach((loop) => loop.stop());
+      pulseLoop.stop();
     };
-  }, [confettiProgress]);
+  }, [confettiProgress, haloPulse]);
 
   const listAnother = () => {
     navigation.reset({
@@ -132,11 +151,29 @@ export function ListingSuccessScreen() {
             color="#8B82E0"
             style={[styles.confettiSparkle, styles.confettiSparkleRight]}
           />
-          <View style={styles.successHalo}>
+          <Animated.View
+            style={[
+              styles.successHalo,
+              {
+                opacity: haloPulse.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.9, 0.55],
+                }),
+                transform: [
+                  {
+                    scale: haloPulse.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 1.16],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <View style={styles.checkCircle}>
               <Ionicons name="checkmark" size={44} color={colors.textInverse} />
             </View>
-          </View>
+          </Animated.View>
         </View>
 
         <Text style={styles.title}>Your listing is live!</Text>
