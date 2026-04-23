@@ -9,11 +9,19 @@ import type { CompositeNavigationProp, NavigatorScreenParams } from '@react-navi
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 /** Search tab is its own stack (landing, query, results, filters). */
+export type SearchFilters = {
+  sort: 'best' | 'low' | 'high';
+  priceMax: number;
+  condition: 'New' | 'Like New' | 'Used' | null;
+  sellerType: 'Any' | 'Individual' | 'Campus shop';
+  mileage: 'Any' | 'On campus' | 'Within 5 mi' | 'Within 15 mi';
+};
+
 export type SearchStackParamList = {
   SearchHome: undefined;
   SearchQuery: { initialQuery?: string } | undefined;
-  CategoryResults: { query: string };
-  Filters: undefined;
+  CategoryResults: { query: string; filters?: SearchFilters };
+  Filters: { query: string; filters?: SearchFilters } | undefined;
 };
 
 /** Create Listing tab: entry → camera or manual form → optional pickup → success */

@@ -4,7 +4,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -18,6 +19,8 @@ import { DEFAULT_RECENT_SEARCHES } from '@/data/mockData';
 import type { SearchStackParamList } from '@/navigation/types';
 import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
+const RECENTS_STORAGE_KEY = '@handoff/search_recents_v1';
+
 export function SearchQueryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
   const { params } = useRoute<RouteProp<SearchStackParamList, 'SearchQuery'>>();
@@ -26,6 +29,31 @@ export function SearchQueryScreen() {
   const [query, setQuery] = useState(initial);
   const [recents, setRecents] = useState<string[]>(() => [...DEFAULT_RECENT_SEARCHES]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(RECENTS_STORAGE_KEY);
+        if (!raw || cancelled) return;
+        const parsed = JSON.parse(raw) as string[];
+        if (!Array.isArray(parsed)) return;
+        const cleaned = parsed.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+        if (!cancelled) {
+          setRecents(cleaned.slice(0, 8));
+        }
+      } catch {
+        // Ignore malformed storage and keep defaults.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    void AsyncStorage.setItem(RECENTS_STORAGE_KEY, JSON.stringify(recents.slice(0, 8)));
+  }, [recents]);
+
   const submit = (q: string) => {
     const t = q.trim();
     if (!t) return;
@@ -33,7 +61,7 @@ export function SearchQueryScreen() {
       const next = [t, ...prev.filter((x) => x !== t)];
       return next.slice(0, 8);
     });
-    navigation.navigate('CategoryResults', { query: t });
+    navigation.navigate('CategoryResults', { query: t, filters: undefined });
   };
 
   const removeRecent = (term: string) => {

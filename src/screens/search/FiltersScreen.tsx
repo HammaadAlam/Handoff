@@ -2,19 +2,19 @@
  * Filters — sheet layout; max price slider, sort chips, condition, footer.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Slider from '@react-native-community/slider';
 import { useCallback, useMemo, useState } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { SearchStackParamList } from '@/navigation/types';
+import type { SearchFilters, SearchStackParamList } from '@/navigation/types';
 import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
 
 type SortOption = 'best' | 'low' | 'high';
 
 const CONDITIONS = ['New', 'Like New', 'Used'] as const;
-const SELLER_TYPES = ['Individual', 'Campus shop'] as const;
+const SELLER_TYPES = ['Any', 'Individual', 'Campus shop'] as const;
 const MILEAGE_LABELS = ['Any', 'On campus', 'Within 5 mi', 'Within 15 mi'] as const;
 
 const PRICE_SLIDER_MAX = 2000;
@@ -22,6 +22,9 @@ const PRICE_STEP = 25;
 
 export function FiltersScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
+  const { params } = useRoute<RouteProp<SearchStackParamList, 'Filters'>>();
+  const query = params?.query ?? '';
+  const initialFilters = params?.filters;
 
   /** Pop when possible; if Filters is the only route (nothing to pop), replace with Search home */
   const exitFilters = useCallback(() => {
@@ -46,13 +49,19 @@ export function FiltersScreen() {
     }, [exitFilters]),
   );
 
-  const [sort, setSort] = useState<SortOption>('best');
+  const [sort, setSort] = useState<SortOption>(initialFilters?.sort ?? 'best');
   /** Maximum budget (slider); min is always $0 */
-  const [priceMax, setPriceMax] = useState(PRICE_SLIDER_MAX);
+  const [priceMax, setPriceMax] = useState(initialFilters?.priceMax ?? PRICE_SLIDER_MAX);
 
-  const [condition, setCondition] = useState<(typeof CONDITIONS)[number] | null>(null);
-  const [sellerType, setSellerType] = useState<(typeof SELLER_TYPES)[number]>('Individual');
-  const [mileage, setMileage] = useState<(typeof MILEAGE_LABELS)[number]>('Any');
+  const [condition, setCondition] = useState<(typeof CONDITIONS)[number] | null>(
+    initialFilters?.condition ?? null,
+  );
+  const [sellerType, setSellerType] = useState<(typeof SELLER_TYPES)[number]>(
+    initialFilters?.sellerType ?? 'Any',
+  );
+  const [mileage, setMileage] = useState<(typeof MILEAGE_LABELS)[number]>(
+    initialFilters?.mileage ?? 'Any',
+  );
 
   const rangeLabel = useMemo(() => {
     const rounded = Math.round(priceMax);
@@ -66,12 +75,19 @@ export function FiltersScreen() {
     setSort('best');
     setPriceMax(PRICE_SLIDER_MAX);
     setCondition(null);
-    setSellerType('Individual');
+    setSellerType('Any');
     setMileage('Any');
   };
 
   const apply = () => {
-    exitFilters();
+    const nextFilters: SearchFilters = {
+      sort,
+      priceMax,
+      condition,
+      sellerType,
+      mileage,
+    };
+    navigation.replace('CategoryResults', { query, filters: nextFilters });
   };
 
   return (

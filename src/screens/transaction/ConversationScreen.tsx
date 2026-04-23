@@ -27,6 +27,7 @@ import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
 import type { RootStackParamList } from '@/navigation/types';
 import {
   fetchConversationPeer,
+  fetchLatestOfferAmount,
   fetchMessages,
   sendMessage,
   type ThreadMessage,
@@ -48,6 +49,7 @@ function formatTime(ts: number): string {
 }
 
 const MEETUP_DETAILS_LABEL = 'Meetup details';
+const DEFAULT_THREAD_OPENER = 'Hi! Is this still available?';
 
 function toChatMessage(m: ThreadMessage): ChatMessage {
   return {
@@ -55,6 +57,15 @@ function toChatMessage(m: ThreadMessage): ChatMessage {
     text: m.body,
     sender: m.sender,
     createdAt: new Date(m.createdAt).getTime(),
+  };
+}
+
+function buildDefaultMessage(): ChatMessage {
+  return {
+    id: 'm-default',
+    text: DEFAULT_THREAD_OPENER,
+    sender: 'me',
+    createdAt: Date.now() - 1000 * 60,
   };
 }
 
@@ -81,18 +92,16 @@ export function ConversationScreen() {
   );
   const [peerName, setPeerName] = useState<string>(peerDisplayName ?? seller);
   const [peerId, setPeerId] = useState<string | null>(peerUserId ?? null);
+  const [persistedOfferAmount, setPersistedOfferAmount] = useState<string | null>(
+    routeOfferAmount ?? null,
+  );
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     conversationId || entry !== 'message'
       ? []
       : [
-          {
-            id: 'm-1',
-            text: 'Hey love your item!',
-            sender: 'me',
-            createdAt: Date.now() - 1000 * 60 * 5,
-          },
+          buildDefaultMessage(),
         ],
   );
   const scrollRef = useRef<ScrollView>(null);
@@ -105,8 +114,19 @@ export function ConversationScreen() {
         fetchMessages({ conversationId, sessionUserId }),
         fetchConversationPeer({ conversationId, sessionUserId }),
       ]);
+      const latestOffer = await fetchLatestOfferAmount({
+        conversationId,
+        sessionUserId,
+      });
       if (cancelled) return;
-      setMessages(msgs.map(toChatMessage));
+      setMessages(
+        msgs.length > 0
+          ? msgs.map(toChatMessage)
+          : entry === 'message'
+            ? [buildDefaultMessage()]
+            : [],
+      );
+      if (latestOffer) setPersistedOfferAmount(latestOffer);
       if (peer) {
         setPeerId(peer.id);
         setPeerName(peer.handle);
@@ -119,9 +139,9 @@ export function ConversationScreen() {
     return () => {
       cancelled = true;
     };
-  }, [conversationId, sessionUserId]);
+  }, [conversationId, entry, sessionUserId]);
 
-  const offerAmount = routeOfferAmount ?? '$12.00';
+  const offerAmount = persistedOfferAmount ?? routeOfferAmount ?? '$12.00';
   const listPrice = price.includes('$') ? price : `$${price}`;
   const initialDraft =
     entry === 'offer' ? 'Would you be willing to negotiate?' : '';
@@ -169,16 +189,13 @@ export function ConversationScreen() {
         scrollRef.current?.scrollToEnd({ animated: true });
       });
 
-      if (!conversationId) return;
+      if (!conversationId || conversationId.startsWith('local:')) return;
       const saved = await sendMessage({
         conversationId,
         body: text,
         sessionUserId,
       });
-      if (!saved) {
-        setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
-        return;
-      }
+      if (!saved) return;
       setMessages((prev) =>
         prev.map((m) => (m.id === optimisticId ? toChatMessage(saved) : m)),
       );
@@ -268,7 +285,7 @@ export function ConversationScreen() {
             })}
           </Text>
 
-          {entry === 'offer' ? (
+          {entry === 'offer' || !!persistedOfferAmount ? (
             <View style={styles.alignEnd}>
               <View style={styles.offerBubble}>
                 <Text style={styles.offerTitle}>You made an offer!</Text>

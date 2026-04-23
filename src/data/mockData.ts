@@ -345,15 +345,94 @@ export function listingsForSearchQuery(query: string): ListingItem[] {
   if (q.includes('cabinet')) return CABINET_LISTINGS;
   if (q.includes('popular')) return POPULAR_LISTINGS;
   if (!q) return TRENDING_LISTINGS;
-  const pool = RECOMMENDED_LISTINGS;
-  const hits = pool.filter(
-    (l) =>
-      l.title.toLowerCase().includes(q) ||
-      l.brand?.toLowerCase().includes(q) ||
-      l.category?.toLowerCase().includes(q) ||
-      l.sellerHandle?.toLowerCase().includes(q),
+
+  const categoryKeywords: Record<string, string[]> = {
+    vehicle: ['car', 'truck', 'bike', 'scooter', 'vehicle', 'helmet'],
+    property: ['apartment', 'room', 'lease', 'property', 'housing', 'rent'],
+    phones: ['phone', 'iphone', 'android', 'pixel', 'galaxy', 'case'],
+    fashion: ['fashion', 'shirt', 'jacket', 'hoodie', 'shoe', 'sneaker', 'clothes'],
+    babies: ['baby', 'stroller', 'crib', 'diaper', 'infant', 'kids'],
+    jobs: ['job', 'tutor', 'hiring', 'intern', 'resume', 'gig'],
+    sport: ['sport', 'basketball', 'football', 'soccer', 'tennis', 'gym', 'bike'],
+    service: ['service', 'repair', 'cleaning', 'design', 'tutoring', 'setup'],
+    furniture: ['furniture', 'desk', 'chair', 'lamp', 'cabinet', 'bed', 'sofa'],
+    tech: ['tech', 'laptop', 'macbook', 'camera', 'calculator', 'phone', 'tablet'],
+  };
+
+  const aliasToCategory: Record<string, keyof typeof categoryKeywords> = {
+    cars: 'vehicle',
+    bike: 'vehicle',
+    bikes: 'vehicle',
+    bicycles: 'vehicle',
+    housing: 'property',
+    apartment: 'property',
+    apartments: 'property',
+    phone: 'phones',
+    iphone: 'phones',
+    android: 'phones',
+    clothes: 'fashion',
+    clothing: 'fashion',
+    shoes: 'fashion',
+    sneaker: 'fashion',
+    sneakers: 'fashion',
+    baby: 'babies',
+    babies: 'babies',
+    kid: 'babies',
+    kids: 'babies',
+    jobs: 'jobs',
+    tutor: 'jobs',
+    sports: 'sport',
+    football: 'sport',
+    basketball: 'sport',
+    service: 'service',
+    services: 'service',
+    chairs: 'furniture',
+    chair: 'furniture',
+    desk: 'furniture',
+    desks: 'furniture',
+    lamps: 'furniture',
+    furniture: 'furniture',
+    tech: 'tech',
+    laptop: 'tech',
+    laptops: 'tech',
+    camera: 'tech',
+    cameras: 'tech',
+  };
+
+  const baseTokens = q.split(/\s+/).filter(Boolean);
+  const singularTokens = baseTokens.map((t) => t.replace(/s$/, ''));
+  const canonicalCategory =
+    (Object.keys(categoryKeywords).find((k) => q.includes(k)) as
+      | keyof typeof categoryKeywords
+      | undefined) ??
+    baseTokens.map((t) => aliasToCategory[t]).find(Boolean);
+
+  const expandedTerms = Array.from(
+    new Set(
+      canonicalCategory
+        ? [...baseTokens, ...singularTokens, ...categoryKeywords[canonicalCategory]]
+        : [...baseTokens, ...singularTokens],
+    ),
   );
-  return hits.length > 0 ? hits.slice(0, 48) : TRENDING_LISTINGS;
+
+  const pool = [...RECOMMENDED_LISTINGS, ...POPULAR_LISTINGS, ...TRENDING_LISTINGS].filter(
+    (item, idx, arr) => arr.findIndex((x) => x.id === item.id) === idx,
+  );
+  const hits = pool.filter((l) => {
+    const haystack = [
+      l.title,
+      l.brand ?? '',
+      l.category ?? '',
+      l.sellerHandle ?? '',
+      l.description ?? '',
+      l.location ?? '',
+    ]
+      .join(' ')
+      .toLowerCase();
+    return expandedTerms.some((term) => haystack.includes(term));
+  });
+  // For explicit queries we prefer relevance over filling with unrelated cards.
+  return hits.slice(0, 48);
 }
 
 export type InboxFilter = 'All' | 'Selling' | 'Buying' | 'Archived';

@@ -137,6 +137,7 @@ export function SearchHomeScreen() {
                   onPress={() =>
                     navigation.navigate('CategoryResults', {
                       query: chip,
+                      filters: undefined,
                     })
                   }
                 >
@@ -168,7 +169,10 @@ export function SearchHomeScreen() {
                     key={cat.id}
                     style={styles.catCell}
                     onPress={() =>
-                      navigation.navigate('CategoryResults', { query: cat.label })
+                      navigation.navigate('CategoryResults', {
+                        query: cat.label,
+                        filters: undefined,
+                      })
                     }
                   >
                     <View style={styles.catIconCircle}>
@@ -199,7 +203,10 @@ export function SearchHomeScreen() {
               hitSlop={8}
               style={styles.seeAllBtn}
               onPress={() =>
-                navigation.navigate('CategoryResults', { query: 'Popular' })
+                navigation.navigate('CategoryResults', {
+                  query: 'Popular',
+                  filters: undefined,
+                })
               }
             >
               <Text style={styles.seeAll}>See All</Text>
