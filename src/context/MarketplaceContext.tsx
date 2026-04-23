@@ -12,6 +12,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ListingItem } from '@/data/mockData';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -28,23 +29,57 @@ type MarketplaceContextValue = {
 };
 
 const MarketplaceContext = createContext<MarketplaceContextValue | null>(null);
+const FAVORITES_CACHE_KEY_PREFIX = '@handoff/favorites_v1';
 
 export function MarketplaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [favorites, setFavorites] = useState<ListingItem[]>([]);
   const sessionUserId = user?.id ?? null;
+  const cacheKey = `${FAVORITES_CACHE_KEY_PREFIX}:${sessionUserId ?? 'guest'}`;
+
+  const persistFavorites = useCallback(
+    async (next: ListingItem[]) => {
+      try {
+        await AsyncStorage.setItem(cacheKey, JSON.stringify(next));
+      } catch {
+        // Non-blocking cache persistence.
+      }
+    },
+    [cacheKey],
+  );
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) return;
     let cancelled = false;
     void (async () => {
+      let cached: ListingItem[] = [];
+      // Hydrate quickly from local cache so favorites survive app restarts.
+      try {
+        const raw = await AsyncStorage.getItem(cacheKey);
+        if (!cancelled && raw) {
+          const parsed = JSON.parse(raw) as ListingItem[];
+          if (Array.isArray(parsed)) {
+            cached = parsed;
+            setFavorites(parsed);
+          }
+        }
+      } catch {
+        // Ignore malformed cache and continue.
+      }
+
+      if (!isSupabaseConfigured()) return;
       const rows = await fetchFavoriteListings({ sessionUserId });
-      if (!cancelled) setFavorites(rows);
+      if (!cancelled) {
+        // Preserve locally cached favorites when remote is empty/unavailable,
+        // so app restarts do not clear the Favorites tab.
+        const next = rows.length > 0 ? rows : cached;
+        setFavorites(next);
+        void persistFavorites(next);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionUserId]);
+  }, [cacheKey, persistFavorites, sessionUserId]);
 
   const favIds = useMemo(
     () => new Set(favorites.map((f) => f.id)),
@@ -54,11 +89,11 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
   const toggleFavorite = useCallback(
     (item: ListingItem) => {
       const wasFavorite = favIds.has(item.id);
-      setFavorites((prev) =>
-        wasFavorite
-          ? prev.filter((p) => p.id !== item.id)
-          : [item, ...prev.filter((p) => p.id !== item.id)],
-      );
+      const next = wasFavorite
+        ? favorites.filter((p) => p.id !== item.id)
+        : [item, ...favorites.filter((p) => p.id !== item.id)];
+      setFavorites(next);
+      void persistFavorites(next);
       if (!isSupabaseConfigured()) return;
 
       void (async () => {
@@ -66,15 +101,15 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
           ? await removeFavorite({ sessionUserId, listingId: item.id })
           : await addFavorite({ sessionUserId, listingId: item.id });
         if (!ok) {
-          setFavorites((prev) =>
-            wasFavorite
-              ? [item, ...prev.filter((p) => p.id !== item.id)]
-              : prev.filter((p) => p.id !== item.id),
-          );
+          const reverted = wasFavorite
+            ? [item, ...next.filter((p) => p.id !== item.id)]
+            : next.filter((p) => p.id !== item.id);
+          setFavorites(reverted);
+          void persistFavorites(reverted);
         }
       })();
     },
-    [favIds, sessionUserId],
+    [favIds, favorites, persistFavorites, sessionUserId],
   );
 
   const isFavorite = useCallback((id: string) => favIds.has(id), [favIds]);

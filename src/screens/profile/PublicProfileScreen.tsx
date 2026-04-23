@@ -38,6 +38,10 @@ import {
   type PublicReview,
 } from '@/services/profiles';
 import {
+  ensureConversationForListing,
+  seedLocalConversation,
+} from '@/services/conversations';
+import {
   fonts,
   colors,
   listingCardTypography,
@@ -204,11 +208,29 @@ export function PublicProfileScreen() {
     setFollowBusy(false);
   };
 
-  const onMessage = () => {
+  const onMessage = async () => {
     if (!profile) return;
+    const seedListingId = bundle?.listings[0]?.id;
+    const conversationId = seedListingId
+      ? await ensureConversationForListing({
+          listingId: seedListingId,
+          sellerProfileId: profile.id,
+          sessionUserId,
+        })
+      : null;
+    const localConversationId = seedLocalConversation({
+      listingId: seedListingId ?? '',
+      title: bundle?.listings[0]?.title ?? `Chat with ${profile.displayName}`,
+      price: bundle?.listings[0]?.price ?? '',
+      imageUrl: bundle?.listings[0]?.imageUrl ?? profile.avatarUrl,
+      seller: profile.handle,
+      peerUserId: profile.id,
+      peerAvatarUrl: profile.avatarUrl,
+      entry: 'message',
+    });
     navigation.navigate('Conversation', {
-      listingId: '',
-      title: `Chat with ${profile.displayName}`,
+      listingId: seedListingId ?? '',
+      title: seedListingId ? (bundle?.listings[0]?.title ?? profile.displayName) : `Chat with ${profile.displayName}`,
       price: '',
       imageUrl: profile.avatarUrl,
       seller: profile.handle,
@@ -216,6 +238,7 @@ export function PublicProfileScreen() {
       peerDisplayName: profile.displayName,
       avatarUrl: profile.avatarUrl,
       entry: 'message',
+      conversationId: conversationId ?? localConversationId,
     });
   };
 
@@ -357,7 +380,12 @@ export function PublicProfileScreen() {
                   {followLabel}
                 </Text>
               </Pressable>
-              <Pressable style={styles.btnMessage} onPress={onMessage}>
+              <Pressable
+                style={styles.btnMessage}
+                onPress={() => {
+                  void onMessage();
+                }}
+              >
                 <Ionicons
                   name="chatbubble-outline"
                   size={18}

@@ -20,9 +20,16 @@ export async function resolveViewerProfileId(
       .eq('auth_user_id', sessionUserId)
       .maybeSingle();
     if (data?.id) return data.id as string;
-    // Signed-in account with no linked profile should stay isolated (fresh account),
-    // not fall back to the demo storefront identity.
-    return null;
+    // Demo fallback: keep messaging/feed interactive even before an auth user
+    // is linked to a dedicated `profiles` row.
+    if (cachedDemoProfileId !== undefined) return cachedDemoProfileId;
+    const { data: demo } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('handle', PROFILE_DEMO_HANDLE)
+      .maybeSingle();
+    cachedDemoProfileId = (demo?.id as string | undefined) ?? null;
+    return cachedDemoProfileId;
   }
   if (cachedDemoProfileId !== undefined) return cachedDemoProfileId;
   const { data } = await supabase

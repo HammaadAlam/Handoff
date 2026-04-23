@@ -28,6 +28,12 @@ import { DEFAULT_PEER_AVATAR_URI, type ListingItem } from '@/data/mockData';
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
 import { MakeOfferSheet } from '@/screens/transaction/MakeOfferSheet';
+import { useAuth } from '@/context/AuthContext';
+import {
+  createPendingOffer,
+  ensureConversationForListing,
+  seedLocalConversation,
+} from '@/services/conversations';
 import { resolveProfileId } from '@/services/profiles';
 import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
 import type { RootStackParamList } from '@/navigation/types';
@@ -64,7 +70,9 @@ export function ItemDetailScreen() {
   const [offerOpen, setOfferOpen] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [profileResolving, setProfileResolving] = useState(false);
+  const [conversationOpening, setConversationOpening] = useState(false);
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const viewerProfileId = useViewerProfileId();
   const { width: windowW } = useWindowDimensions();
   const { toggleFavorite, isFavorite } = useMarketplace();
@@ -107,27 +115,68 @@ export function ItemDetailScreen() {
     setSlide(Math.min(Math.max(i, 0), images.length - 1));
   };
 
-  const openConversation = (
+  const openConversation = async (
     entry: 'message' | 'offer',
     offerAmount?: string,
   ) => {
-    navigation.navigate('Conversation', {
-      listingId,
-      title,
-      price,
-      imageUrl,
-      seller,
-      peerUserId: sellerProfileId,
-      peerDisplayName: seller,
-      avatarUrl: sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
-      entry,
-      offerAmount,
-    });
+    if (conversationOpening) return;
+    setConversationOpening(true);
+    try {
+      const sellerId =
+        (await resolveProfileId({
+          userId: sellerProfileId,
+          handle: seller,
+        })) ?? sellerProfileId;
+      let conversationId: string | undefined;
+      if (sellerId) {
+        conversationId =
+          (await ensureConversationForListing({
+            listingId,
+            sellerProfileId: sellerId,
+            sessionUserId: user?.id ?? null,
+          })) ?? undefined;
+        if (entry === 'offer' && conversationId && offerAmount) {
+          await createPendingOffer({
+            conversationId,
+            amount: offerAmount,
+            sessionUserId: user?.id ?? null,
+          });
+        }
+      }
+      const localConversationId = seedLocalConversation({
+        listingId,
+        title,
+        price,
+        imageUrl,
+        seller,
+        peerUserId: sellerId,
+        peerAvatarUrl: sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+        entry,
+        offerAmount,
+      });
+      const finalConversationId = conversationId ?? localConversationId;
+
+      navigation.navigate('Conversation', {
+        listingId,
+        title,
+        price,
+        imageUrl,
+        seller,
+        peerUserId: sellerId,
+        peerDisplayName: seller,
+        avatarUrl: sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+        entry,
+        offerAmount,
+        conversationId: finalConversationId,
+      });
+    } finally {
+      setConversationOpening(false);
+    }
   };
 
   const handleOfferSubmit = (amount: string) => {
     setOfferOpen(false);
-    openConversation('offer', amount);
+    void openConversation('offer', amount);
   };
 
   const sellerAvatar = sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI;
@@ -311,6 +360,7 @@ export function ItemDetailScreen() {
             onPress={() => setOfferOpen(true)}
             accessibilityRole="button"
             accessibilityLabel={`Send offer ${priceDisplay}`}
+            disabled={conversationOpening}
           >
             <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
             <Text style={styles.btnOfferText} numberOfLines={1}>
@@ -319,9 +369,12 @@ export function ItemDetailScreen() {
           </Pressable>
           <Pressable
             style={[styles.btnChat, { width: footerBtnWidth }]}
-            onPress={() => openConversation('message')}
+            onPress={() => {
+              void openConversation('message');
+            }}
             accessibilityRole="button"
             accessibilityLabel="Message seller"
+            disabled={conversationOpening}
           >
             <Ionicons name="chatbubble-outline" size={20} color={colors.textInverse} />
             <Text style={styles.btnChatText}>Message</Text>

@@ -10,6 +10,7 @@ import {
   MOCK_CONVERSATIONS,
   type ConversationRow,
 } from '@/data/mockData';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSupabase, isSupabaseConfigured } from '@/services/supabase';
 import { resolveViewerProfileId } from '@/services/viewer';
 
@@ -57,6 +58,125 @@ type MeetupLite = {
   scheduled_at: string | null;
 };
 
+type LocalConversationSeed = {
+  id: string;
+  listingId: string;
+  peerUserId: string;
+  row: ConversationRow;
+};
+
+const localConversationSeeds: LocalConversationSeed[] = [];
+const localOfferAmountByConversationId = new Map<string, string>();
+const OFFER_CACHE_KEY = '@handoff/local_offer_amounts_v1';
+let offersHydrated = false;
+let offersHydrating: Promise<void> | null = null;
+
+async function hydrateOfferCache(): Promise<void> {
+  if (offersHydrated) return;
+  if (offersHydrating) return offersHydrating;
+  offersHydrating = (async () => {
+    try {
+      const raw = await AsyncStorage.getItem(OFFER_CACHE_KEY);
+      if (!raw) {
+        offersHydrated = true;
+        return;
+      }
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      Object.entries(parsed).forEach(([conversationId, amount]) => {
+        if (conversationId && typeof amount === 'string' && amount.trim()) {
+          localOfferAmountByConversationId.set(conversationId, amount);
+        }
+      });
+    } catch {
+      // Ignore malformed cache and continue with in-memory map.
+    } finally {
+      offersHydrated = true;
+      offersHydrating = null;
+    }
+  })();
+  return offersHydrating;
+}
+
+async function persistOfferCache(): Promise<void> {
+  try {
+    const payload = JSON.stringify(
+      Object.fromEntries(localOfferAmountByConversationId.entries()),
+    );
+    await AsyncStorage.setItem(OFFER_CACHE_KEY, payload);
+  } catch {
+    // Non-blocking cache persistence.
+  }
+}
+
+async function setLocalOfferAmount(
+  conversationId: string,
+  amount: string,
+): Promise<void> {
+  await hydrateOfferCache();
+  localOfferAmountByConversationId.set(conversationId, amount);
+  await persistOfferCache();
+}
+
+function upsertLocalSeed(seed: LocalConversationSeed): void {
+  const idx = localConversationSeeds.findIndex(
+    (s) => s.listingId === seed.listingId && s.peerUserId === seed.peerUserId,
+  );
+  if (idx >= 0) {
+    localConversationSeeds[idx] = seed;
+    return;
+  }
+  localConversationSeeds.unshift(seed);
+}
+
+function composeSeedId(listingId: string, peerUserId: string): string {
+  return `local:${listingId || 'listing'}:${peerUserId || 'peer'}`;
+}
+
+export function seedLocalConversation(args: {
+  listingId: string;
+  title: string;
+  price: string;
+  imageUrl: string;
+  seller: string;
+  peerUserId?: string;
+  peerAvatarUrl?: string;
+  entry: 'message' | 'offer';
+  offerAmount?: string;
+}): string {
+  const peerId = args.peerUserId ?? 'unknown-peer';
+  const id = composeSeedId(args.listingId, peerId);
+  const now = Date.now();
+  const preview =
+    args.entry === 'offer' && args.offerAmount
+      ? `Offer sent: ${args.offerAmount}`
+      : 'Hi! Is this still available?';
+  upsertLocalSeed({
+    id,
+    listingId: args.listingId,
+    peerUserId: peerId,
+    row: {
+      id,
+      userItem: `${args.seller} - ${args.title || 'Item'}`,
+      preview,
+      time: 'just now',
+      status: 'Pending',
+      role: 'buying',
+      archived: false,
+      listingId: args.listingId,
+      title: args.title,
+      price: args.price,
+      imageUrl: args.imageUrl,
+      seller: args.seller,
+      peerUserId: peerId,
+      peerAvatarUrl: args.peerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+    },
+  });
+  if (args.entry === 'offer' && args.offerAmount) {
+    void setLocalOfferAmount(id, args.offerAmount);
+  }
+  return id;
+}
+
 function firstOrSelf<T>(v: T | T[] | null | undefined): T | undefined {
   if (v == null) return undefined;
   return Array.isArray(v) ? v[0] : v;
@@ -90,7 +210,10 @@ function deriveStatus(
 export async function fetchInboxRows(args: {
   sessionUserId: string | null;
 }): Promise<ConversationRow[]> {
-  if (!isSupabaseConfigured()) return args.sessionUserId ? [] : MOCK_CONVERSATIONS;
+  if (!isSupabaseConfigured()) {
+    if (args.sessionUserId) return [...localConversationSeeds.map((s) => s.row)];
+    return [...localConversationSeeds.map((s) => s.row), ...MOCK_CONVERSATIONS];
+  }
 
   const supabase = getSupabase();
   const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
@@ -109,7 +232,7 @@ export async function fetchInboxRows(args: {
     return MOCK_CONVERSATIONS;
   }
   const rows = (convs ?? []) as ConversationLite[];
-  if (rows.length === 0) return [];
+  if (rows.length === 0) return [...localConversationSeeds.map((s) => s.row)];
 
   const convIds = rows.map((r) => r.id);
   const partnerIds = Array.from(
@@ -161,7 +284,7 @@ export async function fetchInboxRows(args: {
     meetupsByConv.set(mk.conversation_id, list);
   }
 
-  return rows.map((r): ConversationRow => {
+  const remoteRows = rows.map((r): ConversationRow => {
     const isSeller = r.seller_id === viewerId;
     const peer = profileById.get(isSeller ? r.buyer_id : r.seller_id);
     const listing = firstOrSelf(r.listings);
@@ -189,6 +312,15 @@ export async function fetchInboxRows(args: {
       peerAvatarUrl: peer?.avatar_url ?? DEFAULT_PEER_AVATAR_URI,
     };
   });
+
+  const remoteKeys = new Set(
+    remoteRows.map((r) => `${r.listingId}:${r.peerUserId || 'unknown-peer'}`),
+  );
+  const localRows = localConversationSeeds
+    .filter((s) => !remoteKeys.has(`${s.listingId}:${s.peerUserId}`))
+    .map((s) => s.row);
+
+  return [...localRows, ...remoteRows];
 }
 
 /** Messages for a thread, oldest → newest. */
@@ -297,4 +429,111 @@ export async function fetchConversationPeer(args: {
     displayName: peer.display_name as string,
     avatarUrl: peer.avatar_url as string,
   };
+}
+
+function parseAmountToCents(raw: string): number | null {
+  const cleaned = raw.replace(/[^0-9.]/g, '').trim();
+  if (!cleaned) return null;
+  const amount = Number(cleaned);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return Math.round(amount * 100);
+}
+
+function formatCentsToDollar(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+/**
+ * Ensure a listing conversation exists for the current viewer and seller.
+ * Returns the conversation id when Supabase is configured and the write succeeds.
+ */
+export async function ensureConversationForListing(args: {
+  listingId: string;
+  sellerProfileId: string;
+  sessionUserId: string | null;
+}): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = getSupabase();
+  const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
+  if (!viewerId || viewerId === args.sellerProfileId) return null;
+
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('conversations')
+    .upsert(
+      {
+        listing_id: args.listingId,
+        buyer_id: viewerId,
+        seller_id: args.sellerProfileId,
+        last_message_at: nowIso,
+      },
+      { onConflict: 'listing_id,buyer_id,seller_id', ignoreDuplicates: false },
+    )
+    .select('id')
+    .single();
+
+  if (error || !data?.id) return null;
+  return data.id as string;
+}
+
+/**
+ * Persist a pending offer row for the active conversation.
+ */
+export async function createPendingOffer(args: {
+  conversationId: string;
+  amount: string;
+  sessionUserId: string | null;
+}): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabase();
+  const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
+  const amountCents = parseAmountToCents(args.amount);
+  if (!viewerId || !amountCents) return false;
+  await setLocalOfferAmount(
+    args.conversationId,
+    formatCentsToDollar(amountCents),
+  );
+
+  const { error } = await supabase.from('offers').insert({
+    conversation_id: args.conversationId,
+    buyer_id: viewerId,
+    amount_cents: amountCents,
+    status: 'pending',
+  });
+  if (error) return false;
+
+  await supabase
+    .from('conversations')
+    .update({ last_message_at: new Date().toISOString() })
+    .eq('id', args.conversationId);
+  return true;
+}
+
+export async function fetchLatestOfferAmount(args: {
+  conversationId: string;
+  sessionUserId: string | null;
+}): Promise<string | null> {
+  await hydrateOfferCache();
+  const seeded = localOfferAmountByConversationId.get(args.conversationId);
+  if (seeded) return seeded;
+  if (!isSupabaseConfigured()) return null;
+  if (!args.conversationId || args.conversationId.startsWith('local:')) return null;
+  const supabase = getSupabase();
+  const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
+  if (!viewerId) return null;
+
+  const { data, error } = await supabase
+    .from('offers')
+    .select('amount_cents')
+    .eq('conversation_id', args.conversationId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+
+  const cents = Number(data.amount_cents);
+  if (!Number.isFinite(cents) || cents <= 0) return null;
+  const amount = formatCentsToDollar(cents);
+  await setLocalOfferAmount(args.conversationId, amount);
+  return amount;
 }

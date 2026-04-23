@@ -17,8 +17,45 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProductCard } from '@/components/marketplace/ProductCard';
 import { DEFAULT_PEER_AVATAR_URI, listingsForSearchQuery } from '@/data/mockData';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
-import type { SearchStackParamList } from '@/navigation/types';
+import type { ListingItem } from '@/data/mockData';
+import type { SearchFilters, SearchStackParamList } from '@/navigation/types';
 import { fonts, colors, spacing, typography } from '@/styles/theme';
+
+const DEFAULT_FILTERS: SearchFilters = {
+  sort: 'best',
+  priceMax: 2000,
+  condition: null,
+  sellerType: 'Any',
+  mileage: 'Any',
+};
+
+function listingPriceValue(item: ListingItem): number {
+  const n = Number(item.price.replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeCondition(v?: ListingItem['condition']): SearchFilters['condition'] {
+  if (!v) return null;
+  if (v === 'New') return 'New';
+  if (v === 'Like New') return 'Like New';
+  return 'Used';
+}
+
+function matchesDistance(item: ListingItem, mileage: SearchFilters['mileage']): boolean {
+  if (mileage === 'Any') return true;
+  const loc = (item.location ?? '').toLowerCase();
+  const onCampus =
+    /campus|lsu|student union|hall|quad|dorm|union/.test(loc);
+  if (mileage === 'On campus') return onCampus;
+  if (mileage === 'Within 5 mi') return onCampus || /highland|greek|north|west|south|east/.test(loc);
+  return true;
+}
+
+function matchesSellerType(item: ListingItem, sellerType: SearchFilters['sellerType']): boolean {
+  if (sellerType === 'Any') return true;
+  const isCampusShop = item.trust === 'premium';
+  return sellerType === 'Campus shop' ? isCampusShop : !isCampusShop;
+}
 
 export function CategoryResultsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
@@ -28,11 +65,28 @@ export function CategoryResultsScreen() {
   const gridInnerWidth = width - gridInset * 2;
   const gridColWidth = (gridInnerWidth - gridGutter) / 2;
   const { params } = useRoute<RouteProp<SearchStackParamList, 'CategoryResults'>>();
-  const { query } = params;
+  const { query, filters = DEFAULT_FILTERS } = params;
 
   const data = useMemo(
-    () => listingsForSearchQuery(query),
-    [query],
+    () => {
+      const source = listingsForSearchQuery(query);
+      const filtered = source
+        .filter((item) => listingPriceValue(item) <= filters.priceMax)
+        .filter((item) =>
+          filters.condition ? normalizeCondition(item.condition) === filters.condition : true,
+        )
+        .filter((item) => matchesSellerType(item, filters.sellerType))
+        .filter((item) => matchesDistance(item, filters.mileage));
+
+      if (filters.sort === 'low') {
+        return [...filtered].sort((a, b) => listingPriceValue(a) - listingPriceValue(b));
+      }
+      if (filters.sort === 'high') {
+        return [...filtered].sort((a, b) => listingPriceValue(b) - listingPriceValue(a));
+      }
+      return filtered;
+    },
+    [query, filters],
   );
 
   return (
@@ -42,7 +96,7 @@ export function CategoryResultsScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Pressable
-          onPress={() => navigation.navigate('Filters')}
+          onPress={() => navigation.navigate('Filters', { query, filters })}
           hitSlop={12}
           style={styles.filterBtn}
         >
@@ -58,6 +112,14 @@ export function CategoryResultsScreen() {
         numColumns={2}
         columnWrapperStyle={[styles.row, { gap: gridGutter }]}
         contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyTitle}>No items match this filter</Text>
+            <Text style={styles.emptyBody}>
+              Try removing a filter or broadening your search terms.
+            </Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <View style={{ width: gridColWidth, minWidth: 0 }}>
             <ProductCard
@@ -119,5 +181,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
+  },
+  emptyWrap: {
+    paddingTop: spacing.xl,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    ...typography.body,
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  emptyBody: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 280,
   },
 });

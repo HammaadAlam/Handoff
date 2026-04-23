@@ -34,6 +34,8 @@ function haystackForListing(item: ListingItem) {
     .toLowerCase();
 }
 
+const RECENTS_STORAGE_KEY = '@handoff/search_recents_v1';
+
 export function SearchQueryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
   const { params } = useRoute<RouteProp<SearchStackParamList, 'SearchQuery'>>();
