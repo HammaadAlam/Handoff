@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import type { ListingItem } from '@/data/mockData';
-import { colors, listingCardTypography, listingPriceDisplay, spacing } from '@/styles/theme';
+import { colors, fonts, spacing } from '@/styles/theme';
 
 type Props = {
   item: ListingItem;
@@ -14,7 +14,7 @@ type Props = {
 };
 
 /** Image corner radius — generous rounded photo (reference ~16–24px) */
-const IMAGE_RADIUS = 18;
+const IMAGE_RADIUS = 22;
 
 export function SearchPopularCard({ item, onPress }: Props) {
   const { isFavorite, toggleFavorite } = useMarketplace();
@@ -46,7 +46,7 @@ export function SearchPopularCard({ item, onPress }: Props) {
       <View style={styles.copy}>
         <Text
           style={styles.title}
-          numberOfLines={4}
+          numberOfLines={1}
           ellipsizeMode="tail"
         >
           {item.title}
@@ -58,9 +58,7 @@ export function SearchPopularCard({ item, onPress }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginBottom: spacing.md,
-  },
+  card: {},
   cardFill: {
     width: '100%',
     minWidth: 0,
@@ -80,31 +78,37 @@ const styles = StyleSheet.create({
   },
   favCircle: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 252, 248, 0.96)',
+    top: 8,
+    right: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.97)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 10,
+    elevation: 3,
   },
   copy: {
-    paddingTop: 12,
+    paddingTop: 14,
     width: '100%',
     alignItems: 'flex-start',
   },
   title: {
-    ...listingCardTypography.title,
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    lineHeight: 18,
+    color: colors.textPrimary,
     width: '100%',
   },
   price: {
-    ...listingPriceDisplay,
-    marginTop: 6,
+    color: colors.textPrimary,
+    fontFamily: fonts.extraBold,
+    fontSize: 19,
+    lineHeight: 22,
+    marginTop: 8,
   },
 });

@@ -1,5 +1,5 @@
 /**
- * Search tab = stack: landing → query + recents → category grid → filters modal.
+ * Search tab = stack: landing → bottom search modal → category grid → filters modal.
  */
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { CategoryResultsScreen } from '@/screens/search/CategoryResultsScreen';
@@ -21,7 +21,15 @@ export function SearchStackNavigator() {
       }}
     >
       <Stack.Screen name="SearchHome" component={SearchHomeScreen} />
-      <Stack.Screen name="SearchQuery" component={SearchQueryScreen} />
+      <Stack.Screen
+        name="SearchQuery"
+        component={SearchQueryScreen}
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'none',
+          gestureEnabled: false,
+        }}
+      />
       <Stack.Screen name="CategoryResults" component={CategoryResultsScreen} />
       <Stack.Screen
         name="Filters"

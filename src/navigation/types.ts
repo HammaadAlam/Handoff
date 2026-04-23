@@ -7,6 +7,7 @@ import type {
 } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp, NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { CreateListingDraft } from '@/data/createListingDraft';
 
 /** Search tab is its own stack (landing, query, results, filters). */
 export type SearchStackParamList = {
@@ -16,17 +17,20 @@ export type SearchStackParamList = {
   Filters: undefined;
 };
 
-/** Create Listing tab: entry → camera or manual form → optional pickup → success */
+/** Create Listing tab: entry → photos → review/edit → price → meetup → preview → success */
 export type CreateListingStackParamList = {
   CreateEntry: undefined;
-  CameraCapture: undefined;
+  CameraCapture: { mode?: 'quick' | 'manual' } | undefined;
+  ReviewDetails: { draft?: Partial<CreateListingDraft> } | undefined;
   ListingDetails: {
-    mode: 'quick' | 'manual';
-    /** Set after Quick List capture */
+    mode?: 'quick' | 'manual';
     capturedImageUri?: string;
-  };
-  PickupLocation: undefined;
-  ListingSuccess: undefined;
+    draft?: Partial<CreateListingDraft>;
+  } | undefined;
+  SetPrice: { draft?: Partial<CreateListingDraft> } | undefined;
+  PickupLocation: { draft?: Partial<CreateListingDraft> } | undefined;
+  ListingPreview: { draft?: Partial<CreateListingDraft> } | undefined;
+  ListingSuccess: { draft?: Partial<CreateListingDraft> } | undefined;
 };
 
 export type MainTabParamList = {

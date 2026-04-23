@@ -1,5 +1,5 @@
 import { Platform, Pressable, StyleSheet, Text } from 'react-native';
-import { fonts, colors, radii, typography } from '@/styles/theme';
+import { fonts, typography } from '@/styles/theme';
 
 type Props = {
   label: string;
@@ -22,20 +22,20 @@ const styles = StyleSheet.create({
   base: {
     flexShrink: 0,
     flexGrow: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radii.button,
-    backgroundColor: colors.surface,
-    marginRight: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: 'transparent',
+    marginRight: 12,
   },
   active: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#7B6FF6',
   },
   text: {
     ...typography.caption,
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: fonts.semiBold,
-    color: colors.textPrimary,
+    color: '#17213C',
     flexShrink: 0,
     ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },

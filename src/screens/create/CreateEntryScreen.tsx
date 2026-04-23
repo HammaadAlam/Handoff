@@ -1,15 +1,15 @@
 /**
- * Entry: Quick List (camera + estimate) vs Create Manually.
+ * Entry: choose Quick List or manual listing.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AppLogo } from '@/components/AppLogo';
+import { goHomeFromCreateFlow } from '@/navigation/goHomeFromCreateFlow';
 import type { CreateListingStackParamList } from '@/navigation/types';
-import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
+import { colors, fonts, spacing } from '@/styles/theme';
 
 export function CreateEntryScreen() {
   const navigation =
@@ -17,75 +17,89 @@ export function CreateEntryScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headBlock}>
-        <Text style={styles.title}>Create a Listing</Text>
-        <Text style={styles.subtitle}>
-          Choose how you want to list your item on Handoff.
-        </Text>
-      </View>
-
-      <Pressable
-        style={styles.cardPress}
-        onPress={() => navigation.navigate('CameraCapture')}
-        accessibilityRole="button"
-      >
-        <LinearGradient
-          colors={[colors.gradientStart, colors.gradientEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.card}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Pressable
+          accessibilityLabel="Close create listing"
+          hitSlop={12}
+          onPress={() => goHomeFromCreateFlow(navigation)}
+          style={styles.closeButton}
         >
-          <View style={styles.iconCircle}>
-            <Ionicons name="camera-outline" size={28} color="#FFF" />
-          </View>
-          <View style={styles.cardText}>
-            <Text style={styles.cardTitle}>Quick List</Text>
-            <Text style={styles.cardSub}>
-              Take a photo and we&apos;ll estimate title, category, and price
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={22} color="#FFF" />
-        </LinearGradient>
-      </Pressable>
+          <Ionicons name="close" size={24} color={colors.textPrimary} />
+        </Pressable>
 
-      <Pressable
-        style={styles.cardPress}
-        onPress={() =>
-          navigation.navigate('ListingDetails', { mode: 'manual' })
-        }
-        accessibilityRole="button"
-      >
-        <LinearGradient
-          colors={[colors.gradientStart, colors.gradientEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.card}
-        >
-          <View style={styles.iconCircle}>
-            <Ionicons name="create-outline" size={28} color="#FFF" />
-          </View>
-          <View style={styles.cardText}>
-            <Text style={styles.cardTitle}>Create Manually</Text>
-            <Text style={styles.cardSub}>Enter photos, details, and price yourself</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={22} color="#FFF" />
-        </LinearGradient>
-      </Pressable>
-
-      <View style={styles.banner}>
-        <View style={styles.bannerLogo}>
-          <AppLogo width={56} height={42} />
-        </View>
-        <View style={styles.bannerText}>
-          <Text style={styles.bannerMain}>
-            Quick List uses AI-style estimates; manual listing gives you full
-            control over category, condition, size, and brand.
-          </Text>
-          <Text style={styles.bannerNote}>
-            Note: estimates are for demo purposes and may be inaccurate.
+        <View style={styles.hero}>
+          <Text style={styles.title}>Create a Listing</Text>
+          <Text style={styles.subtitle}>
+            Choose how you want to list your item on Handoff.
           </Text>
         </View>
-      </View>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('CameraCapture', { mode: 'quick' })}
+          style={styles.optionPress}
+        >
+          <LinearGradient
+            colors={[colors.gradientStart, colors.gradientEnd]}
+            end={{ x: 1, y: 1 }}
+            start={{ x: 0, y: 0 }}
+            style={styles.quickCard}
+          >
+            <View style={styles.recommendedPill}>
+              <Ionicons name="sparkles" size={12} color={colors.primary} />
+              <Text style={styles.recommendedText}>Recommended</Text>
+            </View>
+
+            <View style={styles.optionRow}>
+              <View style={styles.quickIcon}>
+                <Ionicons name="camera-outline" size={28} color={colors.textInverse} />
+              </View>
+              <View style={styles.optionCopy}>
+                <Text style={styles.quickTitle}>Quick List</Text>
+                <Text style={styles.quickBody}>
+                  Snap a few photos and we will auto-fill the details.
+                </Text>
+                <View style={styles.timeRow}>
+                  <Ionicons name="flash" size={15} color={colors.textInverse} />
+                  <Text style={styles.timeText}>Takes ~10 seconds</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={26} color={colors.textInverse} />
+            </View>
+          </LinearGradient>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('CameraCapture', { mode: 'manual' })}
+          style={[styles.optionPress, styles.manualCard]}
+        >
+          <View style={styles.manualIcon}>
+            <Ionicons name="create-outline" size={28} color={colors.primary} />
+          </View>
+          <View style={styles.optionCopy}>
+            <Text style={styles.manualTitle}>Create Manually</Text>
+            <Text style={styles.manualBody}>Add photos, details, and price yourself.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color={colors.textPrimary} />
+        </Pressable>
+
+        <View style={styles.whyCard}>
+          <Text style={styles.whyTitle}>Why Quick List?</Text>
+          <View style={styles.whyRow}>
+            <Ionicons name="sparkles-outline" size={17} color={colors.primary} />
+            <Text style={styles.whyText}>AI estimates save you time</Text>
+          </View>
+          <View style={styles.whyRow}>
+            <Ionicons name="pencil-outline" size={17} color={colors.primary} />
+            <Text style={styles.whyText}>Edit everything before posting</Text>
+          </View>
+          <View style={styles.whyRow}>
+            <Ionicons name="people-outline" size={17} color={colors.primary} />
+            <Text style={styles.whyText}>Trusted by 10K+ students</Text>
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -93,104 +107,155 @@ export function CreateEntryScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
   },
-  headBlock: {
-    width: '100%',
-    alignSelf: 'stretch',
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+  content: {
+    paddingHorizontal: spacing.md,
+    paddingTop: 6,
+    paddingBottom: spacing.xxl,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  hero: {
     alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 18,
   },
   title: {
-    ...typography.header,
-    fontSize: 24,
-    lineHeight: 30,
-    textAlign: 'center',
     color: colors.textPrimary,
-    alignSelf: 'stretch',
-    width: '100%',
-    flexShrink: 0,
-    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+    fontFamily: fonts.bold,
+    fontSize: 24,
+    letterSpacing: -0.4,
   },
   subtitle: {
-    ...typography.body,
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
+    maxWidth: 260,
     textAlign: 'center',
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-    lineHeight: 22,
-    paddingHorizontal: spacing.sm,
-    alignSelf: 'stretch',
-    width: '100%',
-    flexShrink: 0,
   },
-  cardPress: {
-    marginBottom: spacing.lg,
-    borderRadius: radii.button,
-    overflow: 'hidden',
-    ...shadows.soft,
+  optionPress: {
+    borderRadius: 18,
+    marginBottom: 14,
   },
-  card: {
+  quickCard: {
+    minHeight: 160,
+    borderRadius: 18,
+    justifyContent: 'center',
+    padding: 18,
+  },
+  recommendedPill: {
+    position: 'absolute',
+    top: 14,
+    left: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.button,
-    gap: 14,
+    gap: 5,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardText: {
-    flex: 1,
-  },
-  cardTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontFamily: fonts.bold,
-  },
-  cardSub: {
-    color: 'rgba(255,255,255,0.92)',
-    fontSize: 13,
-    marginTop: 6,
-    lineHeight: 19,
-  },
-  banner: {
-    flexDirection: 'row',
-    backgroundColor: colors.bannerTint,
-    borderRadius: radii.card,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    marginTop: spacing.sm,
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  bannerLogo: {
-    justifyContent: 'center',
-  },
-  bannerText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  bannerMain: {
-    ...typography.body,
-    fontSize: 13,
-    color: colors.textPrimary,
-    lineHeight: 18,
-  },
-  bannerNote: {
-    ...typography.caption,
+  recommendedText: {
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
     fontSize: 11,
-    lineHeight: 15,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 24,
+  },
+  quickIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  optionCopy: {
+    flex: 1,
+  },
+  quickTitle: {
+    color: colors.textInverse,
+    fontFamily: fonts.bold,
+    fontSize: 20,
+  },
+  quickBody: {
+    color: 'rgba(255,255,255,0.92)',
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
     marginTop: 6,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 9,
+  },
+  timeText: {
+    color: colors.textInverse,
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+  },
+  manualCard: {
+    minHeight: 118,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: '#F6F4FE',
+    padding: 18,
+  },
+  manualIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ECE8FF',
+  },
+  manualTitle: {
+    color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 18,
+  },
+  manualBody: {
     color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  whyCard: {
+    borderRadius: 18,
+    backgroundColor: '#F6F4FE',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  whyTitle: {
+    color: colors.primary,
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    marginBottom: 4,
+  },
+  whyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 6,
+  },
+  whyText: {
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 14,
   },
 });

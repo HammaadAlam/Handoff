@@ -1,102 +1,210 @@
 /**
- * Active search — query field, recent searches (remove + submit to results).
+ * Active search — full-screen white search surface launched from the landing bar.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { DEFAULT_RECENT_SEARCHES } from '@/data/mockData';
+import {
+  DEFAULT_RECENT_SEARCHES,
+  POPULAR_LISTINGS,
+  RECOMMENDED_LISTINGS,
+  type ListingItem,
+} from '@/data/mockData';
 import type { SearchStackParamList } from '@/navigation/types';
-import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
+import { colors, fonts, spacing } from '@/styles/theme';
+
+const SUGGESTION_LIMIT = 6;
+
+function haystackForListing(item: ListingItem) {
+  return [item.title, item.brand, item.category, item.description, item.sellerHandle]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
 
 export function SearchQueryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
   const { params } = useRoute<RouteProp<SearchStackParamList, 'SearchQuery'>>();
-  const initial = params?.initialQuery ?? '';
+  const [query, setQuery] = useState(params?.initialQuery ?? '');
 
-  const [query, setQuery] = useState(initial);
-  const [recents, setRecents] = useState<string[]>(() => [...DEFAULT_RECENT_SEARCHES]);
+  const trimmedQuery = query.trim();
 
-  const submit = (q: string) => {
-    const t = q.trim();
-    if (!t) return;
-    setRecents((prev) => {
-      const next = [t, ...prev.filter((x) => x !== t)];
-      return next.slice(0, 8);
-    });
-    navigation.navigate('CategoryResults', { query: t });
-  };
+  const suggestions = useMemo(() => {
+    if (!trimmedQuery) {
+      return [];
+    }
 
-  const removeRecent = (term: string) => {
-    setRecents((prev) => prev.filter((x) => x !== term));
+    const normalizedQuery = trimmedQuery.toLowerCase();
+    const mergedListings = [
+      ...RECOMMENDED_LISTINGS,
+      ...POPULAR_LISTINGS.filter(
+        (item) => !RECOMMENDED_LISTINGS.some((candidate) => candidate.id === item.id),
+      ),
+    ];
+
+    return mergedListings
+      .filter((item) => haystackForListing(item).includes(normalizedQuery))
+      .slice(0, SUGGESTION_LIMIT);
+  }, [trimmedQuery]);
+
+  const submit = (term: string) => {
+    const nextQuery = term.trim();
+    if (!nextQuery) {
+      return;
+    }
+
+    navigation.navigate('CategoryResults', { query: nextQuery });
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Item Search</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <View style={styles.searchRow}>
-        <Ionicons
-          name="search-outline"
-          size={22}
-          color={colors.textSecondary}
-          style={{ marginRight: 8 }}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Search"
-          placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={setQuery}
-          returnKeyType="search"
-          onSubmitEditing={() => submit(query)}
-          autoFocus
-        />
-      </View>
-
-      <Text style={styles.recentLabel}>Recent</Text>
-      <FlatList
-        data={recents}
-        keyExtractor={(item) => item}
-        keyboardShouldPersistTaps="handled"
-        renderItem={({ item }) => (
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboard}
+      >
+        <View style={styles.header}>
           <Pressable
-            style={styles.recentRow}
-            onPress={() => {
-              setQuery(item);
-              submit(item);
-            }}
+            accessibilityLabel="Close search"
+            hitSlop={12}
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
           >
-            <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
-            <Text style={styles.recentText}>{item}</Text>
-            <Pressable
-              onPress={() => removeRecent(item)}
-              hitSlop={10}
-              style={styles.recentRemove}
-            >
-              <Ionicons name="close" size={20} color={colors.textMuted} />
-            </Pressable>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-        )}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No recent searches yet.</Text>
-        }
-      />
+
+          <View style={styles.searchPill}>
+            <Ionicons name="search-outline" size={20} color={colors.textMuted} />
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              onChangeText={setQuery}
+              onSubmitEditing={() => submit(query)}
+              placeholder="Search campus items"
+              placeholderTextColor={colors.textMuted}
+              returnKeyType="search"
+              style={styles.input}
+              value={query}
+            />
+            {query.length > 0 ? (
+              <Pressable
+                accessibilityLabel="Clear search"
+                hitSlop={10}
+                onPress={() => setQuery('')}
+              >
+                <Ionicons name="close-circle" size={19} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {trimmedQuery.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.kicker}>Search HandOff</Text>
+              <Text style={styles.headline}>Find anything on campus.</Text>
+              <Text style={styles.body}>
+                Search for textbooks, laptops, tickets, furniture, and quick
+                pickup deals near LSU.
+              </Text>
+
+              <Text style={styles.sectionLabel}>Recently searched</Text>
+              <View style={styles.quickWrap}>
+                {DEFAULT_RECENT_SEARCHES.map((term) => (
+                  <Pressable
+                    key={term}
+                    onPress={() => {
+                      setQuery(term);
+                      submit(term);
+                    }}
+                    style={styles.quickChip}
+                  >
+                    <Ionicons name="time-outline" size={16} color={colors.primary} />
+                    <Text style={styles.quickText}>{term}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : (
+            <View>
+              <Pressable
+                onPress={() => submit(trimmedQuery)}
+                style={styles.searchSubmitRow}
+              >
+                <View style={styles.submitIcon}>
+                  <Ionicons name="search-outline" size={18} color={colors.primary} />
+                </View>
+                <Text style={styles.submitText} numberOfLines={1}>
+                  Search for "{trimmedQuery}"
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={18}
+                  color={colors.textSecondary}
+                />
+              </Pressable>
+
+              <Text style={styles.sectionLabel}>Suggestions</Text>
+              {suggestions.length > 0 ? (
+                suggestions.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => {
+                      setQuery(item.title);
+                      submit(item.title);
+                    }}
+                    style={styles.suggestionRow}
+                  >
+                    <View style={styles.suggestionIcon}>
+                      <Ionicons
+                        name="pricetag-outline"
+                        size={18}
+                        color={colors.textSecondary}
+                      />
+                    </View>
+                    <View style={styles.suggestionCopy}>
+                      <Text style={styles.suggestionTitle} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      <Text style={styles.suggestionMeta} numberOfLines={1}>
+                        {[item.price, item.category, item.location]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                ))
+              ) : (
+                <Text style={styles.noMatches}>
+                  No quick matches yet. Press search to see all results.
+                </Text>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -106,62 +214,160 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
   },
+  keyboard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
+    paddingTop: 6,
+    paddingBottom: 12,
   },
-  headerTitle: {
-    ...typography.header,
-    fontSize: 18,
+  backButton: {
+    width: 34,
+    height: 44,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
-  searchRow: {
+  searchPill: {
+    flex: 1,
+    minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: spacing.md,
-    borderWidth: 1.5,
-    borderColor: colors.primaryLight,
-    borderRadius: radii.card,
-    paddingHorizontal: 12,
-    backgroundColor: colors.chipBg,
+    gap: 9,
+    borderRadius: 24,
+    backgroundColor: '#F8F7FC',
+    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ECE7F8',
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    paddingVertical: 14,
     color: colors.textPrimary,
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 9,
   },
-  recentLabel: {
-    ...typography.caption,
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.md,
+    paddingTop: 16,
+    paddingBottom: spacing.xxl,
+  },
+  emptyState: {
+    flex: 1,
+  },
+  kicker: {
+    color: colors.primary,
     fontFamily: fonts.bold,
-    color: colors.textSecondary,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
+    fontSize: 13,
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
-  recentRow: {
+  headline: {
+    color: colors.textPrimary,
+    fontFamily: fonts.extraBold,
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: -0.8,
+    marginTop: 10,
+  },
+  body: {
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 10,
+    maxWidth: 330,
+  },
+  sectionLabel: {
+    color: colors.textSecondary,
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    marginTop: 28,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
+  quickWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  quickChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 7,
+    borderRadius: 999,
+    backgroundColor: '#F5F1FF',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  quickText: {
+    color: colors.primary,
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    textTransform: 'capitalize',
+  },
+  searchSubmitRow: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 18,
+    backgroundColor: '#F8F7FC',
+    paddingHorizontal: 14,
+  },
+  submitIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EFEAFF',
+  },
+  submitText: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 15,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     paddingVertical: 14,
-    paddingHorizontal: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
-    gap: 12,
   },
-  recentText: {
+  suggestionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.chipBg,
+  },
+  suggestionCopy: {
     flex: 1,
-    fontSize: 16,
+  },
+  suggestionTitle: {
     color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
   },
-  recentRemove: {
-    padding: 4,
+  suggestionMeta: {
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    marginTop: 4,
   },
-  empty: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.lg,
+  noMatches: {
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

@@ -1,11 +1,11 @@
 /**
- * Home feed — tickets strip, category chips, recommended grid.
+ * Home landing — premium marketplace layout with featured hero, category pills,
+ * hot listings rail, and nearby ticket rail.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,83 +15,164 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CategoryChip } from '@/components/marketplace/CategoryChip';
+import { CategoryPill } from '@/components/home/CategoryPill';
+import { HeroCard } from '@/components/home/HeroCard';
+import { TicketCard } from '@/components/home/TicketCard';
 import { ProductCard } from '@/components/marketplace/ProductCard';
-import { RemoteImage } from '@/components/RemoteImage';
+import { SearchPopularCard } from '@/components/marketplace/SearchPopularCard';
 import {
   DEFAULT_PEER_AVATAR_URI,
-  filterEventsForHomeCategory,
-  filterListingsForHomeCategory,
-  HOME_CATEGORIES,
   LSU_FOOTBALL_TICKETS,
   RECOMMENDED_LISTINGS,
+  filterListingsForHomeCategory,
   type HomeCategory,
   type ListingItem,
   type TicketListing,
 } from '@/data/mockData';
 import { PROFILE_DEMO_HANDLE, getSeedProfileByHandle } from '@/data/seedCatalog';
-import { fetchRecommendedListings } from '@/services/listings';
-import { navigateToFavorites } from '@/navigation/navigateFavorites';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { HomeTabNavigation } from '@/navigation/types';
-import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
+import { fetchRecommendedListings } from '@/services/listings';
+import { colors, fonts, spacing } from '@/styles/theme';
 
-function openTicket(navigation: HomeTabNavigation, t: TicketListing) {
+const HOME_CATEGORIES = [
+  'For You',
+  'Clothes',
+  'Furniture',
+  'Tech',
+  'Events',
+] as const;
+
+type HomeCategoryPill = (typeof HOME_CATEGORIES)[number];
+
+const TICKET_STOCK = ['3 left', '5 left', '4 left', '2 left'] as const;
+const BANNER_ROTATE_MS = 8_000;
+const RECENT_LISTING_LIMIT = 8;
+const TECH_KEYWORDS = [
+  'airpod',
+  'apple',
+  'camera',
+  'calculator',
+  'clicker',
+  'headphone',
+  'ipad',
+  'iphone',
+  'laptop',
+  'macbook',
+  'printer',
+  'ring light',
+  'speaker',
+  'tech',
+  'usb',
+  'watch',
+] as const;
+
+type HomeHeroBanner = {
+  attendeesLabel: string;
+  buttonBackgroundColor?: string;
+  buttonLabel: string;
+  buttonTextColor?: string;
+  gradientColors: readonly [string, string];
+  id: string;
+  imageUrl: string;
+  onPress: () => void;
+  subtitle: string;
+  title: string;
+};
+
+function listingToTicketCard(item: ListingItem): TicketListing {
+  return {
+    id: item.id,
+    title: item.title,
+    price: item.price,
+    imageUrl: item.imageUrl,
+    subtitle: item.postedAgo ? `Available · ${item.postedAgo}` : 'Available now',
+    venue: item.location ?? 'Campus meetup',
+    category: 'Events',
+    condition: item.condition ?? 'Good',
+    sellerId: item.sellerId,
+    sellerHandle: item.sellerHandle,
+    sellerAvatarUrl: item.sellerAvatarUrl,
+    description: item.description,
+  };
+}
+
+function openTicket(navigation: HomeTabNavigation, ticket: TicketListing) {
   const fallbackSellerId = getSeedProfileByHandle(PROFILE_DEMO_HANDLE)?.id;
   navigateToItemDetail(navigation, {
-    listingId: t.id,
-    title: t.title,
-    price: t.price,
-    imageUrl: t.imageUrl,
+    listingId: ticket.id,
+    title: ticket.title,
+    price: ticket.price,
+    imageUrl: ticket.imageUrl,
     seller: 'TigerTickets (demo)',
-    sellerProfileId: t.sellerId ?? fallbackSellerId,
-    sellerAvatarUrl: DEFAULT_PEER_AVATAR_URI,
+    sellerProfileId: ticket.sellerId ?? fallbackSellerId,
+    sellerAvatarUrl: ticket.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
     categoryLabel: 'Tickets',
     condition: 'Mobile entry',
-    description: `${t.subtitle}\n${t.venue}\nSample LSU football ticket listing.`,
+    description: `${ticket.subtitle}\n${ticket.venue}\nSample LSU football ticket listing.`,
+    meetupLocation: ticket.venue,
   });
 }
 
-function isTicketListing(item: ListingItem): item is TicketListing {
-  return (
-    typeof (item as TicketListing).subtitle === 'string' &&
-    typeof (item as TicketListing).venue === 'string'
-  );
+function openListing(navigation: HomeTabNavigation, item: ListingItem) {
+  navigateToItemDetail(navigation, {
+    listingId: item.id,
+    title: item.title,
+    price: item.price,
+    imageUrl: item.imageUrl,
+    seller: item.sellerHandle ?? 'Campus seller',
+    sellerProfileId: item.sellerId,
+    sellerAvatarUrl: item.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+    description: item.description,
+    condition: item.condition,
+    categoryLabel: item.category,
+    meetupLocation: item.location,
+  });
+}
+
+function isTechListing(item: ListingItem) {
+  const haystack = [item.title, item.brand, item.description]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return TECH_KEYWORDS.some((keyword) => haystack.includes(keyword));
+}
+
+function filterHomeListings(
+  listings: ListingItem[],
+  category: HomeCategoryPill,
+) {
+  if (category === 'For You') return listings;
+  if (category === 'Tech') return listings.filter(isTechListing);
+  return filterListingsForHomeCategory(listings, category as HomeCategory);
+}
+
+function searchQueryForCategory(category: HomeCategoryPill) {
+  if (category === 'For You') return 'popular';
+  if (category === 'Tech') return 'calculator';
+  return category;
 }
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeTabNavigation>();
   const { width } = useWindowDimensions();
-  /** Two columns: screen inset + clear gutter between cards (not squeezed center gap) */
-  const gridInset = spacing.md;
-  const gridGutter = spacing.sm;
-  const gridInnerWidth = width - gridInset * 2;
-  const recommendedColWidth = (gridInnerWidth - gridGutter) / 2;
-  const [activeCat, setActiveCat] = useState<HomeCategory>(HOME_CATEGORIES[0]);
+  const [activeCategory, setActiveCategory] = useState<HomeCategoryPill>('For You');
+  const [bannerGroupIndex, setBannerGroupIndex] = useState(0);
   const [recommended, setRecommended] =
     useState<ListingItem[]>(RECOMMENDED_LISTINGS);
   const [refreshing, setRefreshing] = useState(false);
-  const showTicketStrip = activeCat === 'For You';
-  const visibleRecommended = useMemo(
-    () => filterListingsForHomeCategory(recommended, activeCat),
-    [recommended, activeCat]
-  );
-  const visibleTickets = useMemo(
-    () => filterEventsForHomeCategory(LSU_FOOTBALL_TICKETS, activeCat),
-    [activeCat]
-  );
-  const verticalFeed = useMemo<ListingItem[]>(
-    () =>
-      activeCat === 'Events'
-        ? [...visibleTickets, ...visibleRecommended]
-        : visibleRecommended,
-    [activeCat, visibleTickets, visibleRecommended]
-  );
 
-  const gridSectionTitle =
-    activeCat === 'For You'
-      ? 'Recommended for you'
-      : `${activeCat} on campus`;
+  const railGap = 12;
+  const contentWidth = width - 32;
+  const productCardWidth = Math.min(
+    162,
+    Math.max(152, Math.floor((contentWidth - railGap) / 2.18)),
+  );
+  const ticketCardWidth = Math.min(
+    236,
+    Math.max(224, Math.floor(contentWidth * 0.63)),
+  );
+  const recentCardWidth = Math.floor((contentWidth - railGap) / 2);
 
   const loadRecommended = useCallback(async () => {
     const items = await fetchRecommendedListings();
@@ -111,119 +192,382 @@ export function HomeScreen() {
     }
   }, [loadRecommended]);
 
+  const heroAvatars = useMemo(() => {
+    const sellerAvatars = recommended
+      .map((item) => item.sellerAvatarUrl)
+      .filter((uri): uri is string => Boolean(uri));
+    return (sellerAvatars.length > 0
+      ? sellerAvatars
+      : [DEFAULT_PEER_AVATAR_URI, DEFAULT_PEER_AVATAR_URI, DEFAULT_PEER_AVATAR_URI]
+    ).slice(0, 3);
+  }, [recommended]);
+
+  const hotListings = useMemo(
+    () => filterHomeListings(recommended, activeCategory).slice(0, 8),
+    [activeCategory, recommended],
+  );
+
+  const nearbyTickets = useMemo(
+    () => {
+      const eventListings = recommended
+        .filter((item) => item.category === 'Events')
+        .map(listingToTicketCard);
+
+      const mergedTickets = [
+        ...eventListings,
+        ...LSU_FOOTBALL_TICKETS.filter(
+          (ticket) => !eventListings.some((item) => item.id === ticket.id),
+        ),
+      ];
+
+      if (activeCategory === 'Events') {
+        return mergedTickets;
+      }
+
+      return mergedTickets.slice(0, 8);
+    },
+    [activeCategory, recommended],
+  );
+
+  const recentlyListed = useMemo(() => {
+    const filtered = filterHomeListings(recommended, activeCategory);
+    const hotIds = new Set(hotListings.map((item) => item.id));
+    const freshPool = filtered.filter((item) => !hotIds.has(item.id));
+    const source = freshPool.length >= RECENT_LISTING_LIMIT ? freshPool : filtered;
+    return source.slice(0, RECENT_LISTING_LIMIT);
+  }, [activeCategory, hotListings, recommended]);
+
+  const rotatingHeroBanners = useMemo<HomeHeroBanner[]>(
+    () => [
+      {
+        id: 'game-day-essentials',
+        title: '🏈 Game Day Essentials',
+        subtitle: 'Gear up for the big game',
+        buttonLabel: 'Shop Game Day',
+        buttonTextColor: '#1E5A21',
+        gradientColors: ['rgba(19, 63, 20, 0.82)', 'rgba(43, 111, 24, 0.7)'],
+        imageUrl:
+          'https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=1400&q=80',
+        attendeesLabel: '15+ interested',
+        onPress: () =>
+          navigation.navigate('Search', {
+            screen: 'CategoryResults',
+            params: { query: 'Events' },
+          }),
+      },
+      {
+        id: 'finals-week-mode',
+        title: '📚 Finals Week Mode',
+        subtitle: 'Study gear to lock in and crush finals',
+        buttonLabel: 'Study Essentials',
+        buttonTextColor: '#1E4F93',
+        gradientColors: ['rgba(15, 26, 44, 0.82)', 'rgba(53, 69, 100, 0.72)'],
+        imageUrl:
+          'https://images.unsplash.com/photo-1513258496099-48168024aec0?w=1400&q=80',
+        attendeesLabel: '20+ preparing',
+        onPress: () =>
+          navigation.navigate('Search', {
+            screen: 'CategoryResults',
+            params: { query: 'textbook' },
+          }),
+      },
+      {
+        id: 'campus-parties',
+        title: '🎉 Party Attire',
+        subtitle: 'Fits for every campus party',
+        buttonLabel: 'Shop Attire',
+        buttonTextColor: '#5D35C8',
+        gradientColors: ['rgba(49, 28, 86, 0.82)', 'rgba(129, 66, 188, 0.72)'],
+        imageUrl:
+          'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1400&q=80',
+        attendeesLabel: '8+ browsing',
+        onPress: () =>
+          navigation.navigate('Search', {
+            screen: 'CategoryResults',
+            params: { query: 'Clothes' },
+          }),
+      },
+      {
+        id: 'dorm-upgrade',
+        title: '🛏️ Dorm Upgrade',
+        subtitle: 'Make your space look next-level',
+        buttonLabel: 'Shop Room Decor',
+        buttonTextColor: '#9B3427',
+        gradientColors: ['rgba(88, 34, 22, 0.82)', 'rgba(171, 84, 54, 0.72)'],
+        imageUrl:
+          'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=1400&q=80',
+        attendeesLabel: '10+ upgrading',
+        onPress: () =>
+          navigation.navigate('Search', {
+            screen: 'CategoryResults',
+            params: { query: 'dorm essentials' },
+          }),
+      },
+      {
+        id: 'move-out-deals',
+        title: '🏷️ Move-Out Deals',
+        subtitle: "Great deals before they're gone",
+        buttonLabel: 'Shop Deals',
+        buttonTextColor: '#0D6A66',
+        gradientColors: ['rgba(8, 68, 71, 0.82)', 'rgba(18, 107, 108, 0.72)'],
+        imageUrl:
+          'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1400&q=80',
+        attendeesLabel: '18+ interested',
+        onPress: () =>
+          navigation.navigate('Search', {
+            screen: 'CategoryResults',
+            params: { query: 'Furniture' },
+          }),
+      },
+      {
+        id: 'tailgate-ready',
+        title: '🍖 Tailgate Ready',
+        subtitle: 'Everything you need for tailgate szn',
+        buttonLabel: 'Shop Tailgate',
+        buttonTextColor: '#C95A10',
+        gradientColors: ['rgba(102, 47, 11, 0.82)', 'rgba(185, 90, 17, 0.72)'],
+        imageUrl:
+          'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=1400&q=80',
+        attendeesLabel: '7+ going',
+        onPress: () =>
+          navigation.navigate('Search', {
+            screen: 'CategoryResults',
+            params: { query: 'Events' },
+          }),
+      },
+    ],
+    [navigation],
+  );
+
+  useEffect(() => {
+    if (rotatingHeroBanners.length <= 1) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      setBannerGroupIndex((current) => (current + 1) % rotatingHeroBanners.length);
+    }, BANNER_ROTATE_MS);
+
+    return () => clearInterval(intervalId);
+  }, [rotatingHeroBanners.length]);
+
+  const primaryBanner =
+    rotatingHeroBanners[bannerGroupIndex % rotatingHeroBanners.length];
+  const secondaryBanner =
+    rotatingHeroBanners[(bannerGroupIndex + 1) % rotatingHeroBanners.length];
+  const tertiaryBanner =
+    rotatingHeroBanners[(bannerGroupIndex + 2) % rotatingHeroBanners.length];
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.brandBar}>
-        <View style={styles.brandSide} />
-        <Text style={styles.brandTitle}>HandOff</Text>
-        <View style={styles.brandSide}>
-          <Pressable
-            accessibilityLabel="Favorites"
-            hitSlop={12}
-            style={styles.iconBtn}
-            onPress={() => navigateToFavorites(navigation)}
-          >
-            <Ionicons name="heart-outline" size={24} color={colors.textPrimary} />
-          </Pressable>
-        </View>
-      </View>
-      <View style={styles.topBar}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipsScroll}
-          contentContainerStyle={styles.chips}
-        >
-          {HOME_CATEGORIES.map((c) => (
-            <CategoryChip
-              key={c}
-              label={c}
-              active={activeCat === c}
-              onPress={() => setActiveCat(c)}
-            />
-          ))}
-        </ScrollView>
-      </View>
-
-      <FlatList
-        style={styles.list}
-        data={verticalFeed}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        ListHeaderComponent={
-          <View style={styles.headerBlock}>
-            {showTicketStrip && visibleTickets.length > 0 ? (
-              <View style={styles.ticketSection}>
-                <Text style={styles.ticketSectionTitle}>LSU Tickets</Text>
-                <Text style={styles.ticketSectionSub}>
-                  Sample campus sales — tap a game
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.ticketScroll}
-                >
-                  {visibleTickets.map((t) => (
-                    <Pressable
-                      key={t.id}
-                      style={styles.ticketCard}
-                      onPress={() => openTicket(navigation, t)}
-                    >
-                      <RemoteImage uri={t.imageUrl} style={styles.ticketImg} />
-                      <Text style={styles.ticketTitle} numberOfLines={2}>
-                        {t.title}
-                      </Text>
-                      <Text style={styles.ticketMeta} numberOfLines={1}>
-                        {t.subtitle}
-                      </Text>
-                      <Text style={styles.ticketVenue} numberOfLines={1}>
-                        {t.venue}
-                      </Text>
-                      <Text style={styles.ticketPrice}>{t.price}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            ) : null}
-            <Text style={styles.sectionTitle}>{gridSectionTitle}</Text>
-            {verticalFeed.length === 0 ? (
-              <Text style={styles.emptyCopy}>
-                No {activeCat.toLowerCase()} listings yet. Try another category.
-              </Text>
-            ) : null}
-          </View>
-        }
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        columnWrapperStyle={[styles.row, { gap: gridGutter }]}
-        contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <View style={{ width: recommendedColWidth, minWidth: 0 }}>
-            <ProductCard
-              item={item}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerRow}>
+          <Pressable
+            accessibilityLabel="Open profile"
+            hitSlop={12}
+            onPress={() => navigation.navigate('Profile')}
+            style={styles.headerIconButton}
+          >
+            <Ionicons name="menu-outline" size={26} color={colors.textPrimary} />
+          </Pressable>
+
+          <Text style={styles.brandTitle}>HandOff</Text>
+
+          <Pressable
+            accessibilityLabel="Open inbox"
+            hitSlop={12}
+            onPress={() => navigation.navigate('Inbox')}
+            style={styles.headerIconButton}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={23}
+              color={colors.textPrimary}
+            />
+            <View style={styles.unreadDot} />
+          </Pressable>
+        </View>
+
+        <Pressable
+          onPress={() => navigation.navigate('Search', { screen: 'SearchHome' })}
+          style={styles.locationRow}
+        >
+          <Ionicons name="location-outline" size={18} color={colors.primaryLight} />
+          <Text style={styles.locationText}>LSU Campus</Text>
+          <Ionicons name="chevron-down" size={16} color={colors.primaryLight} />
+        </Pressable>
+
+        <View style={styles.heroWrap}>
+          <HeroCard
+            attendeesLabel={primaryBanner.attendeesLabel}
+            avatarUrls={heroAvatars}
+            buttonBackgroundColor={primaryBanner.buttonBackgroundColor}
+            buttonLabel={primaryBanner.buttonLabel}
+            buttonTextColor={primaryBanner.buttonTextColor}
+            gradientColors={primaryBanner.gradientColors}
+            imageUrl={primaryBanner.imageUrl}
+            onPress={primaryBanner.onPress}
+            subtitle={primaryBanner.subtitle}
+            title={primaryBanner.title}
+          />
+        </View>
+
+        <View style={styles.pillRow}>
+          {HOME_CATEGORIES.map((category, index) => (
+            <View
+              key={category}
+              style={[
+                styles.pillCell,
+                index === HOME_CATEGORIES.length - 1 && styles.pillCellLast,
+              ]}
+            >
+              <CategoryPill
+                active={activeCategory === category}
+                label={category}
+                onPress={() => setActiveCategory(category)}
+                style={styles.pillFit}
+                textStyle={styles.pillFitText}
+              />
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🔥 Hot on Campus</Text>
+            <Pressable
+              hitSlop={8}
               onPress={() =>
-                isTicketListing(item)
-                  ? openTicket(navigation, item)
-                  : navigateToItemDetail(navigation, {
-                      listingId: item.id,
-                      title: item.title,
-                      price: item.price,
-                      imageUrl: item.imageUrl,
-                      seller: item.sellerHandle,
-                      sellerProfileId: item.sellerId,
-                      sellerAvatarUrl:
-                        item.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
-                      description: item.description,
-                      condition: item.condition,
-                      categoryLabel: item.category,
-                      meetupLocation: item.location,
-                    })
+                navigation.navigate('Search', {
+                  screen: 'CategoryResults',
+                  params: { query: searchQueryForCategory(activeCategory) },
+                })
               }
+            >
+              <Text style={styles.seeAllText}>See all</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView
+            horizontal
+            contentContainerStyle={styles.railContent}
+            decelerationRate="fast"
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={productCardWidth + railGap}
+            snapToAlignment="start"
+            style={styles.fullBleedScroll}
+          >
+            {hotListings.map((item) => (
+              <ProductCard
+                key={item.id}
+                item={item}
+                onPress={() => openListing(navigation, item)}
+                variant="rail"
+                width={productCardWidth}
+              />
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>💾 Saved by Others</Text>
+            <Pressable hitSlop={8} onPress={() => setActiveCategory('Events')}>
+              <Text style={styles.seeAllText}>See all</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView
+            horizontal
+            contentContainerStyle={styles.railContent}
+            decelerationRate="fast"
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={ticketCardWidth + railGap}
+            snapToAlignment="start"
+            style={styles.fullBleedScroll}
+          >
+            {nearbyTickets.map((ticket, index) => (
+              <View key={ticket.id} style={styles.ticketWrap}>
+                <TicketCard
+                  badgeLabel={TICKET_STOCK[index % TICKET_STOCK.length]}
+                  onPress={() => openTicket(navigation, ticket)}
+                  ticket={ticket}
+                  width={ticketCardWidth}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.bannerSection}>
+          <View style={styles.inlineHeroWrap}>
+            <HeroCard
+              attendeesLabel={secondaryBanner.attendeesLabel}
+              avatarUrls={heroAvatars}
+              buttonBackgroundColor={secondaryBanner.buttonBackgroundColor}
+              buttonLabel={secondaryBanner.buttonLabel}
+              buttonTextColor={secondaryBanner.buttonTextColor}
+              gradientColors={secondaryBanner.gradientColors}
+              imageUrl={secondaryBanner.imageUrl}
+              onPress={secondaryBanner.onPress}
+              subtitle={secondaryBanner.subtitle}
+              title={secondaryBanner.title}
             />
           </View>
-        )}
-      />
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🆕 Recently Listed</Text>
+            <Pressable
+              hitSlop={8}
+              onPress={() =>
+                navigation.navigate('Search', {
+                  screen: 'CategoryResults',
+                  params: { query: searchQueryForCategory(activeCategory) },
+                })
+              }
+            >
+              <Text style={styles.seeAllText}>See all</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.recentGrid}>
+            {recentlyListed.map((item) => (
+              <View key={item.id} style={{ width: recentCardWidth }}>
+                <SearchPopularCard
+                  item={item}
+                  onPress={() => openListing(navigation, item)}
+                />
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.bannerSection}>
+          <View style={styles.inlineHeroWrap}>
+            <HeroCard
+              attendeesLabel={tertiaryBanner.attendeesLabel}
+              avatarUrls={heroAvatars}
+              buttonBackgroundColor={tertiaryBanner.buttonBackgroundColor}
+              buttonLabel={tertiaryBanner.buttonLabel}
+              buttonTextColor={tertiaryBanner.buttonTextColor}
+              gradientColors={tertiaryBanner.gradientColors}
+              imageUrl={tertiaryBanner.imageUrl}
+              onPress={tertiaryBanner.onPress}
+              subtitle={tertiaryBanner.subtitle}
+              title={tertiaryBanner.title}
+            />
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -231,135 +575,123 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
-  list: {
+  scroll: {
     flex: 1,
   },
-  brandBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: spacing.xxl,
   },
-  brandSide: {
-    flex: 1,
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+  },
+  headerIconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: 9,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primaryLight,
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
   brandTitle: {
-    fontFamily: fonts.extraBold,
-    fontSize: 24,
-    letterSpacing: -0.5,
     color: colors.textPrimary,
-    textAlign: 'center',
+    fontFamily: fonts.extraBold,
+    fontSize: 27,
+    letterSpacing: -0.8,
   },
-  topBar: {
+  locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    gap: 8,
+    alignSelf: 'center',
+    marginTop: 4,
   },
-  chipsScroll: {
+  locationText: {
+    color: colors.primaryLight,
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    marginHorizontal: 4,
+  },
+  pillScroll: {
+    marginTop: 12,
+  },
+  pillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  pillCell: {
     flex: 1,
+    marginRight: 8,
   },
-  iconBtn: {
-    padding: 4,
+  pillCellLast: {
+    marginRight: 0,
   },
-  chips: {
+  pillFit: {
+    width: '100%',
+    marginRight: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+  },
+  pillFitText: {
+    fontSize: 12,
+  },
+  fullBleedScroll: {
+    marginHorizontal: -16,
+  },
+  heroWrap: {
+    marginTop: 8,
+    marginHorizontal: -16,
+  },
+  inlineHeroWrap: {
+    marginHorizontal: -16,
+  },
+  section: {
+    marginTop: 24,
+  },
+  bannerSection: {
+    marginTop: 10,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: spacing.sm,
-    paddingVertical: 2,
-  },
-  headerBlock: {
-    marginBottom: 0,
-  },
-  ticketSection: {
-    backgroundColor: colors.surface,
-    marginBottom: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  ticketSectionTitle: {
-    ...typography.header,
-    fontSize: 17,
-    color: colors.textPrimary,
-    paddingHorizontal: spacing.xs,
-  },
-  ticketSectionSub: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 4,
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.xs,
-  },
-  ticketScroll: {
-    paddingRight: spacing.sm,
-    gap: 12,
-  },
-  ticketCard: {
-    width: 160,
-    backgroundColor: colors.chipBg,
-    borderRadius: radii.card,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  ticketImg: {
-    width: '100%',
-    height: 88,
-    borderRadius: 10,
-    marginBottom: 8,
-    backgroundColor: colors.border,
-  },
-  ticketTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  ticketMeta: {
-    ...typography.caption,
-    marginTop: 4,
-    color: colors.textSecondary,
-  },
-  ticketVenue: {
-    ...typography.caption,
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  ticketPrice: {
-    fontFamily: fonts.extraBold,
-    fontSize: 16,
-    color: colors.primary,
-    marginTop: 8,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   sectionTitle: {
-    ...typography.header,
-    fontSize: 18,
     color: colors.textPrimary,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    letterSpacing: -0.3,
   },
-  emptyCopy: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
+  seeAllText: {
+    color: colors.primaryLight,
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
   },
-  listContent: {
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.md,
+  railContent: {
+    paddingLeft: 16,
+    paddingRight: 0,
   },
-  row: {
+  recentGrid: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  ticketWrap: {
+    marginRight: 12,
   },
 });

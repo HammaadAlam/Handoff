@@ -339,6 +339,23 @@ export const POPULAR_LISTINGS: ListingItem[] = ([
   },
 ] as ListingItem[]).map(withMockSeller);
 
+function searchHaystack(item: ListingItem): string {
+  return [item.title, item.brand, item.category, item.description]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+function filterByKeywords(
+  items: ListingItem[],
+  keywords: readonly string[],
+): ListingItem[] {
+  return items.filter((item) => {
+    const haystack = searchHaystack(item);
+    return keywords.some((keyword) => haystack.includes(keyword));
+  });
+}
+
 /** Pick a result set for the category / search results screen */
 export function listingsForSearchQuery(query: string): ListingItem[] {
   const q = query.trim().toLowerCase();
@@ -346,6 +363,61 @@ export function listingsForSearchQuery(query: string): ListingItem[] {
   if (q.includes('popular')) return POPULAR_LISTINGS;
   if (!q) return TRENDING_LISTINGS;
   const pool = RECOMMENDED_LISTINGS;
+  if (q.includes('ticket')) {
+    return pool.filter((l) => l.category === 'Events').slice(0, 48);
+  }
+  if (q.includes('clothes')) {
+    return pool.filter((l) => l.category === 'Clothes').slice(0, 48);
+  }
+  if (q.includes('furniture') || q.includes('couch') || q.includes('sofa')) {
+    return pool.filter((l) => l.category === 'Furniture').slice(0, 48);
+  }
+  if (q.includes('tech') || q.includes('macbook') || q.includes('laptop')) {
+    const techHits = filterByKeywords(pool, [
+      'macbook',
+      'laptop',
+      'usb',
+      'hdmi',
+      'printer',
+      'watch',
+      'phone',
+      'iphone',
+      'ipad',
+      'calculator',
+      'clicker',
+      'ring light',
+      'tech',
+    ]);
+    return techHits.length > 0 ? techHits.slice(0, 48) : POPULAR_LISTINGS;
+  }
+  if (q.includes('textbook') || q.includes('calculator')) {
+    const studyHits = filterByKeywords(pool, [
+      'textbook',
+      'lab kit',
+      'calculator',
+      'clicker',
+      'chem',
+      'book',
+    ]);
+    return studyHits.length > 0 ? studyHits.slice(0, 48) : TRENDING_LISTINGS;
+  }
+  if (q.includes('dorm') || q.includes('fridge') || q.includes('microwave')) {
+    const dormHits = filterByKeywords(pool, [
+      'mini fridge',
+      'fridge',
+      'microwave',
+      'lamp',
+      'whiteboard',
+      'mattress topper',
+      'extension cord',
+      'backpack',
+      'storage',
+      'nightstand',
+      'hamper',
+      'mirror',
+    ]);
+    return dormHits.length > 0 ? dormHits.slice(0, 48) : TRENDING_LISTINGS;
+  }
   const hits = pool.filter(
     (l) =>
       l.title.toLowerCase().includes(q) ||

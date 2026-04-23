@@ -3,29 +3,45 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useMarketplace } from '@/context/MarketplaceContext';
 import type { ListingItem } from '@/data/mockData';
-import { colors, listingCardTypography, listingPriceDisplay, spacing } from '@/styles/theme';
-
-/** Keep in sync with `SearchPopularCard` — shared marketplace grid look */
-const IMAGE_RADIUS = 18;
+import { colors, fonts, spacing } from '@/styles/theme';
 
 type Props = {
   item: ListingItem;
   onPress?: () => void;
+  variant?: 'grid' | 'rail';
+  width?: number;
 };
 
-export function ProductCard({ item, onPress }: Props) {
+export function ProductCard({
+  item,
+  onPress,
+  variant = 'grid',
+  width,
+}: Props) {
   const { isFavorite, toggleFavorite } = useMarketplace();
   const fav = isFavorite(item.id);
+  const isRail = variant === 'rail';
+  const titleNumberOfLines = isRail ? 1 : 2;
 
   return (
-    <View style={styles.wrap}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        isRail ? styles.railCard : styles.gridCard,
+        width != null && { width },
+        pressed && styles.cardPressed,
+      ]}
+    >
       <View style={styles.imageShell}>
-        <Pressable style={styles.imagePress} onPress={onPress}>
-          <RemoteImage uri={item.imageUrl} style={styles.image} />
-        </Pressable>
+        <RemoteImage uri={item.imageUrl} style={styles.image} />
         <Pressable
           style={styles.favCircle}
-          onPress={() => toggleFavorite(item)}
+          onPress={(event) => {
+            event.stopPropagation();
+            toggleFavorite(item);
+          }}
           hitSlop={8}
           accessibilityLabel={fav ? 'Remove from favorites' : 'Add to favorites'}
         >
@@ -36,42 +52,42 @@ export function ProductCard({ item, onPress }: Props) {
           />
         </Pressable>
       </View>
-      <Pressable style={styles.copyPress} onPress={onPress}>
-        <View style={styles.copy}>
-          <Text
-            style={styles.title}
-            numberOfLines={4}
-            ellipsizeMode="tail"
-          >
-            {item.title}
-          </Text>
-          <Text style={styles.price}>{item.price}</Text>
-        </View>
-      </Pressable>
-    </View>
+      <View style={styles.copy}>
+        <Text
+          style={[styles.title, isRail ? styles.railTitle : styles.gridTitle]}
+          numberOfLines={titleNumberOfLines}
+          ellipsizeMode="tail"
+        >
+          {item.title}
+        </Text>
+        <Text style={[styles.price, isRail && styles.railPrice]}>{item.price}</Text>
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    flex: 1,
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+  },
+  gridCard: {
     width: '100%',
     minWidth: 0,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
-  copyPress: {
-    alignSelf: 'stretch',
-    width: '100%',
+  railCard: {
+    marginRight: 12,
+  },
+  cardPressed: {
+    transform: [{ scale: 0.97 }],
   },
   imageShell: {
     position: 'relative',
-    borderRadius: IMAGE_RADIUS,
-    overflow: 'hidden',
     backgroundColor: colors.chipBg,
     aspectRatio: 0.82,
-  },
-  imagePress: {
-    flex: 1,
+    borderRadius: 22,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
@@ -79,32 +95,49 @@ const styles = StyleSheet.create({
   },
   favCircle: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 8,
+    right: 8,
     zIndex: 2,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 252, 248, 0.96)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.97)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 10,
+    elevation: 3,
   },
   copy: {
-    paddingTop: 12,
+    paddingTop: 14,
+    paddingBottom: 10,
     width: '100%',
     alignItems: 'flex-start',
   },
   title: {
-    ...listingCardTypography.title,
+    color: colors.textPrimary,
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    lineHeight: 18,
     width: '100%',
   },
+  gridTitle: {
+    minHeight: 36,
+  },
+  railTitle: {
+    minHeight: 0,
+  },
   price: {
-    ...listingPriceDisplay,
-    marginTop: 6,
+    color: colors.textPrimary,
+    fontFamily: fonts.extraBold,
+    fontSize: 19,
+    lineHeight: 22,
+    letterSpacing: -0.2,
+    marginTop: 8,
+  },
+  railPrice: {
+    marginTop: 8,
   },
 });

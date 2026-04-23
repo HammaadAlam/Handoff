@@ -3,6 +3,10 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import {
+  getFocusedRouteNameFromRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import { StyleSheet, View } from 'react-native';
 import { CompactTabBarLabel } from '@/components/navigation/CompactTabBarLabel';
 import { CreateListingStackNavigator } from '@/navigation/CreateListingStackNavigator';
@@ -15,12 +19,18 @@ import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-const tabIcon = (
-  outlinedName: keyof typeof Ionicons.glyphMap,
-  filledName: keyof typeof Ionicons.glyphMap
-) => {
+const tabBarStyle = {
+  backgroundColor: colors.surface,
+  borderTopColor: colors.border,
+};
+
+function searchTabBarStyle(route: RouteProp<MainTabParamList, 'Search'>) {
+  const focusedRouteName = getFocusedRouteNameFromRoute(route) ?? 'SearchHome';
+  return focusedRouteName === 'SearchQuery' ? { display: 'none' as const } : tabBarStyle;
+}
+
+const tabIcon = (outlinedName: keyof typeof Ionicons.glyphMap) => {
   return ({
-    focused,
     color,
     size,
   }: {
@@ -28,7 +38,7 @@ const tabIcon = (
     color: string;
     size: number;
   }) => (
-    <Ionicons name={focused ? filledName : outlinedName} size={size} color={color} />
+    <Ionicons name={outlinedName} size={size} color={color} />
   );
 };
 
@@ -47,21 +57,21 @@ export function MainTabNavigator() {
           paddingHorizontal: 2,
         },
         tabBarIconStyle: { marginBottom: -2 },
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-        },
+        tabBarStyle,
       }}
     >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{ tabBarIcon: tabIcon('home-outline', 'home') }}
+        options={{ tabBarIcon: tabIcon('home-outline') }}
       />
       <Tab.Screen
         name="Search"
         component={SearchStackNavigator}
-        options={{ tabBarIcon: tabIcon('search-outline', 'search') }}
+        options={({ route }) => ({
+          tabBarIcon: tabIcon('search-outline'),
+          tabBarStyle: searchTabBarStyle(route),
+        })}
       />
       <Tab.Screen
         name="CreateListing"
@@ -94,13 +104,13 @@ export function MainTabNavigator() {
         component={InboxScreen}
         options={{
           title: 'Chat',
-          tabBarIcon: tabIcon('chatbubble-outline', 'chatbubble'),
+          tabBarIcon: tabIcon('chatbubble-outline'),
         }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ tabBarIcon: tabIcon('person-outline', 'person') }}
+        options={{ tabBarIcon: tabIcon('person-outline') }}
       />
     </Tab.Navigator>
   );
@@ -116,12 +126,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   fabLift: {
-    marginTop: -18,
+    marginTop: -20,
   },
   fabWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -135,5 +145,6 @@ const styles = StyleSheet.create({
   },
   fabWrapFocused: {
     backgroundColor: colors.primaryDark,
+    borderColor: colors.textPrimary,
   },
 });
