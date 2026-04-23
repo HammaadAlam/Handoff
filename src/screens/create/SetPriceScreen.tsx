@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#F8F7FC',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     marginBottom: 18,
   },
   suggestHeader: {
@@ -195,24 +195,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1ECFF',
   },
   suggestedPrice: {
-    color: colors.primary,
+    color: colors.textPrimary,
     fontFamily: fonts.bold,
     fontSize: 34,
     letterSpacing: 0.5,
-    marginTop: 14,
+    marginTop: 8,
   },
   emptyPrice: {
     color: colors.textMuted,
     fontFamily: fonts.semiBold,
     fontSize: 18,
     letterSpacing: 0,
-    marginTop: 16,
+    marginTop: 6,
   },
   basedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 10,
+    marginTop: 4,
   },
   basedText: {
     color: colors.textSecondary,

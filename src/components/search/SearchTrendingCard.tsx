@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 14,
     lineHeight: 18,
-    color: colors.primary,
+    color: colors.textPrimary,
   },
   metaRow: {
     marginTop: 2,

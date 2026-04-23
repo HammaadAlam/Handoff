@@ -20,7 +20,7 @@ export function CreateListingStackNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        animation: 'slide_from_right',
+        animation: 'none',
         contentStyle: { backgroundColor: colors.background },
       }}
     >

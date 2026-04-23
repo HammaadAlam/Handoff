@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   priceAccent: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: colors.primary,
+    color: colors.textPrimary,
   },
   listedMeta: {
     ...typography.caption,

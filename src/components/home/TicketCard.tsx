@@ -23,12 +23,6 @@ export function TicketCard({ onPress, ticket, width }: Props) {
         <RemoteImage
           uri={ticket.imageUrl}
           contentFit="cover"
-          style={styles.imageBackdrop}
-        />
-        <View style={styles.imageWash} />
-        <RemoteImage
-          uri={ticket.imageUrl}
-          contentFit="contain"
           style={styles.image}
         />
       </View>
@@ -72,15 +66,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
-    backgroundColor: 'transparent',
-  },
-  imageBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.26,
-  },
-  imageWash: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.5)',
   },
   copy: {
     paddingHorizontal: 12,
@@ -111,7 +96,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   price: {
-    color: colors.primaryLight,
+    color: colors.textPrimary,
     fontFamily: fonts.extraBold,
     fontSize: 18,
     letterSpacing: -0.2,

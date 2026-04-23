@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   priceAccent: {
-    color: colors.primary,
+    color: colors.textPrimary,
     fontFamily: fonts.bold,
     fontSize: 18,
   },
