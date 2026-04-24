@@ -529,9 +529,7 @@ export function HomeScreen() {
               attendeesLabel="25+ interested"
               avatarUrls={heroAvatars}
               imageUrl="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1600&q=80"
-              onPress={() =>
-                navigation.navigate('CategoryResults', { query: 'Events' })
-              }
+              onPress={() => navigation.navigate('EventsCalendar')}
             />
           </View>
         </View>

@@ -3,17 +3,23 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { goHomeFromCreateFlow } from '@/navigation/goHomeFromCreateFlow';
-import type { CreateListingStackParamList } from '@/navigation/types';
+import type { CreateListingStackParamList, RootStackParamList } from '@/navigation/types';
 import { colors, fonts, spacing } from '@/styles/theme';
 
 export function CreateEntryScreen() {
   const navigation =
-    useNavigation<NativeStackNavigationProp<CreateListingStackParamList>>();
+    useNavigation<
+      CompositeNavigationProp<
+        NativeStackNavigationProp<CreateListingStackParamList>,
+        NativeStackNavigationProp<RootStackParamList>
+      >
+    >();
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -80,6 +86,23 @@ export function CreateEntryScreen() {
           <View style={styles.optionCopy}>
             <Text style={styles.manualTitle}>Create Manually</Text>
             <Text style={styles.manualBody}>Add photos, details, and price yourself.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color={colors.textPrimary} />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('EventsCalendar')}
+          style={[styles.optionPress, styles.eventCard]}
+        >
+          <View style={styles.eventIcon}>
+            <Ionicons name="calendar-outline" size={28} color={colors.primary} />
+          </View>
+          <View style={styles.optionCopy}>
+            <Text style={styles.eventTitle}>Create Event</Text>
+            <Text style={styles.eventBody}>
+              Post a campus event and let students discover it quickly.
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color={colors.textPrimary} />
         </Pressable>
@@ -229,6 +252,34 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   manualBody: {
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  eventCard: {
+    minHeight: 118,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: '#F8F5FF',
+    padding: 18,
+  },
+  eventIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEE8FF',
+  },
+  eventTitle: {
+    color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 18,
+  },
+  eventBody: {
     color: colors.textSecondary,
     fontFamily: fonts.medium,
     fontSize: 13,
