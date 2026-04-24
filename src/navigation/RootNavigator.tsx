@@ -13,6 +13,7 @@ import { ConversationScreen } from '@/screens/transaction/ConversationScreen';
 import { ItemDetailScreen } from '@/screens/transaction/ItemDetailScreen';
 import { MeetupDetailsScreen } from '@/screens/transaction/MeetupDetailsScreen';
 import { FavoritesScreen } from '@/screens/marketplace/FavoritesScreen';
+import { EventsCalendarScreen } from '@/screens/events/EventsCalendarScreen';
 import { ProfileSettingsScreen } from '@/screens/profile/ProfileSettingsScreen';
 import { PublicProfileScreen } from '@/screens/profile/PublicProfileScreen';
 import { MainTabNavigator } from './MainTabNavigator';
@@ -67,6 +68,7 @@ export function RootNavigator() {
       }}
     >
       <Stack.Screen name="Main" component={MainTabNavigator} />
+      <Stack.Screen name="EventsCalendar" component={EventsCalendarScreen} />
       <Stack.Screen name="ItemDetail" component={ItemDetailScreen} />
       <Stack.Screen name="Conversation" component={ConversationRoute} />
       <Stack.Screen name="MeetupDetails" component={MeetupDetailsScreen} />

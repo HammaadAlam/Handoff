@@ -580,7 +580,7 @@ export function ProfileScreen() {
               >
                 <Pressable
                   style={styles.headerStatusStrip}
-                  onPress={() => Alert.alert('Events', 'Campus events are coming soon.')}
+                  onPress={() => navigation.navigate('EventsCalendar')}
                 >
                   <View style={styles.headerStatusLeft}>
                     <Ionicons name="pulse" size={15} color={colors.success} />
