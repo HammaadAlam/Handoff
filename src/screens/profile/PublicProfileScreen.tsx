@@ -185,25 +185,19 @@ export function PublicProfileScreen() {
     if (!bundle || !profile || bundle.isSelf || followBusy) return;
     setFollowBusy(true);
     const wasFollowing = bundle.isFollowing;
-    setBundle({
-      ...bundle,
-      isFollowing: !wasFollowing,
-      profile: {
-        ...profile,
-        followersCount: Math.max(
-          0,
-          profile.followersCount + (wasFollowing ? -1 : 1),
-        ),
-      },
-    });
     const ok = wasFollowing
       ? await unfollowProfile({ targetProfileId: profile.id, sessionUserId })
       : await followProfile({ targetProfileId: profile.id, sessionUserId });
-    if (!ok) {
-      setBundle({
-        ...bundle,
-      });
+
+    if (ok) {
+      await load(false);
+    } else {
+      Alert.alert(
+        'Could not update follow',
+        'Please make sure you are signed in and try again.',
+      );
     }
+
     setFollowBusy(false);
   };
 

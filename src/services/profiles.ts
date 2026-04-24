@@ -46,6 +46,14 @@ export type PublicProfileBundle = {
   isSelf: boolean;
 };
 
+export type ProfileSearchResult = {
+  id: string;
+  handle: string;
+  displayName: string;
+  avatarUrl: string;
+  campus: string;
+};
+
 type ProfileRow = {
   id: string;
   handle: string;
@@ -185,6 +193,38 @@ export async function resolveProfileId(args: {
   return (data?.id as string | undefined) ?? null;
 }
 
+/**
+ * Lightweight profile search used by global search UI.
+ */
+export async function searchProfiles(query: string, limit = 8): Promise<ProfileSearchResult[]> {
+  const normalized = query.trim();
+  if (!normalized || !isSupabaseConfigured()) return [];
+
+  const safeLimit = Math.max(1, Math.min(limit, 20));
+  const term = `%${normalized}%`;
+  const { data, error } = await getSupabase()
+    .from('profiles')
+    .select('id, handle, display_name, avatar_url, campus')
+    .or(`handle.ilike.${term},display_name.ilike.${term}`)
+    .order('followers_count', { ascending: false })
+    .limit(safeLimit);
+
+  if (error || !data) return [];
+  return (data as Array<{
+    id: string;
+    handle: string;
+    display_name: string;
+    avatar_url: string;
+    campus: string;
+  }>).map((row) => ({
+    id: row.id,
+    handle: row.handle,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_url,
+    campus: row.campus,
+  }));
+}
+
 async function ensureViewerForFollow(
   sessionUserId: string | null,
 ): Promise<string | null> {
@@ -201,10 +241,9 @@ export async function followProfile(args: {
   const supabase = getSupabase();
   const { error } = await supabase
     .from('follows')
-    .upsert(
-      { follower_id: viewerId, following_id: args.targetProfileId },
-      { onConflict: 'follower_id,following_id', ignoreDuplicates: true },
-    );
+    .insert({ follower_id: viewerId, following_id: args.targetProfileId });
+  // Unique conflict means the follow already exists; treat as success.
+  if (error?.code === '23505') return true;
   return !error;
 }
 

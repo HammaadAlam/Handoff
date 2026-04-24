@@ -3,6 +3,7 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -18,11 +19,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   type ListingItem,
 } from '@/data/mockData';
-import type { SearchStackParamList } from '@/navigation/types';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
+import type { RootStackParamList, SearchStackParamList } from '@/navigation/types';
 import { fetchRecommendedListings } from '@/services/listings';
+import { searchProfiles, type ProfileSearchResult } from '@/services/profiles';
 import { colors, fonts, spacing } from '@/styles/theme';
 
 const SUGGESTION_LIMIT = 6;
+const PROFILE_SUGGESTION_LIMIT = 6;
 
 function haystackForListing(item: ListingItem) {
   return [item.title, item.brand, item.category, item.description, item.sellerHandle]
@@ -32,11 +36,18 @@ function haystackForListing(item: ListingItem) {
 }
 
 export function SearchQueryScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
+  const navigation = useNavigation<
+    CompositeNavigationProp<
+      NativeStackNavigationProp<SearchStackParamList>,
+      NativeStackNavigationProp<RootStackParamList>
+    >
+  >();
   const { params } = useRoute<RouteProp<SearchStackParamList, 'SearchQuery'>>();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState(params?.initialQuery ?? '');
   const [listings, setListings] = useState<ListingItem[]>([]);
+  const [profiles, setProfiles] = useState<ProfileSearchResult[]>([]);
+  const viewerProfileId = useViewerProfileId();
 
   const trimmedQuery = query.trim();
 
@@ -50,6 +61,27 @@ export function SearchQueryScreen() {
       .filter((item) => haystackForListing(item).includes(normalizedQuery))
       .slice(0, SUGGESTION_LIMIT);
   }, [trimmedQuery, listings]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!trimmedQuery) {
+      setProfiles([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void (async () => {
+      const next = await searchProfiles(trimmedQuery, PROFILE_SUGGESTION_LIMIT);
+      if (!cancelled) {
+        setProfiles(next);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [trimmedQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +101,30 @@ export function SearchQueryScreen() {
     }
 
     navigation.navigate('CategoryResults', { query: nextQuery });
+  };
+
+  const openProfile = (profile: ProfileSearchResult) => {
+    const root = navigation.getParent()?.getParent() as
+      | NativeStackNavigationProp<RootStackParamList>
+      | undefined;
+    if (!root) return;
+
+    // SearchQuery is presented as a full-screen modal; close it first so
+    // profile navigation is visible immediately instead of behind the modal.
+    navigation.goBack();
+
+    requestAnimationFrame(() => {
+      if (viewerProfileId && viewerProfileId === profile.id) {
+        root.navigate('Main', { screen: 'Profile' });
+        return;
+      }
+      root.navigate('UserProfile', {
+        userId: profile.id,
+        handle: profile.handle,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+      });
+    });
   };
 
   return (
@@ -131,23 +187,6 @@ export function SearchQueryScreen() {
             </View>
           ) : (
             <View>
-              <Pressable
-                onPress={() => submit(trimmedQuery)}
-                style={styles.searchSubmitRow}
-              >
-                <View style={styles.submitIcon}>
-                  <Ionicons name="search-outline" size={18} color={colors.primary} />
-                </View>
-                <Text style={styles.submitText} numberOfLines={1}>
-                  Search for "{trimmedQuery}"
-                </Text>
-                <Ionicons
-                  name="arrow-forward"
-                  size={18}
-                  color={colors.textSecondary}
-                />
-              </Pressable>
-
               <Text style={styles.sectionLabel}>Suggestions</Text>
               {suggestions.length > 0 ? (
                 suggestions.map((item) => (
@@ -187,6 +226,41 @@ export function SearchQueryScreen() {
                 <Text style={styles.noMatches}>
                   No quick matches yet. Press search to see all results.
                 </Text>
+              )}
+
+              <Text style={styles.sectionLabel}>Profiles</Text>
+              {profiles.length > 0 ? (
+                profiles.map((profile) => (
+                  <Pressable
+                    key={profile.id}
+                    onPress={() => openProfile(profile)}
+                    style={styles.suggestionRow}
+                  >
+                    <View style={styles.suggestionIcon}>
+                      <Ionicons
+                        name="person-outline"
+                        size={18}
+                        color={colors.textSecondary}
+                      />
+                    </View>
+                    <View style={styles.suggestionCopy}>
+                      <Text style={styles.suggestionTitle} numberOfLines={1}>
+                        {profile.displayName}
+                      </Text>
+                      <Text style={styles.suggestionMeta} numberOfLines={1}>
+                        @{profile.handle}
+                        {profile.campus ? ` · ${profile.campus}` : ''}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                ))
+              ) : (
+                <Text style={styles.noMatches}>No matching profiles yet.</Text>
               )}
             </View>
           )}
@@ -296,29 +370,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 14,
     textTransform: 'capitalize',
-  },
-  searchSubmitRow: {
-    minHeight: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 18,
-    backgroundColor: '#F8F7FC',
-    paddingHorizontal: 14,
-  },
-  submitIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EFEAFF',
-  },
-  submitText: {
-    flex: 1,
-    color: colors.textPrimary,
-    fontFamily: fonts.bold,
-    fontSize: 15,
   },
   suggestionRow: {
     flexDirection: 'row',

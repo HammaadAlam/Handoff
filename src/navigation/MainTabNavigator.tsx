@@ -2,12 +2,16 @@
  * Main app shell — tab labels match marketplace mockups (Home, Search, List, Chat, Profile).
  */
 import { Ionicons } from '@expo/vector-icons';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import * as Haptics from 'expo-haptics';
+import {
+  createBottomTabNavigator,
+  type BottomTabBarButtonProps,
+} from '@react-navigation/bottom-tabs';
 import {
   getFocusedRouteNameFromRoute,
   type RouteProp,
 } from '@react-navigation/native';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { CompactTabBarLabel } from '@/components/navigation/CompactTabBarLabel';
 import { CreateListingStackNavigator } from '@/navigation/CreateListingStackNavigator';
 import { InboxScreen } from '@/screens/tabs/InboxScreen';
@@ -49,6 +53,25 @@ const tabIcon = (
     />
   );
 };
+
+function ListTabButton(props: BottomTabBarButtonProps) {
+  return (
+    <Pressable
+      accessibilityState={props.accessibilityState}
+      accessibilityRole={props.accessibilityRole}
+      accessibilityLabel={props.accessibilityLabel}
+      testID={props.testID}
+      onLongPress={props.onLongPress}
+      onPress={(event) => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        props.onPress?.(event);
+      }}
+      style={({ pressed }) => [props.style, pressed && styles.listTabButtonPressed]}
+    >
+      {props.children}
+    </Pressable>
+  );
+}
 
 export function MainTabNavigator() {
   return (
@@ -93,6 +116,7 @@ export function MainTabNavigator() {
           // This tab's icon includes its own label; don't apply the global icon
           // offset or the label baseline won't match the other tabs.
           tabBarIconStyle: styles.listTabIconStyle,
+          tabBarButton: (props) => <ListTabButton {...props} />,
           tabBarIcon: ({ focused }) => (
             <View style={styles.listTabColumn}>
               <View
@@ -152,5 +176,8 @@ const styles = StyleSheet.create({
   },
   fabWrapFocused: {
     backgroundColor: colors.primaryDark,
+  },
+  listTabButtonPressed: {
+    opacity: 0.96,
   },
 });
