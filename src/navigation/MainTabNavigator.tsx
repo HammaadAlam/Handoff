@@ -144,8 +144,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.surface,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.28,
@@ -154,6 +152,5 @@ const styles = StyleSheet.create({
   },
   fabWrapFocused: {
     backgroundColor: colors.primaryDark,
-    borderColor: colors.textPrimary,
   },
 });

@@ -120,6 +120,7 @@ export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
+  EventsCalendar: undefined;
   ItemDetail: ItemDetailParams;
   Conversation: ConversationParams;
   MeetupDetails: MeetupDetailsParams;

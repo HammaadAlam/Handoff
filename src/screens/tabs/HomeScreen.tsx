@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CategoryPill } from '@/components/home/CategoryPill';
 import { HeroCard } from '@/components/home/HeroCard';
+import { StudentEventsBanner } from '@/components/home/StudentEventsBanner';
 import { TicketCard } from '@/components/home/TicketCard';
 import { ProductCard } from '@/components/marketplace/ProductCard';
 import { SearchPopularCard } from '@/components/marketplace/SearchPopularCard';
@@ -372,8 +373,6 @@ export function HomeScreen() {
 
   const primaryBanner =
     rotatingHeroBanners[bannerGroupIndex % rotatingHeroBanners.length];
-  const secondaryBanner =
-    rotatingHeroBanners[(bannerGroupIndex + 1) % rotatingHeroBanners.length];
   const tertiaryBanner =
     rotatingHeroBanners[(bannerGroupIndex + 2) % rotatingHeroBanners.length];
 
@@ -534,17 +533,11 @@ export function HomeScreen() {
 
         <View style={styles.bannerSection}>
           <View style={styles.inlineHeroWrap}>
-            <HeroCard
-              attendeesLabel={secondaryBanner.attendeesLabel}
+            <StudentEventsBanner
+              attendeesLabel="25+ interested"
               avatarUrls={heroAvatars}
-              buttonBackgroundColor={secondaryBanner.buttonBackgroundColor}
-              buttonLabel={secondaryBanner.buttonLabel}
-              buttonTextColor={secondaryBanner.buttonTextColor}
-              gradientColors={secondaryBanner.gradientColors}
-              imageUrl={secondaryBanner.imageUrl}
-              onPress={secondaryBanner.onPress}
-              subtitle={secondaryBanner.subtitle}
-              title={secondaryBanner.title}
+              imageUrl="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1600&q=80"
+              onPress={() => navigation.navigate('EventsCalendar')}
             />
           </View>
         </View>

@@ -5,7 +5,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { OptionPickerModal } from '@/components/create/OptionPickerModal';
 import { mergeCreateListingDraft } from '@/data/createListingDraft';
 import {
+  getListingAttributesForCategory,
   LISTING_BRANDS,
   LISTING_CATEGORIES,
   LISTING_CONDITIONS,
@@ -33,35 +34,6 @@ type PickerKind =
   | 'model'
   | 'storage'
   | 'color';
-
-const MODEL_OPTIONS = [
-  'MacBook Pro M1',
-  'MacBook Air',
-  'iPad Air',
-  'TI-84 Plus',
-  'Desk Chair',
-  'Mini Fridge',
-  'Other',
-] as const;
-
-const STORAGE_OPTIONS = [
-  '64GB',
-  '128GB',
-  '256GB',
-  '512GB',
-  '1TB',
-  'N/A',
-] as const;
-
-const COLOR_OPTIONS = [
-  'Space Gray',
-  'Silver',
-  'Black',
-  'White',
-  'Navy',
-  'Tan',
-  'Multicolor',
-] as const;
 
 const TOTAL_STEPS = 4;
 
@@ -104,6 +76,21 @@ export function ListingDetailsScreen() {
   const [color, setColor] = useState(startingDraft.color);
   const [acceptOffers, setAcceptOffers] = useState(startingDraft.acceptOffers);
   const [picker, setPicker] = useState<PickerKind | null>(null);
+  const categoryAttributes = useMemo(
+    () => getListingAttributesForCategory(category),
+    [category],
+  );
+  const attributeByKey = useMemo(
+    () => Object.fromEntries(categoryAttributes.map((attr) => [attr.key, attr])),
+    [categoryAttributes],
+  );
+
+  useEffect(() => {
+    if (!attributeByKey.brand && brand) setBrand('');
+    if (!attributeByKey.model && model) setModel('');
+    if (!attributeByKey.storage && storage) setStorage('');
+    if (!attributeByKey.color && color) setColor('');
+  }, [attributeByKey, brand, model, storage, color]);
 
   const pickerModal = useMemo(() => {
     switch (picker) {
@@ -122,37 +109,43 @@ export function ListingDetailsScreen() {
           onSelect: setCondition,
         };
       case 'brand':
+        if (!attributeByKey.brand) return null;
         return {
-          title: 'Brand',
-          options: LISTING_BRANDS,
+          title: attributeByKey.brand.label,
+          options: attributeByKey.brand.options.length
+            ? attributeByKey.brand.options
+            : LISTING_BRANDS,
           selected: brand,
           onSelect: setBrand,
         };
       case 'model':
+        if (!attributeByKey.model) return null;
         return {
-          title: 'Model',
-          options: MODEL_OPTIONS,
+          title: attributeByKey.model.label,
+          options: attributeByKey.model.options,
           selected: model,
           onSelect: setModel,
         };
       case 'storage':
+        if (!attributeByKey.storage) return null;
         return {
-          title: 'Storage',
-          options: STORAGE_OPTIONS,
+          title: attributeByKey.storage.label,
+          options: attributeByKey.storage.options,
           selected: storage,
           onSelect: setStorage,
         };
       case 'color':
+        if (!attributeByKey.color) return null;
         return {
-          title: 'Color',
-          options: COLOR_OPTIONS,
+          title: attributeByKey.color.label,
+          options: attributeByKey.color.options,
           selected: color,
           onSelect: setColor,
         };
       default:
         return null;
     }
-  }, [picker, brand, category, color, condition, model, storage]);
+  }, [picker, brand, category, color, condition, model, storage, attributeByKey]);
 
   const canContinue =
     title.trim().length > 0 &&
@@ -185,10 +178,18 @@ export function ListingDetailsScreen() {
   }> = [
     { key: 'category', label: 'Category', value: category, required: true },
     { key: 'condition', label: 'Condition', value: condition, required: true },
-    { key: 'brand', label: 'Brand', value: brand },
-    { key: 'model', label: 'Model', value: model },
-    { key: 'storage', label: 'Storage', value: storage },
-    { key: 'color', label: 'Color', value: color },
+    ...categoryAttributes.map((attribute) => ({
+      key: attribute.key,
+      label: attribute.label,
+      value:
+        attribute.key === 'brand'
+          ? brand
+          : attribute.key === 'model'
+            ? model
+            : attribute.key === 'storage'
+              ? storage
+              : color,
+    })),
   ];
 
   return (
