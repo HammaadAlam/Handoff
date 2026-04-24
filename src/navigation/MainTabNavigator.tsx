@@ -2,12 +2,16 @@
  * Main app shell — tab labels match marketplace mockups (Home, Search, List, Chat, Profile).
  */
 import { Ionicons } from '@expo/vector-icons';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import * as Haptics from 'expo-haptics';
+import {
+  createBottomTabNavigator,
+  type BottomTabBarButtonProps,
+} from '@react-navigation/bottom-tabs';
 import {
   getFocusedRouteNameFromRoute,
   type RouteProp,
 } from '@react-navigation/native';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { CompactTabBarLabel } from '@/components/navigation/CompactTabBarLabel';
 import { CreateListingStackNavigator } from '@/navigation/CreateListingStackNavigator';
 import { InboxScreen } from '@/screens/tabs/InboxScreen';
@@ -27,6 +31,11 @@ const tabBarStyle = {
 function searchTabBarStyle(route: RouteProp<MainTabParamList, 'Search'>) {
   const focusedRouteName = getFocusedRouteNameFromRoute(route) ?? 'SearchHome';
   return focusedRouteName === 'SearchQuery' ? { display: 'none' as const } : tabBarStyle;
+}
+
+function createListingTabBarStyle(route: RouteProp<MainTabParamList, 'CreateListing'>) {
+  const focusedRouteName = getFocusedRouteNameFromRoute(route) ?? 'CreateEntry';
+  return focusedRouteName === 'CreateEntry' ? tabBarStyle : { display: 'none' as const };
 }
 
 const tabIcon = (
@@ -49,6 +58,25 @@ const tabIcon = (
     />
   );
 };
+
+function ListTabButton(props: BottomTabBarButtonProps) {
+  return (
+    <Pressable
+      accessibilityState={props.accessibilityState}
+      accessibilityRole={props.accessibilityRole}
+      accessibilityLabel={props.accessibilityLabel}
+      testID={props.testID}
+      onLongPress={props.onLongPress}
+      onPress={(event) => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        props.onPress?.(event);
+      }}
+      style={({ pressed }) => [props.style, pressed && styles.listTabButtonPressed]}
+    >
+      {props.children}
+    </Pressable>
+  );
+}
 
 export function MainTabNavigator() {
   return (
@@ -85,7 +113,7 @@ export function MainTabNavigator() {
       <Tab.Screen
         name="CreateListing"
         component={CreateListingStackNavigator}
-        options={{
+        options={({ route }) => ({
           title: 'List',
           // Keep global labels enabled; suppress only this tab's built-in label
           // and render a custom label under the FAB icon.
@@ -93,6 +121,7 @@ export function MainTabNavigator() {
           // This tab's icon includes its own label; don't apply the global icon
           // offset or the label baseline won't match the other tabs.
           tabBarIconStyle: styles.listTabIconStyle,
+          tabBarButton: (props) => <ListTabButton {...props} />,
           tabBarIcon: ({ focused }) => (
             <View style={styles.listTabColumn}>
               <View
@@ -106,7 +135,8 @@ export function MainTabNavigator() {
               </View>
             </View>
           ),
-        }}
+          tabBarStyle: createListingTabBarStyle(route),
+        })}
       />
       <Tab.Screen
         name="Inbox"
@@ -152,5 +182,8 @@ const styles = StyleSheet.create({
   },
   fabWrapFocused: {
     backgroundColor: colors.primaryDark,
+  },
+  listTabButtonPressed: {
+    opacity: 0.96,
   },
 });

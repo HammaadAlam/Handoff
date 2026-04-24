@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { suggestListingFromImage } from '@/services/listingVisionSuggest';
 import type { CreateListingStackParamList } from '@/navigation/types';
 import { colors, fonts, spacing } from '@/styles/theme';
 import { RemoteImage } from '@/components/RemoteImage';
@@ -48,6 +49,7 @@ export function CameraCaptureScreen() {
     useRoute<RouteProp<CreateListingStackParamList, 'CameraCapture'>>();
   const mode = params?.mode ?? 'quick';
   const [photos, setPhotos] = useState<string[]>([]);
+  const [analyzing, setAnalyzing] = useState(false);
   const tileSize = Math.floor((width - spacing.md * 2 - GRID_GAP * 2) / 3);
   const canContinue = photos.length > 0;
   const visiblePhotoSlots = Math.min(photos.length + 1, MAX_PHOTOS);
@@ -98,14 +100,42 @@ export function CameraCaptureScreen() {
     setPhotos((current) => current.filter((_, index) => index !== indexToRemove));
   };
 
-  const continueFlow = () => {
+  const continueFlow = async () => {
     if (!canContinue) {
       Alert.alert('Add a photo', 'Add at least one picture before continuing.');
       return;
     }
 
     const imageUri = photos[0];
-    const draft = { imageUri };
+    const draft: {
+      imageUri: string;
+      title?: string;
+      description?: string;
+      category?: string;
+      condition?: string;
+      brand?: string;
+      model?: string;
+      storage?: string;
+      color?: string;
+      price?: string;
+    } = { imageUri };
+
+    if (mode === 'quick') {
+      setAnalyzing(true);
+      const suggestion = await suggestListingFromImage(imageUri);
+      setAnalyzing(false);
+      if (suggestion) {
+        draft.title = suggestion.title;
+        draft.description = suggestion.description;
+        draft.category = suggestion.category;
+        draft.condition = suggestion.condition;
+        draft.brand = suggestion.brand;
+        draft.model = suggestion.model;
+        draft.storage = suggestion.storage;
+        draft.color = suggestion.color;
+        draft.price = suggestion.estimatedPrice;
+      }
+    }
 
     navigation.navigate('ListingDetails', { mode, draft });
   };
@@ -182,17 +212,23 @@ export function CameraCaptureScreen() {
 
       <View style={styles.footer}>
         <Pressable
-          accessibilityState={{ disabled: !canContinue }}
-          style={[styles.primaryButton, !canContinue && styles.primaryButtonDisabled]}
-          onPress={continueFlow}
+          accessibilityState={{ disabled: !canContinue || analyzing }}
+          disabled={!canContinue || analyzing}
+          style={[
+            styles.primaryButton,
+            (!canContinue || analyzing) && styles.primaryButtonDisabled,
+          ]}
+          onPress={() => {
+            void continueFlow();
+          }}
         >
           <Text
             style={[
               styles.primaryButtonText,
-              !canContinue && styles.primaryButtonTextDisabled,
+              (!canContinue || analyzing) && styles.primaryButtonTextDisabled,
             ]}
           >
-            Next: Details
+            {analyzing ? 'Analyzing photo...' : 'Next: Details'}
           </Text>
         </Pressable>
       </View>

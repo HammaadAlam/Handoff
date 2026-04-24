@@ -1,9 +1,9 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 
 import {
-  LISTING_BRANDS,
   LISTING_CATEGORIES,
   LISTING_CONDITIONS,
+  getListingAttributesForCategory,
 } from '@/data/listingOptions';
 import { getSupabase, isSupabaseConfigured } from '@/services/supabase';
 
@@ -20,6 +20,10 @@ export type ListingVisionSuggestion = {
   category: string;
   condition: string;
   brand: string;
+  model: string;
+  storage: string;
+  color: string;
+  estimatedPrice: string;
 };
 
 function normalizeCategory(raw: string): string {
@@ -33,9 +37,26 @@ function normalizeCondition(raw: string): string {
 }
 
 function normalizeBrand(raw: string): string {
-  const t = raw.trim();
-  if (!t) return '';
-  return (LISTING_BRANDS as readonly string[]).includes(t) ? t : 'Other';
+  return raw.trim();
+}
+
+function normalizeDropdownValue(raw: string, options: readonly string[]): string {
+  const value = raw.trim();
+  if (value && options.includes(value)) return value;
+  if (options.includes('N/A')) return 'N/A';
+  if (options.includes('Other')) return 'Other';
+  return options[0] ?? '';
+}
+
+function normalizeEstimatedPrice(raw: unknown): string {
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    return String(Math.round(raw));
+  }
+  if (typeof raw !== 'string') return '';
+  const cleaned = raw.replace(/[^0-9.]/g, '').trim();
+  const amount = Number(cleaned);
+  if (!Number.isFinite(amount) || amount <= 0) return '';
+  return String(Math.round(amount));
 }
 
 async function imageToJpegBase64(imageUri: string): Promise<{ base64: string; mimeType: string }> {
@@ -72,6 +93,11 @@ export async function suggestListingFromImage(
     const { data, error } = await getSupabase().functions.invoke('suggest-listing-from-image', {
       body,
     });
+    console.log('suggest-listing-from-image response', {
+      ok: !error,
+      data,
+      error: error ? { message: error.message, name: error.name } : null,
+    });
 
     if (error) {
       console.warn('suggest-listing-from-image', error.message);
@@ -86,15 +112,41 @@ export async function suggestListingFromImage(
       return null;
     }
 
+    const category = normalizeCategory(typeof row.category === 'string' ? row.category : '');
+    const attributeMap = Object.fromEntries(
+      getListingAttributesForCategory(category).map((attr) => [attr.key, attr.options]),
+    ) as Partial<Record<'brand' | 'model' | 'storage' | 'color', readonly string[]>>;
+
     return {
       title: row.title.slice(0, 60),
       description: typeof row.description === 'string' ? row.description.slice(0, 300) : '',
-      category: normalizeCategory(typeof row.category === 'string' ? row.category : ''),
+      category,
       condition: normalizeCondition(typeof row.condition === 'string' ? row.condition : ''),
-      brand: normalizeBrand(typeof row.brand === 'string' ? row.brand : ''),
+      brand: normalizeDropdownValue(
+        normalizeBrand(typeof row.brand === 'string' ? row.brand : ''),
+        attributeMap.brand ?? ['Other'],
+      ),
+      model: normalizeDropdownValue(
+        typeof row.model === 'string' ? row.model : '',
+        attributeMap.model ?? ['Other'],
+      ),
+      storage: normalizeDropdownValue(
+        typeof row.storage === 'string' ? row.storage : '',
+        attributeMap.storage ?? ['N/A'],
+      ),
+      color: normalizeDropdownValue(
+        typeof row.color === 'string' ? row.color : '',
+        attributeMap.color ?? ['Other'],
+      ),
+      estimatedPrice: normalizeEstimatedPrice(row.estimatedPrice),
     };
   } catch (e) {
     console.warn('suggestListingFromImage', e);
+    console.log('suggest-listing-from-image exception payload', {
+      imageUri,
+      hints,
+      error: e,
+    });
     return null;
   }
 }

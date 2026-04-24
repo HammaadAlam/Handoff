@@ -160,6 +160,10 @@ function filterHomeListings(
   return filterListingsForHomeCategory(listings, category as HomeCategory);
 }
 
+function excludeEventListings(listings: ListingItem[]) {
+  return listings.filter((item) => item.category !== 'Events');
+}
+
 function searchQueryForCategory(category: HomeCategoryPill) {
   if (category === 'For You') return 'popular';
   if (category === 'Tech') return 'calculator';
@@ -237,19 +241,19 @@ export function HomeScreen() {
     ).slice(0, 3);
   }, [recommended]);
 
-  const hotListings = useMemo(
-    () => filterHomeListings(recommended, activeCategory).slice(0, 8),
-    [activeCategory, recommended],
-  );
+  const hotListings = useMemo(() => {
+    const filtered = filterHomeListings(recommended, activeCategory);
+    return excludeEventListings(filtered).slice(0, 8);
+  }, [activeCategory, recommended]);
 
   // "Saved by Others" — second rail of listings others are browsing (not Events-only;
   // most catalogs have few/no Events rows, which left this rail empty).
   const savedByOthersRail = useMemo(() => {
     const hotIds = new Set(hotListings.map((item) => item.id));
-    const filtered = filterHomeListings(recommended, activeCategory);
+    const filtered = excludeEventListings(filterHomeListings(recommended, activeCategory));
     let pool = filtered.filter((item) => !hotIds.has(item.id));
     if (pool.length < 4) {
-      pool = recommended.filter((item) => !hotIds.has(item.id));
+      pool = excludeEventListings(recommended).filter((item) => !hotIds.has(item.id));
     }
     if (pool.length === 0) {
       pool = filtered.slice(0, 8);

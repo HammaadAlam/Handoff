@@ -5,6 +5,7 @@
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 import { SEED_LISTINGS, SEED_PROFILES } from '../src/data/seedCatalog';
+import { resolveListingImage } from '../src/utils/listingImageResolver';
 
 function sqlStr(s: string): string {
   return `'${s.replace(/'/g, "''")}'`;
@@ -32,7 +33,14 @@ for (const p of SEED_PROFILES) {
 for (const l of SEED_LISTINGS) {
   const brandSql = l.brand == null ? 'NULL' : sqlStr(l.brand);
   const sizeSql = l.size == null ? 'NULL' : sqlStr(l.size);
-  out += `INSERT INTO public.listings (id, seller_id, title, price, image_url, status, description, category, condition, brand, size, location_label) VALUES (${sqlStr(l.id)}, ${sqlStr(l.sellerId)}, ${sqlStr(l.title)}, ${sqlStr(l.price)}, ${sqlStr(l.imageUrl)}, ${sqlStr(l.status)}, ${sqlStr(l.description)}, ${sqlStr(l.category)}, ${sqlStr(l.condition)}, ${brandSql}, ${sizeSql}, ${sqlStr(l.locationLabel)});\n`;
+  const resolvedImageUrl = resolveListingImage({
+    id: l.id,
+    title: l.title,
+    brand: l.brand,
+    category: l.category,
+    fallbackUrl: l.imageUrl,
+  });
+  out += `INSERT INTO public.listings (id, seller_id, title, price, image_url, status, description, category, condition, brand, size, location_label) VALUES (${sqlStr(l.id)}, ${sqlStr(l.sellerId)}, ${sqlStr(l.title)}, ${sqlStr(l.price)}, ${sqlStr(resolvedImageUrl)}, ${sqlStr(l.status)}, ${sqlStr(l.description)}, ${sqlStr(l.category)}, ${sqlStr(l.condition)}, ${brandSql}, ${sizeSql}, ${sqlStr(l.locationLabel)});\n`;
 }
 
 out += `
