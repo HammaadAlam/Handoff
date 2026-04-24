@@ -33,6 +33,7 @@ import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import type { CreateListingStackParamList } from '@/navigation/types';
 import { createListing } from '@/services/listings';
 import { fetchPublicProfile, type PublicProfile } from '@/services/profiles';
+import { resolveViewerProfileId } from '@/services/viewer';
 import { colors, fonts, radii, shadows, spacing, typography } from '@/styles/theme';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -49,7 +50,7 @@ export function ListingPreviewScreen() {
     useRoute<RouteProp<CreateListingStackParamList, 'ListingPreview'>>();
   const insets = useSafeAreaInsets();
   const { width: windowW } = useWindowDimensions();
-  const { user } = useAuth();
+  const { user, authBypass } = useAuth();
   const viewerProfileId = useViewerProfileId();
   const draft = mergeCreateListingDraft(params?.draft);
   const [slide, setSlide] = useState(0);
@@ -150,26 +151,47 @@ export function ListingPreviewScreen() {
 
   const handlePostListing = async () => {
     if (publishing) return;
-    if (!viewerProfileId) {
-      Alert.alert(
-        'Sign in required',
-        'You need to be signed in to publish a listing.',
-      );
+
+    if (!user) {
+      if (authBypass) {
+        Alert.alert(
+          'Account required',
+          'You are currently in "Skip login (testing)" mode. Please sign out, create an account, and sign in to post a listing.',
+        );
+      } else {
+        Alert.alert(
+          'Sign in required',
+          'You need to be signed in to publish a listing.',
+        );
+      }
       return;
     }
 
-    const parsedLowestOffer = (() => {
-      const raw = draft.lowestOffer?.trim();
-      if (!raw) return undefined;
-      const digits = raw.replace(/[^0-9.]/g, '');
-      const num = Number(digits);
-      return Number.isFinite(num) && num > 0 ? num : undefined;
-    })();
-
     setPublishing(true);
     try {
-      const created = await createListing({
-        sellerId: viewerProfileId,
+      let resolvedProfileId = viewerProfileId;
+      if (!resolvedProfileId) {
+        resolvedProfileId = await resolveViewerProfileId(user.id);
+      }
+
+      if (!resolvedProfileId) {
+        Alert.alert(
+          'Profile not ready',
+          'We could not load your profile. Try reopening the app and signing in again.',
+        );
+        return;
+      }
+
+      const parsedLowestOffer = (() => {
+        const raw = draft.lowestOffer?.trim();
+        if (!raw) return undefined;
+        const digits = raw.replace(/[^0-9.]/g, '');
+        const num = Number(digits);
+        return Number.isFinite(num) && num > 0 ? num : undefined;
+      })();
+
+      const result = await createListing({
+        sellerId: resolvedProfileId,
         title,
         price: priceDisplay,
         imageUrl: images[0] ?? '',
@@ -185,11 +207,8 @@ export function ListingPreviewScreen() {
         lowestOffer: parsedLowestOffer,
       });
 
-      if (!created) {
-        Alert.alert(
-          'Could not post listing',
-          'Something went wrong saving your listing. Please try again.',
-        );
+      if (!result.ok) {
+        Alert.alert('Could not post listing', result.reason);
         return;
       }
 

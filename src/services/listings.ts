@@ -157,16 +157,28 @@ export type NewListingInput = {
   lowestOffer?: number;
 };
 
+export type CreateListingResult =
+  | { ok: true; listing: ListingItem }
+  | { ok: false; reason: string };
+
 /**
  * Insert a new listing owned by the caller's profile. RLS requires
  * `seller_id` to match the authenticated user's `profiles.id`.
  */
 export async function createListing(
   input: NewListingInput,
-): Promise<ListingItem | null> {
-  if (!isSupabaseConfigured()) return null;
-  if (!input.sellerId || !input.title.trim() || !input.imageUrl.trim()) {
-    return null;
+): Promise<CreateListingResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, reason: 'Supabase is not configured.' };
+  }
+  if (!input.sellerId) {
+    return { ok: false, reason: 'Missing seller profile id.' };
+  }
+  if (!input.title.trim()) {
+    return { ok: false, reason: 'Listing title is required.' };
+  }
+  if (!input.imageUrl.trim()) {
+    return { ok: false, reason: 'At least one listing photo is required.' };
   }
 
   const normalizePrice = (raw: string) => {
@@ -203,10 +215,19 @@ export async function createListing(
       .select(LISTING_WITH_PROFILE_SELECT)
       .single();
 
-    if (error || !data) return null;
-    return mapListingRow(data as ListingRow);
-  } catch {
-    return null;
+    if (error) {
+      console.warn('createListing error', error);
+      return { ok: false, reason: error.message || 'Supabase rejected the listing insert.' };
+    }
+    if (!data) {
+      return { ok: false, reason: 'Listing was inserted but could not be read back.' };
+    }
+    return { ok: true, listing: mapListingRow(data as ListingRow) };
+  } catch (err) {
+    console.warn('createListing exception', err);
+    const message =
+      err instanceof Error ? err.message : 'Unknown error while posting listing.';
+    return { ok: false, reason: message };
   }
 }
 

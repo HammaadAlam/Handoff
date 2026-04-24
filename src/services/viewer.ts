@@ -44,6 +44,14 @@ async function createViewerProfileFromAuthUser(
     if (!error && data?.id) {
       return data.id as string;
     }
+
+    if (error) {
+      console.warn('createViewerProfileFromAuthUser insert failed', {
+        attempt: i + 1,
+        handle,
+        error,
+      });
+    }
   }
 
   return null;
