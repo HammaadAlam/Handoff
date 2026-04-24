@@ -21,7 +21,8 @@ const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+const FALLBACK_MODELS = ['gemini-1.5-flash'] as const;
 
 type Hints = { title?: string; description?: string };
 
@@ -123,54 +124,86 @@ Deno.serve(async (req) => {
 Analyze the product photo and suggest listing fields.
 
 Rules:
-- title: short, specific, max 55 characters, no price in title.
-- description: 1–3 sentences, max 280 characters, mention visible condition cues if any.
+- title: concise and sellable, max 45 characters, no price in title.
+- description: 1–2 short sentences written in a student seller voice (friendly, direct, "ready for pickup", "used for one semester", etc.), max 220 characters.
 - category must be exactly one of: Clothes, Electronics, Furniture, Books, Sports, Tickets & Events, Other.
 - condition must be exactly one of: New, Like New, Good, Fair, For Parts.
-- brand must be exactly one of: Nike, Adidas, Apple, Samsung, Generic / Unbranded, LSU / Campus, Other.
+- brand must match the category's brand/organizer list as best as possible.
+- model/type should be filled from the category type list; if uncertain return "Other" (or "N/A" if applicable).
+- storage should be filled when relevant; if unknown, return "N/A".
+- color should be filled when relevant; if unknown, return "Other".
+- estimatedPrice should be an integer USD estimate with no currency symbol.
 
-Respond with ONLY a JSON object (no markdown) with keys: title, description, category, condition, brand.`;
+Respond with ONLY a JSON object (no markdown) with keys:
+title, description, category, condition, brand, model, storage, color, estimatedPrice.`;
 
   const userText =
     hintLines.length > 0
       ? `${hintLines.join('\n')}\n\nBase suggestions on the photo; keep any model names/sizes from the drafts if they still fit what you see.`
       : 'Suggest fields from the photo only.';
 
-  const model =
-    Deno.env.get('GEMINI_MODEL')?.trim().replace(/^models\//, '') ||
-    DEFAULT_GEMINI_MODEL;
+  const envModel = Deno.env.get('GEMINI_MODEL')?.trim().replace(/^models\//, '');
+  const modelCandidates = [
+    envModel || DEFAULT_GEMINI_MODEL,
+    ...FALLBACK_MODELS.filter((m) => m !== (envModel || DEFAULT_GEMINI_MODEL)),
+  ];
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`;
+  let rawJson = '';
+  let lastStatus = 500;
+  let lastModel = modelCandidates[0];
 
-  const geminiRes = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: system }],
-      },
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: userText },
-            { inlineData: { mimeType: inline.mime, data: inline.data } },
-          ],
+  for (const model of modelCandidates) {
+    lastModel = model;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`;
+
+    const geminiRes = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: system }],
         },
-      ],
-      generationConfig: {
-        temperature: 0.35,
-        maxOutputTokens: 1024,
-        responseMimeType: 'application/json',
-      },
-    }),
-  });
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: userText },
+              { inlineData: { mimeType: inline.mime, data: inline.data } },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.35,
+          maxOutputTokens: 1024,
+          responseMimeType: 'application/json',
+        },
+      }),
+    });
 
-  const rawJson = await geminiRes.text();
-  if (!geminiRes.ok) {
-    console.error('Gemini error', geminiRes.status, rawJson);
+    rawJson = await geminiRes.text();
+    lastStatus = geminiRes.status;
+
+    if (geminiRes.ok) {
+      break;
+    }
+
+    const isModelNotFound = geminiRes.status === 404;
+    console.error('Gemini error', geminiRes.status, model, rawJson);
+    if (!isModelNotFound) {
+      return jsonResponse(
+        { error: 'Vision model request failed', model, detail: rawJson.slice(0, 300) },
+        502,
+      );
+    }
+  }
+
+  if (!rawJson || lastStatus >= 400) {
     return jsonResponse(
-      { error: 'Vision model request failed', detail: rawJson.slice(0, 300) },
+      {
+        error: 'Vision model request failed',
+        model: lastModel,
+        detail: rawJson.slice(0, 300),
+      },
       502,
     );
   }
@@ -213,6 +246,10 @@ Respond with ONLY a JSON object (no markdown) with keys: title, description, cat
   const category = typeof parsed.category === 'string' ? parsed.category.trim() : '';
   const condition = typeof parsed.condition === 'string' ? parsed.condition.trim() : '';
   const brand = typeof parsed.brand === 'string' ? parsed.brand.trim() : '';
+  const model = typeof parsed.model === 'string' ? parsed.model.trim() : '';
+  const storage = typeof parsed.storage === 'string' ? parsed.storage.trim() : '';
+  const color = typeof parsed.color === 'string' ? parsed.color.trim() : '';
+  const estimatedPrice = parsed.estimatedPrice;
 
   if (!title) {
     return jsonResponse({ error: 'Model response missing title' }, 502);
@@ -220,9 +257,13 @@ Respond with ONLY a JSON object (no markdown) with keys: title, description, cat
 
   return jsonResponse({
     title: title.slice(0, 60),
-    description: description.slice(0, 300),
+    description: description.slice(0, 220),
     category,
     condition,
     brand,
+    model,
+    storage,
+    color,
+    estimatedPrice,
   });
 });

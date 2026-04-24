@@ -33,6 +33,11 @@ function searchTabBarStyle(route: RouteProp<MainTabParamList, 'Search'>) {
   return focusedRouteName === 'SearchQuery' ? { display: 'none' as const } : tabBarStyle;
 }
 
+function createListingTabBarStyle(route: RouteProp<MainTabParamList, 'CreateListing'>) {
+  const focusedRouteName = getFocusedRouteNameFromRoute(route) ?? 'CreateEntry';
+  return focusedRouteName === 'CreateEntry' ? tabBarStyle : { display: 'none' as const };
+}
+
 const tabIcon = (
   outlinedName: keyof typeof Ionicons.glyphMap,
   filledName: keyof typeof Ionicons.glyphMap,
@@ -108,7 +113,7 @@ export function MainTabNavigator() {
       <Tab.Screen
         name="CreateListing"
         component={CreateListingStackNavigator}
-        options={{
+        options={({ route }) => ({
           title: 'List',
           // Keep global labels enabled; suppress only this tab's built-in label
           // and render a custom label under the FAB icon.
@@ -130,7 +135,8 @@ export function MainTabNavigator() {
               </View>
             </View>
           ),
-        }}
+          tabBarStyle: createListingTabBarStyle(route),
+        })}
       />
       <Tab.Screen
         name="Inbox"

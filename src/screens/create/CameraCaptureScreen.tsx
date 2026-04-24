@@ -114,6 +114,10 @@ export function CameraCaptureScreen() {
       category?: string;
       condition?: string;
       brand?: string;
+      model?: string;
+      storage?: string;
+      color?: string;
+      price?: string;
     } = { imageUri };
 
     if (mode === 'quick') {
@@ -126,6 +130,10 @@ export function CameraCaptureScreen() {
         draft.category = suggestion.category;
         draft.condition = suggestion.condition;
         draft.brand = suggestion.brand;
+        draft.model = suggestion.model;
+        draft.storage = suggestion.storage;
+        draft.color = suggestion.color;
+        draft.price = suggestion.estimatedPrice;
       }
     }
 
