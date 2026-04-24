@@ -21,15 +21,9 @@ import {
 import type { SearchStackParamList } from '@/navigation/types';
 import { fetchRecommendedListings } from '@/services/listings';
 import { colors, fonts, spacing } from '@/styles/theme';
+import { listingMatchesSearchQuery } from './searchQueryMatcher';
 
 const SUGGESTION_LIMIT = 6;
-
-function haystackForListing(item: ListingItem) {
-  return [item.title, item.brand, item.category, item.description, item.sellerHandle]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-}
 
 export function SearchQueryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
@@ -45,9 +39,8 @@ export function SearchQueryScreen() {
       return [];
     }
 
-    const normalizedQuery = trimmedQuery.toLowerCase();
     return listings
-      .filter((item) => haystackForListing(item).includes(normalizedQuery))
+      .filter((item) => listingMatchesSearchQuery(item, trimmedQuery))
       .slice(0, SUGGESTION_LIMIT);
   }, [trimmedQuery, listings]);
 

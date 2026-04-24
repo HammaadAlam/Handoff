@@ -20,31 +20,6 @@ const HANDOFF_CATEGORIES = ['For You', 'Clothes', 'Furniture', 'Events'];
 const HANDOFF_CONDITIONS = ['New', 'Like New', 'Good', 'Fair'];
 const LOCATIONS = ['LSU Campus', 'Dorms', 'Library', 'Student Center'];
 
-const TITLE_PREFIXES = [
-  'Used',
-  'Like New',
-  'Great Condition',
-  'Dorm Sale',
-  'Moving Out',
-  'Must Sell',
-  'Barely Used',
-  'Clean',
-  'Cheap',
-];
-
-const TITLE_SUFFIXES = [
-  '- great condition',
-  '- like new',
-  '- moving out',
-  '- dorm sale',
-  '- must sell',
-  '- barely used',
-  '- clean',
-  '- cash only',
-  '',
-  '',
-];
-
 const DESCRIPTIONS = [
   'Campus pickup available. Good condition. Message for details.',
   'Clean and ready to use. Cash or Venmo. Meet near campus.',
@@ -60,13 +35,36 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+const TECH_HINTS =
+  /laptop|macbook|notebook|matebook|thinkpad|chromebook|iphone|phone|android|tablet|ipad|monitor|keyboard|mouse|headphone|earbud|airpod|speaker|camera|webcam|ring light|charger|usb|ssd|hard drive|console|xbox|playstation|nintendo|gpu|graphics card|router|printer|calculator/;
+
 function classifyCategory(baseProduct) {
   const cat = (baseProduct.category || '').toLowerCase();
   const title = (baseProduct.title || '').toLowerCase();
+  // Hard override: obvious tech titles should never land in Clothes/Furniture.
+  if (TECH_HINTS.test(title) || /laptops|smartphones|tablets|mobile-accessories|electronics/.test(cat)) {
+    return 'For You';
+  }
+  if (
+    /mens-shirts|mens-shoes|mens-watches|womens-dresses|womens-shoes|womens-watches|womens-bags|tops|clothing|apparel/.test(
+      cat,
+    )
+  ) {
+    return 'Clothes';
+  }
+  if (/furniture|home-decoration|lighting|kitchen|bath|home/.test(cat)) {
+    return 'Furniture';
+  }
+  if (/tickets|events|concert|festival|passes/.test(cat)) {
+    return 'Events';
+  }
   if (
     /clothing|apparel|shirt|tops|dress|shoe|jeans|jacket|hoodie|sock|sweater|tee/.test(cat) ||
     /shirt|jacket|hoodie|jeans|coat|shoe|sneaker|dress|sweater|tee/.test(title)
   ) {
+    if (TECH_HINTS.test(title) || /laptops|smartphones|mobile-accessories/.test(cat)) {
+      return 'For You';
+    }
     return 'Clothes';
   }
   if (
@@ -77,6 +75,9 @@ function classifyCategory(baseProduct) {
   }
   if (/ticket|concert|show|event|festival|pass|game/.test(title)) {
     return 'Events';
+  }
+  if (TECH_HINTS.test(title) || /laptops|smartphones|tablets|mobile-accessories|electronics/.test(cat)) {
+    return 'For You';
   }
   // Electronics, beauty, accessories, groceries, etc. → "For You"
   return 'For You';
@@ -103,17 +104,28 @@ function pickBrandFromTitle(title) {
 
 function buildTitle(baseTitle) {
   const cleaned = (baseTitle || '').replace(/\s+/g, ' ').trim();
-  const usePrefix = Math.random() < 0.6;
-  const prefix = usePrefix ? `${pickRandom(TITLE_PREFIXES)} ` : '';
-  const suffix = pickRandom(TITLE_SUFFIXES);
-  const base = `${prefix}${cleaned}`.trim();
-
-  // Aim for ~40 chars including suffix; leave room for suffix.
-  const maxBase = suffix ? 40 - (suffix.length + 1) : 40;
-  const truncatedBase = base.length > maxBase ? `${base.slice(0, maxBase - 1).trim()}…` : base;
-  const composed = suffix ? `${truncatedBase} ${suffix}`.trim() : truncatedBase;
-
-  return composed.slice(0, 60); // hard cap to be safe
+  // Keep neutral item names: strip common marketplace salesy phrasing.
+  const neutral = cleaned
+    .replace(
+      /\b(used|like new|great condition|dorm sale|moving out|must sell|barely used|clean|cheap|cash only)\b/gi,
+      '',
+    )
+    .replace(/\b(vibrant|classic|premium|luxury|elegant|stylish|trendy|modern)\b/gi, '')
+    .replace(/[-–—,:;]{2,}/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[\s\-–—,:;]+|[\s\-–—,:;]+$/g, '');
+  const raw = neutral || cleaned;
+  const finalTitle = raw
+    .toLowerCase()
+    .replace(/\b([a-z])/g, (m) => m.toUpperCase())
+    // Keep common tech/product acronyms uppercase.
+    .replace(/\bUsb\b/g, 'USB')
+    .replace(/\bHd\b/g, 'HD')
+    .replace(/\bSsd\b/g, 'SSD')
+    .replace(/\bIphone\b/g, 'iPhone')
+    .replace(/\bIpad\b/g, 'iPad')
+    .replace(/\bMacbook\b/g, 'MacBook');
+  return finalTitle.length > 60 ? `${finalTitle.slice(0, 59).trim()}…` : finalTitle;
 }
 
 const MIN_PRICE = 5;

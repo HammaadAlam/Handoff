@@ -32,6 +32,8 @@ import { useAuth } from '@/context/AuthContext';
 import {
   createPendingOffer,
   ensureConversationForListing,
+  seedLocalOfferAmount,
+  upsertLocalInboxConversation,
 } from '@/services/conversations';
 import { resolveProfileId } from '@/services/profiles';
 import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
@@ -133,7 +135,7 @@ export function ItemDetailScreen() {
         (await resolveProfileId({
           userId: sellerProfileId,
           handle: seller,
-        })) ?? sellerProfileId;
+        }).catch(() => null)) ?? sellerProfileId;
       let conversationId: string | undefined;
       if (sellerId) {
         conversationId =
@@ -150,7 +152,33 @@ export function ItemDetailScreen() {
           });
         }
       }
-      if (!conversationId) return;
+      // Never block navigation on backend conversation creation.
+      // Local threads still allow composing and keep UX responsive.
+      if (!conversationId) {
+        const sellerToken = sellerId ?? seller.trim().toLowerCase().replace(/\s+/g, '-');
+        conversationId = `local:${listingId}:${sellerToken}`;
+      }
+      if (entry === 'offer' && offerAmount) {
+        await seedLocalOfferAmount({ conversationId, amount: offerAmount });
+      }
+
+      await upsertLocalInboxConversation({
+        sessionUserId: user?.id ?? null,
+        conversationId,
+        listingId,
+        title,
+        price,
+        imageUrl,
+        seller,
+        peerUserId: sellerId ?? undefined,
+        peerAvatarUrl: sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+        preview:
+          entry === 'offer'
+            ? offerAmount
+              ? `Offer sent: ${offerAmount}`
+              : 'Offer sent'
+            : 'Conversation started',
+      });
 
       navigation.navigate('Conversation', {
         listingId,

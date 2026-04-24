@@ -48,23 +48,42 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
     [cacheKey],
   );
 
+  const readCachedFavorites = useCallback(async (): Promise<ListingItem[] | null> => {
+    try {
+      const raw = await AsyncStorage.getItem(cacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return null;
+      return parsed as ListingItem[];
+    } catch {
+      return null;
+    }
+  }, [cacheKey]);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      const cached = await readCachedFavorites();
+      if (!cancelled && cached) {
+        setFavorites(cached);
+      }
+
       if (!isSupabaseConfigured()) {
-        if (!cancelled) setFavorites([]);
+        if (!cached && !cancelled) setFavorites([]);
         return;
       }
       const rows = await fetchFavoriteListings({ sessionUserId });
       if (!cancelled) {
-        setFavorites(rows);
-        void persistFavorites(rows);
+        // Keep cached favorites when remote fetch is temporarily empty/failing.
+        const next = rows.length > 0 || !cached ? rows : cached;
+        setFavorites(next);
+        void persistFavorites(next);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [cacheKey, persistFavorites, sessionUserId]);
+  }, [persistFavorites, readCachedFavorites, sessionUserId]);
 
   const favIds = useMemo(
     () => new Set(favorites.map((f) => f.id)),
@@ -73,7 +92,6 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
 
   const toggleFavorite = useCallback(
     (item: ListingItem) => {
-      if (!isSupabaseConfigured()) return;
       const wasFavorite = favIds.has(item.id);
       const next = wasFavorite
         ? favorites.filter((p) => p.id !== item.id)
@@ -82,16 +100,13 @@ export function MarketplaceProvider({ children }: { children: ReactNode }) {
       void persistFavorites(next);
 
       void (async () => {
+        if (!isSupabaseConfigured()) return;
         const ok = wasFavorite
           ? await removeFavorite({ sessionUserId, listingId: item.id })
           : await addFavorite({ sessionUserId, listingId: item.id });
-        if (!ok) {
-          const reverted = wasFavorite
-            ? [item, ...next.filter((p) => p.id !== item.id)]
-            : next.filter((p) => p.id !== item.id);
-          setFavorites(reverted);
-          void persistFavorites(reverted);
-        }
+        // Keep local UI state as source of truth for responsiveness.
+        // If remote write fails, we keep local favorite and retry on future toggles.
+        if (!ok) return;
       })();
     },
     [favIds, favorites, persistFavorites, sessionUserId],

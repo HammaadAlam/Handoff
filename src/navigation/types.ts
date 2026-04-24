@@ -27,7 +27,12 @@ export type SearchStackParamList = {
 
 export type HomeStackParamList = {
   HomeLanding: undefined;
-  CategoryResults: { query: string; filters?: SearchFilters };
+  CategoryResults: {
+    query: string;
+    filters?: SearchFilters;
+    homeCategory?: 'For You' | 'Clothes' | 'Furniture' | 'Tech' | 'Events';
+    homeSection?: 'hot' | 'saved' | 'recent' | 'more';
+  };
   Filters: { query: string; filters?: SearchFilters } | undefined;
 };
 

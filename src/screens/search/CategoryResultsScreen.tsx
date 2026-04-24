@@ -22,6 +22,7 @@ import type { ListingItem } from '@/data/mockData';
 import type { SearchFilters, SearchStackParamList } from '@/navigation/types';
 import { fetchRecommendedListings } from '@/services/listings';
 import { fonts, colors, spacing, typography } from '@/styles/theme';
+import { listingMatchesSearchQuery } from './searchQueryMatcher';
 
 const DEFAULT_FILTERS: SearchFilters = {
   sort: 'best',
@@ -30,6 +31,7 @@ const DEFAULT_FILTERS: SearchFilters = {
   sellerType: 'Any',
   mileage: 'Any',
 };
+
 
 function listingPriceValue(item: ListingItem): number {
   const n = Number(item.price.replace(/[^0-9.]/g, ''));
@@ -88,20 +90,8 @@ export function CategoryResultsScreen() {
 
   const data = useMemo(
     () => {
-      const normalizedQuery = query.trim().toLowerCase();
       const source = listings.filter((item) => {
-        if (!normalizedQuery) return true;
-        const haystack = [
-          item.title,
-          item.brand,
-          item.category,
-          item.description,
-          item.sellerHandle,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        return haystack.includes(normalizedQuery);
+        return listingMatchesSearchQuery(item, query);
       });
       const filtered = source
         .filter((item) => listingPriceValue(item) <= filters.priceMax)

@@ -276,6 +276,17 @@ export function HomeScreen() {
     return source.slice(0, Math.max(6, visibleCount));
   }, [activeCategory, hotListings, recentlyListed, recommended, visibleCount]);
 
+  const openSeeAll = useCallback(
+    (homeSection: 'hot' | 'saved' | 'recent' | 'more') => {
+      navigation.navigate('CategoryResults', {
+        query: searchQueryForCategory(activeCategory),
+        homeCategory: activeCategory,
+        homeSection,
+      });
+    },
+    [activeCategory, navigation],
+  );
+
   useEffect(() => {
     setVisibleCount(24);
   }, [activeCategory, campus]);
@@ -464,11 +475,7 @@ export function HomeScreen() {
             <Text style={styles.sectionTitle}>🔥 Hot on Campus</Text>
             <Pressable
               hitSlop={8}
-              onPress={() =>
-                navigation.navigate('CategoryResults', {
-                  query: searchQueryForCategory(activeCategory),
-                })
-              }
+              onPress={() => openSeeAll('hot')}
             >
               <Text style={styles.seeAllText}>See all</Text>
             </Pressable>
@@ -500,11 +507,7 @@ export function HomeScreen() {
             <Text style={styles.sectionTitle}>💾 Saved by Others</Text>
             <Pressable
               hitSlop={8}
-              onPress={() =>
-                navigation.navigate('CategoryResults', {
-                  query: searchQueryForCategory(activeCategory),
-                })
-              }
+              onPress={() => openSeeAll('saved')}
             >
               <Text style={styles.seeAllText}>See all</Text>
             </Pressable>
@@ -547,11 +550,7 @@ export function HomeScreen() {
             <Text style={styles.sectionTitle}>🆕 Recently Listed</Text>
             <Pressable
               hitSlop={8}
-              onPress={() =>
-                navigation.navigate('CategoryResults', {
-                  query: searchQueryForCategory(activeCategory),
-                })
-              }
+              onPress={() => openSeeAll('recent')}
             >
               <Text style={styles.seeAllText}>See all</Text>
             </Pressable>
@@ -591,11 +590,7 @@ export function HomeScreen() {
             <Text style={styles.sectionTitle}>🎒 More Campus Finds</Text>
             <Pressable
               hitSlop={8}
-              onPress={() =>
-                navigation.navigate('CategoryResults', {
-                  query: searchQueryForCategory(activeCategory),
-                })
-              }
+              onPress={() => openSeeAll('more')}
             >
               <Text style={styles.seeAllText}>See all</Text>
             </Pressable>

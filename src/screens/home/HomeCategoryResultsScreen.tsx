@@ -27,6 +27,42 @@ const DEFAULT_FILTERS: SearchFilters = {
   mileage: 'Any',
 };
 
+const HOME_TECH_KEYWORDS = [
+  'airpod',
+  'apple',
+  'camera',
+  'calculator',
+  'clicker',
+  'headphone',
+  'ipad',
+  'iphone',
+  'laptop',
+  'macbook',
+  'printer',
+  'ring light',
+  'speaker',
+  'tech',
+  'usb',
+  'watch',
+] as const;
+
+function isTechListing(item: ListingItem) {
+  const haystack = [item.title, item.brand, item.description]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return HOME_TECH_KEYWORDS.some((keyword) => haystack.includes(keyword));
+}
+
+function filterHomeListings(
+  listings: ListingItem[],
+  category: 'For You' | 'Clothes' | 'Furniture' | 'Tech' | 'Events',
+) {
+  if (category === 'For You') return listings;
+  if (category === 'Tech') return listings.filter(isTechListing);
+  return listings.filter((item) => item.category === category);
+}
+
 function listingPriceValue(item: ListingItem): number {
   const n = Number(item.price.replace(/[^0-9.]/g, ''));
   return Number.isFinite(n) ? n : 0;
@@ -62,7 +98,12 @@ export function HomeCategoryResultsScreen() {
   const gridInnerWidth = width - gridInset * 2;
   const gridColWidth = (gridInnerWidth - gridGutter) / 2;
   const { params } = useRoute<RouteProp<HomeStackParamList, 'CategoryResults'>>();
-  const { query, filters = DEFAULT_FILTERS } = params;
+  const {
+    query,
+    filters = DEFAULT_FILTERS,
+    homeCategory,
+    homeSection,
+  } = params;
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -82,15 +123,49 @@ export function HomeCategoryResultsScreen() {
   }, []);
 
   const data = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const source = listings.filter((item) => {
-      if (!normalizedQuery) return true;
-      const haystack = [item.title, item.brand, item.category, item.description, item.sellerHandle]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(normalizedQuery);
-    });
+    let source: ListingItem[];
+    if (homeCategory && homeSection) {
+      const filtered = filterHomeListings(listings, homeCategory);
+      const hotListings = filtered.slice(0, 8);
+
+      if (homeSection === 'hot') {
+        source = filtered;
+      } else if (homeSection === 'saved') {
+        const hotIds = new Set(hotListings.map((item) => item.id));
+        let pool = filtered.filter((item) => !hotIds.has(item.id));
+        if (pool.length < 4) {
+          pool = listings.filter((item) => !hotIds.has(item.id));
+        }
+        if (pool.length === 0) {
+          pool = filtered.slice(0, 8);
+        }
+        source = pool;
+      } else if (homeSection === 'recent') {
+        const hotIds = new Set(hotListings.map((item) => item.id));
+        const freshPool = filtered.filter((item) => !hotIds.has(item.id));
+        source = freshPool.length >= 8 ? freshPool : filtered;
+      } else {
+        const hotIds = new Set(hotListings.map((item) => item.id));
+        const freshPool = filtered.filter((item) => !hotIds.has(item.id));
+        const recently = (freshPool.length >= 8 ? freshPool : filtered).slice(0, 8);
+        const usedIds = new Set([
+          ...hotListings.map((item) => item.id),
+          ...recently.map((item) => item.id),
+        ]);
+        const remaining = filtered.filter((item) => !usedIds.has(item.id));
+        source = remaining.length >= 4 ? remaining : [...filtered].reverse();
+      }
+    } else {
+      const normalizedQuery = query.trim().toLowerCase();
+      source = listings.filter((item) => {
+        if (!normalizedQuery) return true;
+        const haystack = [item.title, item.brand, item.category, item.description, item.sellerHandle]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(normalizedQuery);
+      });
+    }
     const filtered = source
       .filter((item) => listingPriceValue(item) <= filters.priceMax)
       .filter((item) =>

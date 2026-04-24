@@ -26,10 +26,12 @@ import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
 import type { RootStackParamList } from '@/navigation/types';
 import {
+  appendLocalThreadMessage,
   fetchConversationPeer,
   fetchLatestOfferAmount,
   fetchMessages,
   sendMessage,
+  upsertLocalInboxConversation,
   type ThreadMessage,
 } from '@/services/conversations';
 import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
@@ -163,6 +165,28 @@ export function ConversationScreen() {
         createdAt: Date.now(),
       };
       setMessages((prev) => [...prev, optimistic]);
+      await appendLocalThreadMessage({
+        conversationId: conversationId ?? `local:${params.listingId}:draft`,
+        sessionUserId,
+        message: {
+          id: optimistic.id,
+          body: optimistic.text,
+          createdAt: new Date(optimistic.createdAt).toISOString(),
+          sender: optimistic.sender,
+        },
+      });
+      await upsertLocalInboxConversation({
+        sessionUserId,
+        conversationId: conversationId ?? `local:${params.listingId}:draft`,
+        listingId: params.listingId,
+        title,
+        price,
+        imageUrl,
+        seller: peerName,
+        peerUserId: peerId ?? undefined,
+        peerAvatarUrl: peerAvatar,
+        preview: text,
+      });
       requestAnimationFrame(() => {
         scrollRef.current?.scrollToEnd({ animated: true });
       });

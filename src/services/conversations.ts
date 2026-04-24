@@ -59,8 +59,87 @@ type MeetupLite = {
 
 const localOfferAmountByConversationId = new Map<string, string>();
 const OFFER_CACHE_KEY = '@handoff/local_offer_amounts_v1';
+const INBOX_CACHE_KEY_PREFIX = '@handoff/inbox_rows_v1';
+const THREAD_CACHE_KEY_PREFIX = '@handoff/thread_messages_v1';
 let offersHydrated = false;
 let offersHydrating: Promise<void> | null = null;
+
+function inboxCacheKey(viewerId: string | null) {
+  return `${INBOX_CACHE_KEY_PREFIX}:${viewerId ?? 'guest'}`;
+}
+
+function threadCacheKey(viewerId: string | null, conversationId: string) {
+  return `${THREAD_CACHE_KEY_PREFIX}:${viewerId ?? 'guest'}:${conversationId}`;
+}
+
+async function readCachedInboxRows(
+  viewerId: string | null,
+): Promise<ConversationRow[] | null> {
+  try {
+    const raw = await AsyncStorage.getItem(inboxCacheKey(viewerId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed as ConversationRow[];
+  } catch {
+    return null;
+  }
+}
+
+async function persistInboxRows(
+  viewerId: string | null,
+  rows: ConversationRow[],
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(inboxCacheKey(viewerId), JSON.stringify(rows));
+  } catch {
+    // Non-blocking cache persistence.
+  }
+}
+
+async function readCachedThreadMessages(args: {
+  sessionUserId: string | null;
+  conversationId: string;
+}): Promise<ThreadMessage[] | null> {
+  try {
+    const raw = await AsyncStorage.getItem(
+      threadCacheKey(args.sessionUserId, args.conversationId),
+    );
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed as ThreadMessage[];
+  } catch {
+    return null;
+  }
+}
+
+async function persistThreadMessages(args: {
+  sessionUserId: string | null;
+  conversationId: string;
+  messages: ThreadMessage[];
+}): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      threadCacheKey(args.sessionUserId, args.conversationId),
+      JSON.stringify(args.messages),
+    );
+  } catch {
+    // Non-blocking cache persistence.
+  }
+}
+
+function mergeInboxRows(
+  remoteRows: ConversationRow[],
+  cachedRows: ConversationRow[],
+): ConversationRow[] {
+  const byId = new Map<string, ConversationRow>();
+  // Seed with cached so local-only conversations remain visible.
+  for (const row of cachedRows) byId.set(row.id, row);
+  // Remote rows overwrite matching ids with fresher server data.
+  for (const row of remoteRows) byId.set(row.id, row);
+  return Array.from(byId.values());
+}
 
 async function hydrateOfferCache(): Promise<void> {
   if (offersHydrated) return;
@@ -141,11 +220,12 @@ function deriveStatus(
 export async function fetchInboxRows(args: {
   sessionUserId: string | null;
 }): Promise<ConversationRow[]> {
-  if (!isSupabaseConfigured()) return [];
+  const cached = await readCachedInboxRows(args.sessionUserId);
+  if (!isSupabaseConfigured()) return cached ?? [];
 
   const supabase = getSupabase();
   const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
-  if (!viewerId) return [];
+  if (!viewerId) return cached ?? [];
 
   const { data: convs, error } = await supabase
     .from('conversations')
@@ -156,9 +236,9 @@ export async function fetchInboxRows(args: {
     .or(`buyer_id.eq.${viewerId},seller_id.eq.${viewerId}`)
     .order('last_message_at', { ascending: false, nullsFirst: false });
 
-  if (error) return [];
+  if (error) return cached ?? [];
   const rows = (convs ?? []) as ConversationLite[];
-  if (rows.length === 0) return [];
+  if (rows.length === 0) return cached ?? [];
 
   const convIds = rows.map((r) => r.id);
   const partnerIds = Array.from(
@@ -239,7 +319,43 @@ export async function fetchInboxRows(args: {
     };
   });
 
-  return remoteRows;
+  const merged = mergeInboxRows(remoteRows, cached ?? []);
+  await persistInboxRows(args.sessionUserId, merged);
+  return merged;
+}
+
+export async function upsertLocalInboxConversation(args: {
+  sessionUserId: string | null;
+  conversationId: string;
+  listingId: string;
+  title: string;
+  price: string;
+  imageUrl: string;
+  seller: string;
+  peerUserId?: string;
+  peerAvatarUrl?: string;
+  preview?: string;
+}): Promise<void> {
+  const existing = (await readCachedInboxRows(args.sessionUserId)) ?? [];
+  const nextRow: ConversationRow = {
+    id: args.conversationId,
+    userItem: `${args.seller} - ${args.title}`,
+    preview: args.preview ?? 'Conversation started',
+    time: 'just now',
+    status: 'Pending',
+    role: 'buying',
+    archived: false,
+    listingId: args.listingId,
+    title: args.title,
+    price: args.price,
+    imageUrl: args.imageUrl,
+    seller: args.seller,
+    peerUserId: args.peerUserId,
+    peerAvatarUrl: args.peerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+  };
+
+  const withoutSame = existing.filter((row) => row.id !== nextRow.id);
+  await persistInboxRows(args.sessionUserId, [nextRow, ...withoutSame]);
 }
 
 /** Messages for a thread, oldest → newest. */
@@ -254,24 +370,35 @@ export async function fetchMessages(args: {
   conversationId: string;
   sessionUserId: string | null;
 }): Promise<ThreadMessage[]> {
-  if (!isSupabaseConfigured()) return [];
+  const cached = await readCachedThreadMessages(args);
+  if (!isSupabaseConfigured()) return cached ?? [];
+  if (!args.conversationId || args.conversationId.startsWith('local:')) {
+    return cached ?? [];
+  }
   const supabase = getSupabase();
   const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
-  if (!viewerId) return [];
+  if (!viewerId) return cached ?? [];
 
   const { data, error } = await supabase
     .from('messages')
     .select('id, sender_id, body, created_at')
     .eq('conversation_id', args.conversationId)
     .order('created_at', { ascending: true });
-  if (error) return [];
+  if (error) return cached ?? [];
 
-  return (data ?? []).map((m) => ({
+  const remote: ThreadMessage[] = (data ?? []).map((m) => ({
     id: m.id as string,
     body: m.body as string,
     createdAt: m.created_at as string,
     sender: (m.sender_id as string) === viewerId ? 'me' : 'them',
   }));
+  const next = remote.length > 0 || !cached ? remote : cached;
+  await persistThreadMessages({
+    sessionUserId: args.sessionUserId,
+    conversationId: args.conversationId,
+    messages: next,
+  });
+  return next;
 }
 
 export async function sendMessage(args: {
@@ -306,6 +433,23 @@ export async function sendMessage(args: {
     createdAt: data.created_at as string,
     sender: (data.sender_id as string) === viewerId ? 'me' : 'them',
   };
+}
+
+export async function appendLocalThreadMessage(args: {
+  conversationId: string;
+  sessionUserId: string | null;
+  message: ThreadMessage;
+}): Promise<void> {
+  const existing = (await readCachedThreadMessages({
+    sessionUserId: args.sessionUserId,
+    conversationId: args.conversationId,
+  })) ?? [];
+  const next = [...existing.filter((m) => m.id !== args.message.id), args.message];
+  await persistThreadMessages({
+    sessionUserId: args.sessionUserId,
+    conversationId: args.conversationId,
+    messages: next,
+  });
 }
 
 /** Peer profile info needed to render a thread header from Inbox or deep links. */
@@ -455,4 +599,13 @@ export async function fetchLatestOfferAmount(args: {
   const amount = formatCentsToDollar(cents);
   await setLocalOfferAmount(args.conversationId, amount);
   return amount;
+}
+
+export async function seedLocalOfferAmount(args: {
+  conversationId: string;
+  amount: string;
+}): Promise<void> {
+  const cents = parseAmountToCents(args.amount);
+  if (!cents) return;
+  await setLocalOfferAmount(args.conversationId, formatCentsToDollar(cents));
 }

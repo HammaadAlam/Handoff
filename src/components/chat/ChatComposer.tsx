@@ -2,10 +2,9 @@
  * Auto-growing chat composer — single gray pill with camera, input, attach, send.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
-  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
@@ -39,6 +38,7 @@ export function ChatComposer({
   onPlus,
   disabled,
 }: Props) {
+  const inputRef = useRef<TextInput>(null);
   const [value, setValue] = useState(initialValue);
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
   const [sending, setSending] = useState(false);
@@ -54,7 +54,6 @@ export function ChatComposer({
       await onSend(toSend);
       setValue('');
       setInputHeight(MIN_INPUT_HEIGHT);
-      Keyboard.dismiss();
     } finally {
       setSending(false);
     }
@@ -87,7 +86,11 @@ export function ChatComposer({
 
   return (
     <View style={styles.composer}>
-      <View style={styles.pill}>
+      <Pressable
+        style={styles.pill}
+        onPress={() => inputRef.current?.focus()}
+        accessibilityRole="none"
+      >
         <Pressable
           onPress={handleCamera}
           accessibilityLabel="Camera"
@@ -98,6 +101,7 @@ export function ChatComposer({
         </Pressable>
 
         <TextInput
+          ref={inputRef}
           style={[
             styles.input,
             { height: Math.min(inputHeight, MAX_INPUT_HEIGHT) },
@@ -106,11 +110,12 @@ export function ChatComposer({
           placeholderTextColor={colors.textMuted}
           value={value}
           onChangeText={setValue}
-          editable={!disabled && !sending}
+          editable={!disabled}
           multiline
           scrollEnabled
           onContentSizeChange={handleContentSize}
           textAlignVertical="center"
+          showSoftInputOnFocus
           returnKeyType="default"
           blurOnSubmit={false}
         />
@@ -141,7 +146,7 @@ export function ChatComposer({
             color={canSend ? iconActive : iconMuted}
           />
         </Pressable>
-      </View>
+      </Pressable>
     </View>
   );
 }
