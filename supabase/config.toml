@@ -1,0 +1,7 @@
+# Supabase CLI — https://supabase.com/docs/guides/cli/config
+# Deploy this function: `supabase functions deploy suggest-listing-from-image`
+# Set secret: `npx supabase secrets set GEMINI_API_KEY=...` (Google AI Studio key)
+
+[functions.suggest-listing-from-image]
+# Set to true in production so only signed-in users can spend model tokens.
+verify_jwt = false

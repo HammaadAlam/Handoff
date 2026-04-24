@@ -1,6 +1,6 @@
 /**
  * Home landing — premium marketplace layout with featured hero, category pills,
- * hot listings rail, and nearby ticket rail.
+ * hot listings rail, and a second "Saved by Others" rail.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -241,19 +241,20 @@ export function HomeScreen() {
     [activeCategory, recommended],
   );
 
-  const nearbyTickets = useMemo(
-    () => {
-      const eventListings = recommended
-        .filter((item) => item.category === 'Events')
-        .map(listingToTicketCard);
-      if (activeCategory === 'Events') {
-        return eventListings;
-      }
-
-      return eventListings.slice(0, 8);
-    },
-    [activeCategory, recommended],
-  );
+  // "Saved by Others" — second rail of listings others are browsing (not Events-only;
+  // most catalogs have few/no Events rows, which left this rail empty).
+  const savedByOthersRail = useMemo(() => {
+    const hotIds = new Set(hotListings.map((item) => item.id));
+    const filtered = filterHomeListings(recommended, activeCategory);
+    let pool = filtered.filter((item) => !hotIds.has(item.id));
+    if (pool.length < 4) {
+      pool = recommended.filter((item) => !hotIds.has(item.id));
+    }
+    if (pool.length === 0) {
+      pool = filtered.slice(0, 8);
+    }
+    return pool.slice(0, 8).map(listingToTicketCard);
+  }, [activeCategory, recommended, hotListings]);
 
   const recentlyListed = useMemo(() => {
     const filtered = filterHomeListings(recommended, activeCategory);
@@ -498,7 +499,14 @@ export function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>💾 Saved by Others</Text>
-            <Pressable hitSlop={8} onPress={() => setActiveCategory('Events')}>
+            <Pressable
+              hitSlop={8}
+              onPress={() =>
+                navigation.navigate('CategoryResults', {
+                  query: searchQueryForCategory(activeCategory),
+                })
+              }
+            >
               <Text style={styles.seeAllText}>See all</Text>
             </Pressable>
           </View>
@@ -512,7 +520,7 @@ export function HomeScreen() {
             snapToAlignment="start"
             style={styles.fullBleedScroll}
           >
-            {nearbyTickets.map((ticket) => (
+            {savedByOthersRail.map((ticket) => (
               <View key={ticket.id} style={styles.ticketWrap}>
                 <TicketCard
                   onPress={() => openTicket(navigation, ticket)}
