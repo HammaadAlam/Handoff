@@ -68,7 +68,7 @@ const BROWSE_CATEGORIES = [
     id: 'clothes',
     icon: 'shirt-outline' as const,
     imageUrl:
-      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=900&q=80',
+      'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=900&q=80',
     query: 'Clothes',
     subtitle: 'Shirts, shoes, hoodies & more',
     title: 'Clothes',
@@ -86,7 +86,7 @@ const BROWSE_CATEGORIES = [
     id: 'dorm',
     icon: 'cube-outline' as const,
     imageUrl:
-      'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=900&q=80',
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&q=80',
     query: 'dorm essentials',
     subtitle: 'Everything for your dorm room',
     title: 'Dorm Essentials',

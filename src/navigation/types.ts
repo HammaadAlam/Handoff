@@ -7,6 +7,7 @@ import type {
 } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp, NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { CreateEventDraft } from '@/data/createEventDraft';
 import type { CreateListingDraft } from '@/data/createListingDraft';
 
 /** Search tab is its own stack (landing, query, results, filters). */
@@ -126,6 +127,9 @@ export type RootStackParamList = {
   SignUp: undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
   EventsCalendar: undefined;
+  EventCreateDetails: { draft?: Partial<CreateEventDraft> } | undefined;
+  EventCreatePreview: { draft?: Partial<CreateEventDraft> } | undefined;
+  EventCreateSuccess: { eventId?: string } | undefined;
   ItemDetail: ItemDetailParams;
   Conversation: ConversationParams;
   MeetupDetails: MeetupDetailsParams;

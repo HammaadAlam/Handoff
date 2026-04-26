@@ -13,6 +13,9 @@ import { ConversationScreen } from '@/screens/transaction/ConversationScreen';
 import { ItemDetailScreen } from '@/screens/transaction/ItemDetailScreen';
 import { MeetupDetailsScreen } from '@/screens/transaction/MeetupDetailsScreen';
 import { FavoritesScreen } from '@/screens/marketplace/FavoritesScreen';
+import { EventCreateDetailsScreen } from '@/screens/events/EventCreateDetailsScreen';
+import { EventCreatePreviewScreen } from '@/screens/events/EventCreatePreviewScreen';
+import { EventCreateSuccessScreen } from '@/screens/events/EventCreateSuccessScreen';
 import { EventsCalendarScreen } from '@/screens/events/EventsCalendarScreen';
 import { ProfileSettingsScreen } from '@/screens/profile/ProfileSettingsScreen';
 import { PublicProfileScreen } from '@/screens/profile/PublicProfileScreen';
@@ -69,6 +72,9 @@ export function RootNavigator() {
     >
       <Stack.Screen name="Main" component={MainTabNavigator} />
       <Stack.Screen name="EventsCalendar" component={EventsCalendarScreen} />
+      <Stack.Screen name="EventCreateDetails" component={EventCreateDetailsScreen} />
+      <Stack.Screen name="EventCreatePreview" component={EventCreatePreviewScreen} />
+      <Stack.Screen name="EventCreateSuccess" component={EventCreateSuccessScreen} />
       <Stack.Screen name="ItemDetail" component={ItemDetailScreen} />
       <Stack.Screen name="Conversation" component={ConversationRoute} />
       <Stack.Screen name="MeetupDetails" component={MeetupDetailsScreen} />

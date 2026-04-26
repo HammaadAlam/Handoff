@@ -6,6 +6,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { InboxTabNavigation } from '@/navigation/types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   FlatList,
   Platform,
@@ -29,7 +30,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToConversation } from '@/navigation/navigateConversation';
 import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
-import { fetchInboxRows } from '@/services/conversations';
+import {
+  archiveConversation,
+  fetchFollowInboxNotifications,
+  fetchInboxRows,
+  type FollowInboxNotification,
+} from '@/services/conversations';
 import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
 
 const FILTERS: InboxFilter[] = ['All', 'Selling', 'Buying', 'Archived'];
@@ -63,6 +69,7 @@ export function InboxScreen() {
   const [filter, setFilter] = useState<InboxFilter>('All');
   const [query, setQuery] = useState('');
   const [rows, setRows] = useState<ConversationRow[]>([]);
+  const [followNotifications, setFollowNotifications] = useState<FollowInboxNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [notificationsOn, setNotificationsOn] = useState(true);
@@ -73,10 +80,18 @@ export function InboxScreen() {
       const reqId = ++requestIdRef.current;
       if (opts.showSpinner) setLoading(true);
       try {
-        const fresh = await fetchInboxRows({
-          sessionUserId: user?.id ?? null,
-        });
-        if (reqId === requestIdRef.current) setRows(fresh);
+        const [fresh, follows] = await Promise.all([
+          fetchInboxRows({
+            sessionUserId: user?.id ?? null,
+          }),
+          fetchFollowInboxNotifications({
+            sessionUserId: user?.id ?? null,
+          }),
+        ]);
+        if (reqId === requestIdRef.current) {
+          setRows(fresh);
+          setFollowNotifications(follows);
+        }
       } finally {
         if (reqId === requestIdRef.current) {
           setLoading(false);
@@ -104,13 +119,28 @@ export function InboxScreen() {
 
   const data = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (!matchesFilter(row, filter)) return false;
-      if (!q) return true;
-      const hay = `${row.userItem} ${row.preview} ${row.title}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [rows, filter, query]);
+    const conversationItems = rows
+      .filter((row) => {
+        if (!matchesFilter(row, filter)) return false;
+        if (!q) return true;
+        const hay = `${row.userItem} ${row.preview} ${row.title}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .map((row) => ({ type: 'conversation' as const, row }));
+    const followItems =
+      filter === 'All'
+        ? followNotifications
+            .filter((notice) => {
+              if (!q) return true;
+              const hay =
+                `${notice.followerDisplayName} ${notice.followerHandle}`.toLowerCase();
+              return hay.includes(q);
+            })
+            .map((row) => ({ type: 'follow' as const, row }))
+        : [];
+
+    return [...followItems, ...conversationItems];
+  }, [rows, followNotifications, filter, query]);
 
   const openConversation = (item: ConversationRow) => {
     navigateToConversation(navigation, {
@@ -127,6 +157,19 @@ export function InboxScreen() {
     });
   };
 
+  const openFollowerProfile = (item: FollowInboxNotification) => {
+    navigateToUserProfile(
+      navigation,
+      {
+        userId: item.followerId,
+        displayName: item.followerDisplayName,
+        avatarUrl: item.followerAvatarUrl,
+        handle: item.followerHandle,
+      },
+      viewerProfileId,
+    );
+  };
+
   const openPeerProfile = (item: ConversationRow) => {
     if (!item.peerUserId) return;
     navigateToUserProfile(
@@ -141,18 +184,126 @@ export function InboxScreen() {
     );
   };
 
-  const removeRow = (id: string) => {
-    setRows((prev) => prev.filter((r) => r.id !== id));
+  const archiveRow = async (id: string) => {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, archived: true } : r)));
+    const ok = await archiveConversation({
+      conversationId: id,
+      sessionUserId: user?.id ?? null,
+    });
+    if (!ok) {
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, archived: false } : r)));
+      Alert.alert('Archive failed', 'Could not archive this conversation. Please try again.');
+    }
   };
 
-  const renderRightActions = (item: ConversationRow) => (
+  const removeFollowNotification = (id: string) => {
+    setFollowNotifications((prev) => prev.filter((row) => row.id !== id));
+  };
+
+  const renderRightActions = (itemId: string, type: 'conversation' | 'follow') => (
     <Pressable
       style={styles.deleteAction}
-      onPress={() => removeRow(item.id)}
+      onPress={() =>
+        type === 'conversation'
+          ? void archiveRow(itemId)
+          : removeFollowNotification(itemId)
+      }
     >
       <Ionicons name="trash" size={24} color="#FFF" />
     </Pressable>
   );
+
+  const renderConversationRow = (item: ConversationRow) => {
+    const st = statusStyle(item.status);
+    return (
+      <RectButton
+        style={styles.row}
+        onPress={() => openConversation(item)}
+      >
+        <Pressable onPress={() => openPeerProfile(item)} hitSlop={8}>
+          <RemoteImage
+            uri={item.peerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI}
+            style={styles.avatarImg}
+          />
+        </Pressable>
+        <Pressable
+          style={styles.rowBody}
+          onPress={() => openPeerProfile(item)}
+          hitSlop={8}
+        >
+          <Text style={styles.rowTitle} numberOfLines={1} ellipsizeMode="tail">
+            {item.userItem}
+          </Text>
+          <Text style={styles.preview} numberOfLines={1} ellipsizeMode="tail">
+            {item.preview}
+          </Text>
+        </Pressable>
+        <View style={styles.meta}>
+          <Text style={styles.time} numberOfLines={1}>
+            {item.time}
+          </Text>
+          <View style={[styles.badge, { backgroundColor: st.bg }]}>
+            <Text
+              style={[styles.badgeText, { color: st.text }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {item.status}
+            </Text>
+          </View>
+        </View>
+      </RectButton>
+    );
+  };
+
+  const renderFollowRow = (item: FollowInboxNotification) => {
+    return (
+      <RectButton style={styles.row} onPress={() => openFollowerProfile(item)}>
+        <RemoteImage uri={item.followerAvatarUrl} style={styles.avatarImg} />
+        <View style={styles.rowBody}>
+          <Text style={styles.rowTitle} numberOfLines={1}>
+            {item.followerDisplayName}
+          </Text>
+          <Text style={styles.preview} numberOfLines={1}>
+            @{item.followerHandle} followed you
+          </Text>
+        </View>
+        <View style={styles.meta}>
+          <Text style={styles.time} numberOfLines={1}>
+            {item.time}
+          </Text>
+          <View style={[styles.badge, styles.followBadge]}>
+            <Text style={styles.followBadgeText} numberOfLines={1}>
+              New follower
+            </Text>
+          </View>
+        </View>
+      </RectButton>
+    );
+  };
+
+  const keyExtractor = (item: { type: 'conversation' | 'follow'; row: ConversationRow | FollowInboxNotification }) =>
+    item.row.id;
+
+  const renderItem = ({
+    item,
+  }: {
+    item: { type: 'conversation' | 'follow'; row: ConversationRow | FollowInboxNotification };
+  }) => {
+    const rowContent =
+      item.type === 'conversation'
+        ? renderConversationRow(item.row as ConversationRow)
+        : renderFollowRow(item.row as FollowInboxNotification);
+    return (
+      <Swipeable
+        renderRightActions={() =>
+          renderRightActions(item.row.id, item.type)
+        }
+      >
+        {rowContent}
+      </Swipeable>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -219,7 +370,7 @@ export function InboxScreen() {
 
       <FlatList
         data={data}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -234,54 +385,7 @@ export function InboxScreen() {
           )
         }
         ItemSeparatorComponent={() => <View style={styles.sep} />}
-        renderItem={({ item }) => {
-          const st = statusStyle(item.status);
-          const rowContent = (
-            <RectButton
-              style={styles.row}
-              onPress={() => openConversation(item)}
-            >
-              <Pressable onPress={() => openPeerProfile(item)} hitSlop={8}>
-                <RemoteImage
-                  uri={item.peerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI}
-                  style={styles.avatarImg}
-                />
-              </Pressable>
-              <Pressable
-                style={styles.rowBody}
-                onPress={() => openPeerProfile(item)}
-                hitSlop={8}
-              >
-                <Text style={styles.rowTitle} numberOfLines={1} ellipsizeMode="tail">
-                  {item.userItem}
-                </Text>
-                <Text style={styles.preview} numberOfLines={1} ellipsizeMode="tail">
-                  {item.preview}
-                </Text>
-              </Pressable>
-              <View style={styles.meta}>
-                <Text style={styles.time} numberOfLines={1}>
-                  {item.time}
-                </Text>
-                <View style={[styles.badge, { backgroundColor: st.bg }]}>
-                  <Text
-                    style={[styles.badgeText, { color: st.text }]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {item.status}
-                  </Text>
-                </View>
-              </View>
-            </RectButton>
-          );
-
-          return (
-            <Swipeable renderRightActions={() => renderRightActions(item)}>
-              {rowContent}
-            </Swipeable>
-          );
-        }}
+        renderItem={renderItem}
       />
     </SafeAreaView>
   );
@@ -427,6 +531,16 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     maxWidth: '100%',
     alignSelf: 'flex-end',
+  },
+  followBadge: {
+    backgroundColor: '#EDE9FE',
+  },
+  followBadgeText: {
+    fontSize: 10,
+    fontFamily: fonts.bold,
+    textAlign: 'center',
+    color: colors.primary,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   badgeText: {
     fontSize: 10,

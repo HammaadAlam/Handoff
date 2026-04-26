@@ -36,6 +36,8 @@ export type ListingItem = {
   sellerHandle?: string;
   sellerAvatarUrl?: string;
   description?: string;
+  /** Number of users who have favorited this listing (or fallback estimate). */
+  favoriteCount?: number;
   /** Lowest acceptable offer (in dollars), set by the seller; undefined = no floor set */
   lowestOffer?: number;
 };

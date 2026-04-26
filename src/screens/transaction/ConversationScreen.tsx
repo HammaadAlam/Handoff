@@ -27,6 +27,7 @@ import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
 import type { RootStackParamList } from '@/navigation/types';
 import {
   appendLocalThreadMessage,
+  ensureConversationForListing,
   fetchConversationPeer,
   fetchLatestOfferAmount,
   fetchMessages,
@@ -90,18 +91,21 @@ export function ConversationScreen() {
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(
+    conversationId ?? null,
+  );
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    if (!conversationId) return;
+    if (!activeConversationId) return;
     let cancelled = false;
     void (async () => {
       const [msgs, peer] = await Promise.all([
-        fetchMessages({ conversationId, sessionUserId }),
-        fetchConversationPeer({ conversationId, sessionUserId }),
+        fetchMessages({ conversationId: activeConversationId, sessionUserId }),
+        fetchConversationPeer({ conversationId: activeConversationId, sessionUserId }),
       ]);
       const latestOffer = await fetchLatestOfferAmount({
-        conversationId,
+        conversationId: activeConversationId,
         sessionUserId,
       });
       if (cancelled) return;
@@ -119,7 +123,7 @@ export function ConversationScreen() {
     return () => {
       cancelled = true;
     };
-  }, [conversationId, sessionUserId]);
+  }, [activeConversationId, sessionUserId]);
 
   const offerAmount = persistedOfferAmount ?? routeOfferAmount ?? '$12.00';
   const listPrice = price.includes('$') ? price : `$${price}`;
@@ -157,6 +161,20 @@ export function ConversationScreen() {
 
   const handleSend = useCallback(
     async (text: string) => {
+      let resolvedConversationId =
+        activeConversationId ?? conversationId ?? `local:${params.listingId}:draft`;
+      if ((!activeConversationId || activeConversationId.startsWith('local:')) && peerId) {
+        const ensured = await ensureConversationForListing({
+          listingId: params.listingId,
+          sellerProfileId: peerId,
+          sessionUserId,
+        });
+        if (ensured) {
+          resolvedConversationId = ensured;
+          setActiveConversationId(ensured);
+        }
+      }
+
       const optimisticId = `local-${Date.now()}`;
       const optimistic: ChatMessage = {
         id: optimisticId,
@@ -166,7 +184,7 @@ export function ConversationScreen() {
       };
       setMessages((prev) => [...prev, optimistic]);
       await appendLocalThreadMessage({
-        conversationId: conversationId ?? `local:${params.listingId}:draft`,
+        conversationId: resolvedConversationId,
         sessionUserId,
         message: {
           id: optimistic.id,
@@ -177,7 +195,7 @@ export function ConversationScreen() {
       });
       await upsertLocalInboxConversation({
         sessionUserId,
-        conversationId: conversationId ?? `local:${params.listingId}:draft`,
+        conversationId: resolvedConversationId,
         listingId: params.listingId,
         title,
         price,
@@ -191,9 +209,9 @@ export function ConversationScreen() {
         scrollRef.current?.scrollToEnd({ animated: true });
       });
 
-      if (!conversationId || conversationId.startsWith('local:')) return;
+      if (!resolvedConversationId || resolvedConversationId.startsWith('local:')) return;
       const saved = await sendMessage({
-        conversationId,
+        conversationId: resolvedConversationId,
         body: text,
         sessionUserId,
       });
@@ -202,7 +220,18 @@ export function ConversationScreen() {
         prev.map((m) => (m.id === optimisticId ? toChatMessage(saved) : m)),
       );
     },
-    [conversationId, sessionUserId],
+    [
+      activeConversationId,
+      conversationId,
+      params.listingId,
+      peerAvatar,
+      peerId,
+      peerName,
+      price,
+      sessionUserId,
+      title,
+      imageUrl,
+    ],
   );
 
   return (

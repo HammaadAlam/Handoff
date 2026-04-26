@@ -16,9 +16,19 @@ type Props = {
 /** Image corner radius — generous rounded photo (reference ~16–24px) */
 const IMAGE_RADIUS = 22;
 
+function fallbackFavoriteCount(listingId: string): number {
+  let hash = 0;
+  for (let i = 0; i < listingId.length; i += 1) {
+    hash = (hash * 31 + listingId.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 23) + 3;
+}
+
 export function SearchPopularCard({ item, onPress }: Props) {
   const { isFavorite, toggleFavorite } = useMarketplace();
   const fav = isFavorite(item.id);
+  const count = item.favoriteCount ?? fallbackFavoriteCount(item.id);
+  const countLabel = count > 99 ? '99+' : String(count);
 
   return (
     <Pressable
@@ -37,9 +47,10 @@ export function SearchPopularCard({ item, onPress }: Props) {
         >
           <Ionicons
             name={fav ? 'heart' : 'heart-outline'}
-            size={20}
+            size={18}
             color={fav ? colors.error : colors.textPrimary}
           />
+          <Text style={styles.favCountText}>{countLabel}</Text>
         </Pressable>
       </View>
 
@@ -80,17 +91,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    minWidth: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: 'rgba(255, 255, 255, 0.97)',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 6,
+    gap: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 3,
+  },
+  favCountText: {
+    color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+    fontSize: 10,
+    lineHeight: 11,
   },
   copy: {
     paddingTop: 14,

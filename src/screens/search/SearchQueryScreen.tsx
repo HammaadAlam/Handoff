@@ -141,7 +141,7 @@ export function SearchQueryScreen() {
               autoFocus
               onChangeText={setQuery}
               onSubmitEditing={() => submit(query)}
-              placeholder="Search campus items"
+              placeholder="Search laptops, textbooks, tickets..."
               placeholderTextColor={colors.textMuted}
               returnKeyType="search"
               style={styles.input}
@@ -275,34 +275,40 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     paddingHorizontal: spacing.md,
     paddingBottom: 12,
   },
   backButton: {
-    width: 34,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
   searchPill: {
     flex: 1,
-    minHeight: 46,
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    borderRadius: 24,
-    backgroundColor: '#F8F7FC',
+    gap: 8,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
     paddingHorizontal: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#ECE7F8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
   },
   input: {
     flex: 1,
     color: colors.textPrimary,
     fontFamily: fonts.medium,
-    fontSize: 15,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 9,
+    fontSize: 12,
+    lineHeight: 16,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
   },
   content: {
     flexGrow: 1,

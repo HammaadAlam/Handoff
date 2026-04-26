@@ -10,9 +10,19 @@ type Props = {
   onPress?: () => void;
 };
 
+function fallbackFavoriteCount(listingId: string): number {
+  let hash = 0;
+  for (let i = 0; i < listingId.length; i += 1) {
+    hash = (hash * 31 + listingId.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 23) + 3;
+}
+
 export function SearchTrendingCard({ item, onPress }: Props) {
   const { isFavorite, toggleFavorite } = useMarketplace();
   const favorite = isFavorite(item.id);
+  const count = item.favoriteCount ?? fallbackFavoriteCount(item.id);
+  const countLabel = count > 99 ? '99+' : String(count);
   const rating = typeof item.rating === 'number' ? item.rating.toFixed(1) : '4.8';
   const postedAgo = item.postedAgo ?? '2h ago';
 
@@ -34,8 +44,9 @@ export function SearchTrendingCard({ item, onPress }: Props) {
           <Ionicons
             color={favorite ? colors.error : colors.textPrimary}
             name={favorite ? 'heart' : 'heart-outline'}
-            size={16}
+            size={15}
           />
+          <Text style={styles.favoriteCountText}>{countLabel}</Text>
         </Pressable>
       </View>
 
@@ -83,17 +94,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    minWidth: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.96)',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 6,
+    gap: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+  },
+  favoriteCountText: {
+    color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+    fontSize: 9,
+    lineHeight: 10,
   },
   copy: {
     flex: 1,

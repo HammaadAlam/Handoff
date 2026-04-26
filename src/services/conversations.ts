@@ -57,6 +57,36 @@ type MeetupLite = {
   scheduled_at: string | null;
 };
 
+type FollowNotificationLite = {
+  follower_id: string;
+  following_id: string;
+  created_at: string;
+  follower:
+    | {
+        id: string;
+        handle: string;
+        display_name: string;
+        avatar_url: string;
+      }
+    | Array<{
+        id: string;
+        handle: string;
+        display_name: string;
+        avatar_url: string;
+      }>
+    | null;
+};
+
+export type FollowInboxNotification = {
+  id: string;
+  followerId: string;
+  followerHandle: string;
+  followerDisplayName: string;
+  followerAvatarUrl: string;
+  createdAt: string;
+  time: string;
+};
+
 const localOfferAmountByConversationId = new Map<string, string>();
 const OFFER_CACHE_KEY = '@handoff/local_offer_amounts_v1';
 const INBOX_CACHE_KEY_PREFIX = '@handoff/inbox_rows_v1';
@@ -95,6 +125,19 @@ async function persistInboxRows(
   } catch {
     // Non-blocking cache persistence.
   }
+}
+
+async function setCachedConversationArchived(args: {
+  sessionUserId: string | null;
+  conversationId: string;
+  archived: boolean;
+}): Promise<void> {
+  const existing = await readCachedInboxRows(args.sessionUserId);
+  if (!existing || existing.length === 0) return;
+  const next = existing.map((row) =>
+    row.id === args.conversationId ? { ...row, archived: args.archived } : row,
+  );
+  await persistInboxRows(args.sessionUserId, next);
 }
 
 async function readCachedThreadMessages(args: {
@@ -324,6 +367,40 @@ export async function fetchInboxRows(args: {
   return merged;
 }
 
+export async function fetchFollowInboxNotifications(args: {
+  sessionUserId: string | null;
+}): Promise<FollowInboxNotification[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = getSupabase();
+  const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
+  if (!viewerId) return [];
+
+  const { data, error } = await supabase
+    .from('follows')
+    .select(
+      `follower_id, following_id, created_at,
+       follower:profiles!follows_follower_id_fkey ( id, handle, display_name, avatar_url )`,
+    )
+    .eq('following_id', viewerId)
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  if (error || !data) return [];
+
+  return (data as FollowNotificationLite[]).map((row) => {
+    const follower = firstOrSelf(row.follower);
+    return {
+      id: `follow:${row.follower_id}:${row.created_at}`,
+      followerId: row.follower_id,
+      followerHandle: follower?.handle ?? 'user',
+      followerDisplayName: follower?.display_name ?? follower?.handle ?? 'New follower',
+      followerAvatarUrl: follower?.avatar_url ?? DEFAULT_PEER_AVATAR_URI,
+      createdAt: row.created_at,
+      time: formatTimeAgo(row.created_at),
+    };
+  });
+}
+
 export async function upsertLocalInboxConversation(args: {
   sessionUserId: string | null;
   conversationId: string;
@@ -379,10 +456,14 @@ export async function fetchMessages(args: {
   const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
   if (!viewerId) return cached ?? [];
 
+  const retentionCutoffIso = new Date(
+    Date.now() - 30 * 24 * 60 * 60 * 1000,
+  ).toISOString();
   const { data, error } = await supabase
     .from('messages')
     .select('id, sender_id, body, created_at')
     .eq('conversation_id', args.conversationId)
+    .gte('created_at', retentionCutoffIso)
     .order('created_at', { ascending: true });
   if (error) return cached ?? [];
 
@@ -608,4 +689,48 @@ export async function seedLocalOfferAmount(args: {
   const cents = parseAmountToCents(args.amount);
   if (!cents) return;
   await setLocalOfferAmount(args.conversationId, formatCentsToDollar(cents));
+}
+
+export async function archiveConversation(args: {
+  conversationId: string;
+  sessionUserId: string | null;
+}): Promise<boolean> {
+  if (!args.conversationId) return false;
+
+  // Keep local cache aligned with the UI gesture immediately.
+  await setCachedConversationArchived({
+    sessionUserId: args.sessionUserId,
+    conversationId: args.conversationId,
+    archived: true,
+  });
+
+  if (!isSupabaseConfigured() || args.conversationId.startsWith('local:')) {
+    return true;
+  }
+
+  const supabase = getSupabase();
+  const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
+  if (!viewerId) return false;
+
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('archived_by')
+    .eq('id', args.conversationId)
+    .maybeSingle();
+
+  if (error) return false;
+
+  const archivedBy = Array.isArray(data?.archived_by)
+    ? (data.archived_by as string[])
+    : [];
+  const nextArchivedBy = archivedBy.includes(viewerId)
+    ? archivedBy
+    : [...archivedBy, viewerId];
+
+  const { error: updateError } = await supabase
+    .from('conversations')
+    .update({ archived_by: nextArchivedBy })
+    .eq('id', args.conversationId);
+
+  return !updateError;
 }

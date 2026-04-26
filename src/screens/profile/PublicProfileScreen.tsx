@@ -15,11 +15,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
   FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
-  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -58,6 +60,11 @@ const CAROUSEL_CARD_W = Math.min(152, Dimensions.get('window').width * 0.42);
 const GRID_INNER_W = Dimensions.get('window').width - spacing.md * 2;
 const GRID_GAP = spacing.sm;
 const GRID_CELL_W = (GRID_INNER_W - GRID_GAP) / 2;
+const PROFILE_COLLAPSE_SCROLL = 140;
+const PROFILE_HERO_EXPANDED_FALLBACK = 176;
+const PROFILE_COMPACT_BAR_H = 72;
+const PROFILE_HERO_HEIGHT_HOLD_UNTIL = 0.38;
+const PROFILE_HERO_BAND_EXTRA_BOTTOM = 2;
 
 function formatMemberSince(iso: string): string {
   const d = new Date(iso);
@@ -139,6 +146,12 @@ export function PublicProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<PublicTab>('Shop');
   const [followBusy, setFollowBusy] = useState(false);
+  const [expandedHeroInteractable, setExpandedHeroInteractable] = useState(true);
+  const [heroExpandedHeight, setHeroExpandedHeight] = useState(
+    PROFILE_HERO_EXPANDED_FALLBACK,
+  );
+  const scrollY = useState(() => new Animated.Value(0))[0];
+  const [scrollYRef] = useState(() => ({ current: 0 }));
 
   const load = useCallback(
     async (showSpinner: boolean) => {
@@ -282,6 +295,68 @@ export function PublicProfileScreen() {
   }
 
   const followLabel = bundle.isFollowing ? 'Following' : 'Follow';
+  const heroSlotMax = Math.max(PROFILE_COMPACT_BAR_H, heroExpandedHeight);
+  const heroSlotHeight = scrollY.interpolate({
+    inputRange: [
+      0,
+      PROFILE_COLLAPSE_SCROLL * PROFILE_HERO_HEIGHT_HOLD_UNTIL,
+      PROFILE_COLLAPSE_SCROLL,
+    ],
+    outputRange: [heroSlotMax, heroSlotMax, PROFILE_COMPACT_BAR_H],
+    extrapolate: 'clamp',
+  });
+  const avatarSize = scrollY.interpolate({
+    inputRange: [0, PROFILE_COLLAPSE_SCROLL],
+    outputRange: [78, 40],
+    extrapolate: 'clamp',
+  });
+  const avatarRadius = scrollY.interpolate({
+    inputRange: [0, PROFILE_COLLAPSE_SCROLL],
+    outputRange: [39, 20],
+    extrapolate: 'clamp',
+  });
+  const bandPadV = scrollY.interpolate({
+    inputRange: [
+      0,
+      PROFILE_COLLAPSE_SCROLL * PROFILE_HERO_HEIGHT_HOLD_UNTIL,
+      PROFILE_COLLAPSE_SCROLL,
+    ],
+    outputRange: [spacing.sm, spacing.sm, 8],
+    extrapolate: 'clamp',
+  });
+  const bandPadBottom = scrollY.interpolate({
+    inputRange: [
+      0,
+      PROFILE_COLLAPSE_SCROLL * PROFILE_HERO_HEIGHT_HOLD_UNTIL,
+      PROFILE_COLLAPSE_SCROLL,
+    ],
+    outputRange: [
+      spacing.sm + PROFILE_HERO_BAND_EXTRA_BOTTOM,
+      spacing.sm + PROFILE_HERO_BAND_EXTRA_BOTTOM,
+      8,
+    ],
+    extrapolate: 'clamp',
+  });
+  const ratingRowOpacity = scrollY.interpolate({
+    inputRange: [PROFILE_COLLAPSE_SCROLL * 0.3, PROFILE_COLLAPSE_SCROLL * 0.65],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  const compactSubOpacity = scrollY.interpolate({
+    inputRange: [PROFILE_COLLAPSE_SCROLL * 0.36, PROFILE_COLLAPSE_SCROLL * 0.74],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const statsShellHeight = scrollY.interpolate({
+    inputRange: [PROFILE_COLLAPSE_SCROLL * 0.3, PROFILE_COLLAPSE_SCROLL * 0.7],
+    outputRange: [48, 22],
+    extrapolate: 'clamp',
+  });
+  const actionRowOpacity = scrollY.interpolate({
+    inputRange: [0, PROFILE_COLLAPSE_SCROLL * 0.55],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -305,86 +380,126 @@ export function PublicProfileScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.heroBand}>
-          <View style={styles.identity}>
-            <View style={styles.avatarWrap}>
-              <RemoteImage uri={profile.avatarUrl} style={styles.avatarFill} />
-            </View>
-            <View style={styles.identityText}>
-              <View style={styles.identityNameRow}>
-                <Text style={styles.displayName} numberOfLines={1}>
-                  {profile.displayName}
-                </Text>
-                {profile.isVerifiedEdu ? (
-                  <Ionicons
-                    name="school-outline"
-                    size={18}
-                    color={colors.primary}
-                    accessibilityLabel="Verified student"
-                  />
-                ) : null}
-              </View>
-              <View style={styles.identityMetaLines}>
-                <Text style={styles.identityMetaLine}>
-                  <Text style={styles.identityMetaBold}>{positivePct}%</Text>
-                  <Text style={styles.identityMetaRest}> positive feedback</Text>
-                </Text>
-                <Text style={styles.identityMetaLine}>
-                  <Text style={styles.identityMetaBold}>
-                    {profile.followersCount}
-                  </Text>
-                  <Text style={styles.identityMetaRest}> followers</Text>
-                </Text>
-                <Text style={styles.identityMetaLine}>
-                  <Text style={styles.identityMetaBold}>{profile.itemsSold}</Text>
-                  <Text style={styles.identityMetaRest}> items sold</Text>
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {!bundle.isSelf ? (
-            <View style={styles.actionRow}>
-              <Pressable
-                style={[
-                  styles.btnFollow,
-                  bundle.isFollowing && styles.btnFollowOn,
-                ]}
-                onPress={onFollowToggle}
-                disabled={followBusy}
-              >
-                <Ionicons
-                  name={bundle.isFollowing ? 'checkmark' : 'person-add-outline'}
-                  size={18}
-                  color={
-                    bundle.isFollowing ? colors.primary : colors.textInverse
-                  }
-                />
-                <Text
+        <Animated.View style={[styles.profileCollapsibleSlot, { height: heroSlotHeight }]}>
+          <Animated.View
+            pointerEvents={expandedHeroInteractable ? 'auto' : 'none'}
+            style={styles.expandedHeroLayer}
+          >
+            <Animated.View
+              style={[
+                styles.heroBand,
+                { paddingTop: bandPadV, paddingBottom: bandPadBottom },
+              ]}
+              onLayout={(e) => {
+                if (scrollYRef.current > 2) return;
+                const h = Math.round(e.nativeEvent.layout.height);
+                setHeroExpandedHeight((prev) => (prev === h ? prev : h));
+              }}
+            >
+              <View style={styles.identity}>
+                <Animated.View
                   style={[
-                    styles.btnFollowText,
-                    bundle.isFollowing && styles.btnFollowTextOn,
+                    styles.avatarWrap,
+                    {
+                      width: avatarSize,
+                      height: avatarSize,
+                      borderRadius: avatarRadius,
+                    },
                   ]}
                 >
-                  {followLabel}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={styles.btnMessage}
-                onPress={() => {
-                  void onMessage();
-                }}
-              >
-                <Ionicons
-                  name="chatbubble-outline"
-                  size={18}
-                  color={colors.primary}
-                />
-                <Text style={styles.btnMessageText}>Message</Text>
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
+                  <RemoteImage uri={profile.avatarUrl} style={styles.avatarFill} />
+                </Animated.View>
+                <View style={styles.identityText}>
+                  <View style={styles.identityNameRow}>
+                    <Text style={styles.displayName} numberOfLines={1}>
+                      {profile.displayName}
+                    </Text>
+                    {profile.isVerifiedEdu ? (
+                      <Ionicons
+                        name="school-outline"
+                        size={18}
+                        color={colors.primary}
+                        accessibilityLabel="Verified student"
+                      />
+                    ) : null}
+                  </View>
+                  <Animated.View style={[styles.ratingCrossfadeShell, { height: statsShellHeight }]}>
+                    <Animated.View style={[styles.ratingCrossfadeLayer, { opacity: ratingRowOpacity }]}>
+                      <View style={styles.identityMetaLines}>
+                        <Text style={styles.identityMetaLine}>
+                          <Text style={styles.identityMetaBold}>{positivePct}%</Text>
+                          <Text style={styles.identityMetaRest}> positive feedback</Text>
+                        </Text>
+                        <Text style={styles.identityMetaLine}>
+                          <Text style={styles.identityMetaBold}>
+                            {profile.followersCount}
+                          </Text>
+                          <Text style={styles.identityMetaRest}> followers</Text>
+                        </Text>
+                        <Text style={styles.identityMetaLine}>
+                          <Text style={styles.identityMetaBold}>{profile.itemsSold}</Text>
+                          <Text style={styles.identityMetaRest}> items sold</Text>
+                        </Text>
+                      </View>
+                    </Animated.View>
+                    <Animated.View style={[styles.ratingCrossfadeLayerAbs, { opacity: compactSubOpacity }]}>
+                      <Text style={styles.identityMetaCompactRoot} numberOfLines={1}>
+                        <Text style={styles.identityMetaCompactBold}>{positivePct}%</Text>
+                        <Text style={styles.identityMetaCompactRest}> positive · </Text>
+                        <Text style={styles.identityMetaCompactBold}>{profile.followersCount}</Text>
+                        <Text style={styles.identityMetaCompactRest}> followers · </Text>
+                        <Text style={styles.identityMetaCompactBold}>{profile.itemsSold}</Text>
+                        <Text style={styles.identityMetaCompactRest}> sold</Text>
+                      </Text>
+                    </Animated.View>
+                  </Animated.View>
+                </View>
+              </View>
+
+              {!bundle.isSelf ? (
+                <Animated.View style={[styles.actionRow, { opacity: actionRowOpacity }]}>
+                  <Pressable
+                    style={[
+                      styles.btnFollow,
+                      bundle.isFollowing && styles.btnFollowOn,
+                    ]}
+                    onPress={onFollowToggle}
+                    disabled={followBusy}
+                  >
+                    <Ionicons
+                      name={bundle.isFollowing ? 'checkmark' : 'person-add-outline'}
+                      size={18}
+                      color={
+                        bundle.isFollowing ? colors.primary : colors.textInverse
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.btnFollowText,
+                        bundle.isFollowing && styles.btnFollowTextOn,
+                      ]}
+                    >
+                      {followLabel}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.btnMessage}
+                    onPress={() => {
+                      void onMessage();
+                    }}
+                  >
+                    <Ionicons
+                      name="chatbubble-outline"
+                      size={18}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.btnMessageText}>Message</Text>
+                  </Pressable>
+                </Animated.View>
+              ) : null}
+            </Animated.View>
+          </Animated.View>
+        </Animated.View>
 
         <View style={styles.tabRow}>
           {TABS.map((t) => {
@@ -399,10 +514,23 @@ export function PublicProfileScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scrollFlex}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          {
+            useNativeDriver: false,
+            listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+              const y = e.nativeEvent.contentOffset.y;
+              scrollYRef.current = y;
+              const next = y < PROFILE_COLLAPSE_SCROLL * 0.88;
+              setExpandedHeroInteractable((prev) => (prev === next ? prev : next));
+            },
+          },
+        )}
       >
         {activeTab === 'Shop' && (
           <>
@@ -503,7 +631,7 @@ export function PublicProfileScreen() {
             )}
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }
@@ -526,6 +654,13 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     backgroundColor: colors.surface,
+  },
+  profileCollapsibleSlot: {
+    overflow: 'hidden',
+    backgroundColor: colors.bannerTint,
+  },
+  expandedHeroLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
   topBar: {
     flexDirection: 'row',
@@ -620,6 +755,20 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginTop: 2,
   },
+  ratingCrossfadeShell: {
+    position: 'relative',
+    marginTop: 2,
+    alignSelf: 'stretch',
+    overflow: 'hidden',
+  },
+  ratingCrossfadeLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-start',
+  },
+  ratingCrossfadeLayerAbs: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-start',
+  },
   identityMetaLine: {
     fontSize: 12,
     lineHeight: 16,
@@ -636,6 +785,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: colors.textSecondary,
+  },
+  identityMetaCompactRoot: {
+    fontSize: 11,
+    lineHeight: 18,
+    paddingVertical: 1,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+  },
+  identityMetaCompactBold: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    lineHeight: 18,
+    color: colors.textPrimary,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+  },
+  identityMetaCompactRest: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
   },
   actionRow: {
     flexDirection: 'row',

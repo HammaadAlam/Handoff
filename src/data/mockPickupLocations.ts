@@ -8,21 +8,21 @@ export type PickupSpot = {
 
 export const NEARBY_PICKUP_SPOTS: PickupSpot[] = [
   {
-    id: '1',
+    id: 'student-union',
     name: 'LSU Student Union',
-    address: '310 LSU Student Union',
+    address: 'LSU Student Union, Baton Rouge, LA 70803',
     distance: '0.3 mi',
   },
   {
-    id: '2',
-    name: 'Barnes & Noble LSU',
-    address: '2 Union Square',
+    id: 'police-safety',
+    name: 'LSU Police / Public Safety Building',
+    address: '204 South Stadium Road, Baton Rouge, LA 70803',
     distance: '0.4 mi',
   },
   {
-    id: '3',
-    name: 'LSU Law Library',
-    address: '1 LSU Campus Dr',
+    id: 'barnes-noble',
+    name: 'LSU Barnes & Noble Bookstore',
+    address: '2 Union Square, Baton Rouge, LA 70803',
     distance: '0.6 mi',
   },
 ];

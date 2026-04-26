@@ -12,12 +12,21 @@ import { DEFAULT_PEER_AVATAR_URI, PLACEHOLDER_IMAGE_URI } from '@/data/mockData'
 import type { RootStackParamList } from '@/navigation/types';
 import {
   colors,
+  fonts,
   listingCardTypography,
   listingPriceDisplay,
   radii,
   spacing,
   typography,
 } from '@/styles/theme';
+
+function fallbackFavoriteCount(listingId: string): number {
+  let hash = 0;
+  for (let i = 0; i < listingId.length; i += 1) {
+    hash = (hash * 31 + listingId.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 23) + 3;
+}
 
 export function FavoritesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -48,43 +57,48 @@ export function FavoritesScreen() {
             </Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <View style={styles.cell}>
-            <Pressable
-              style={styles.card}
-              onPress={() =>
-                navigation.navigate('ItemDetail', {
-                  listingId: item.id,
-                  title: item.title,
-                  price: item.price,
-                  imageUrl: item.imageUrl,
-                  seller: item.sellerHandle,
-                  sellerProfileId: item.sellerId,
-                  sellerAvatarUrl: item.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
-                  description: item.description,
-                  condition: item.condition,
-                  categoryLabel: item.category,
-                  meetupLocation: item.location,
-                })
-              }
-            >
-              <View style={styles.imgBox}>
-                <RemoteImage uri={item.imageUrl} style={styles.img} />
-                <Pressable
-                  style={styles.fav}
-                  onPress={() => toggleFavorite(item)}
-                  hitSlop={8}
-                >
-                  <Ionicons name="heart" size={20} color={colors.error} />
-                </Pressable>
-              </View>
-              <Text style={styles.cardTitle} numberOfLines={4} ellipsizeMode="tail">
-                {item.title}
-              </Text>
-              <Text style={styles.price}>{item.price}</Text>
-            </Pressable>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const count = item.favoriteCount ?? fallbackFavoriteCount(item.id);
+          const countLabel = count > 99 ? '99+' : String(count);
+          return (
+            <View style={styles.cell}>
+              <Pressable
+                style={styles.card}
+                onPress={() =>
+                  navigation.navigate('ItemDetail', {
+                    listingId: item.id,
+                    title: item.title,
+                    price: item.price,
+                    imageUrl: item.imageUrl,
+                    seller: item.sellerHandle,
+                    sellerProfileId: item.sellerId,
+                    sellerAvatarUrl: item.sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI,
+                    description: item.description,
+                    condition: item.condition,
+                    categoryLabel: item.category,
+                    meetupLocation: item.location,
+                  })
+                }
+              >
+                <View style={styles.imgBox}>
+                  <RemoteImage uri={item.imageUrl} style={styles.img} />
+                  <Pressable
+                    style={styles.fav}
+                    onPress={() => toggleFavorite(item)}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="heart" size={18} color={colors.error} />
+                    <Text style={styles.favCountText}>{countLabel}</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.cardTitle} numberOfLines={4} ellipsizeMode="tail">
+                  {item.title}
+                </Text>
+                <Text style={styles.price}>{item.price}</Text>
+              </Pressable>
+            </View>
+          );
+        }}
       />
     </SafeAreaView>
   );
@@ -139,8 +153,19 @@ const styles = StyleSheet.create({
     top: 8,
     right: 8,
     backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 16,
-    padding: 6,
+    borderRadius: 18,
+    minWidth: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    gap: 1,
+  },
+  favCountText: {
+    color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+    fontSize: 9,
+    lineHeight: 10,
   },
   cardTitle: {
     ...listingCardTypography.title,

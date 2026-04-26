@@ -8,7 +8,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { goHomeFromCreateFlow } from '@/navigation/goHomeFromCreateFlow';
 import type { CreateListingStackParamList, RootStackParamList } from '@/navigation/types';
 import { colors, fonts, spacing } from '@/styles/theme';
 
@@ -24,15 +23,6 @@ export function CreateEntryScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable
-          accessibilityLabel="Close create listing"
-          hitSlop={12}
-          onPress={() => goHomeFromCreateFlow(navigation)}
-          style={styles.closeButton}
-        >
-          <Ionicons name="close" size={24} color={colors.textPrimary} />
-        </Pressable>
-
         <View style={styles.hero}>
           <Text style={styles.title}>Create a Listing</Text>
           <Text style={styles.subtitle}>
@@ -92,7 +82,7 @@ export function CreateEntryScreen() {
 
         <Pressable
           accessibilityRole="button"
-          onPress={() => navigation.navigate('EventsCalendar')}
+          onPress={() => navigation.navigate('EventCreateDetails')}
           style={[styles.optionPress, styles.eventCard]}
         >
           <View style={styles.eventIcon}>
@@ -137,15 +127,9 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: spacing.xxl,
   },
-  closeButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
   hero: {
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 12,
     marginBottom: 18,
   },
   title: {
@@ -236,6 +220,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     backgroundColor: '#F6F4FE',
+    borderWidth: 1.5,
+    borderColor: '#CFC9F8',
     padding: 18,
   },
   manualIcon: {
@@ -289,20 +275,20 @@ const styles = StyleSheet.create({
   whyCard: {
     borderRadius: 18,
     backgroundColor: '#F6F4FE',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   whyTitle: {
     color: colors.primary,
     fontFamily: fonts.bold,
     fontSize: 15,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   whyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 6,
+    gap: 8,
+    marginTop: 4,
   },
   whyText: {
     color: colors.textSecondary,

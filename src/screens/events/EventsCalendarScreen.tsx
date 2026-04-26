@@ -11,17 +11,14 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { type ListingItem } from '@/data/mockData';
-import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import type { RootStackNav } from '@/navigation/types';
-import { fetchEventListings } from '@/services/events';
+import { fetchCampusEvents, fetchMyEvents, type EventItem } from '@/services/events';
 import { colors, fonts, spacing } from '@/styles/theme';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const;
-const DAY_PATTERN = [2, 4, 7, 10, 12, 15, 18, 21, 23, 24, 25, 29] as const;
-const HOUR_PATTERN = [18, 20, 11, 17, 19, 14, 21, 16] as const;
 
-type CalendarEvent = ListingItem & {
+type CalendarEvent = Omit<EventItem, 'startsAt'> & {
   startsAt: Date;
 };
 
@@ -67,59 +64,28 @@ function clampDay(date: Date, day: number) {
   return Math.min(day, daysInMonth);
 }
 
-function buildCalendarEvents(items: ListingItem[], baseMonth: Date): CalendarEvent[] {
-  const today = new Date();
-  const sameAsCurrentMonth =
-    today.getFullYear() === baseMonth.getFullYear() &&
-    today.getMonth() === baseMonth.getMonth();
-  const currentDay = clampDay(baseMonth, today.getDate());
-  const nextDay = clampDay(baseMonth, Math.min(today.getDate() + 1, 31));
-  const prioritizedDays = sameAsCurrentMonth ? [currentDay, nextDay] : [];
-  const orderedDays = [...prioritizedDays, ...DAY_PATTERN];
-
-  return items.map((item, index) => {
-    const day = clampDay(baseMonth, orderedDays[index % orderedDays.length]);
-    const hour = HOUR_PATTERN[index % HOUR_PATTERN.length];
-    const minute = index % 2 === 0 ? 0 : 30;
-    return {
+function buildCalendarEvents(items: EventItem[], baseMonth: Date): CalendarEvent[] {
+  return items
+    .map((item) => ({
       ...item,
-      startsAt: new Date(
-        baseMonth.getFullYear(),
-        baseMonth.getMonth(),
-        day,
-        hour,
-        minute,
-      ),
-    };
-  });
+      startsAt: new Date(item.startsAt),
+    }))
+    .filter(
+      (event) =>
+        event.startsAt.getFullYear() === baseMonth.getFullYear() &&
+        event.startsAt.getMonth() === baseMonth.getMonth(),
+    );
 }
 
 function EventRow({
   event,
-  navigation,
+  showOwner,
 }: {
   event: CalendarEvent;
-  navigation: RootStackNav;
+  showOwner?: boolean;
 }) {
   return (
-    <Pressable
-      onPress={() =>
-        navigateToItemDetail(navigation, {
-          listingId: event.id,
-          title: event.title,
-          price: event.price,
-          imageUrl: event.imageUrl,
-          seller: event.sellerHandle ?? 'Campus host',
-          sellerProfileId: event.sellerId,
-          sellerAvatarUrl: event.sellerAvatarUrl,
-          categoryLabel: 'Events',
-          condition: event.condition,
-          description: event.description,
-          meetupLocation: event.location,
-        })
-      }
-      style={styles.eventRow}
-    >
+    <View style={styles.eventRow}>
       <Image source={{ uri: event.imageUrl }} style={styles.eventImage} />
 
       <View style={styles.eventBody}>
@@ -128,26 +94,35 @@ function EventRow({
           {event.title}
         </Text>
         <Text numberOfLines={1} style={styles.eventLocation}>
-          {event.location ?? 'Campus venue'}
+          {event.locationLabel || 'Campus venue'}
         </Text>
+        {showOwner && event.ownerHandle ? (
+          <Text numberOfLines={1} style={styles.eventOwner}>
+            by @{event.ownerHandle}
+          </Text>
+        ) : null}
       </View>
-
-      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-    </Pressable>
+    </View>
   );
 }
 
 export function EventsCalendarScreen() {
   const navigation = useNavigation<RootStackNav>();
+  const viewerProfileId = useViewerProfileId();
   const [refreshing, setRefreshing] = useState(false);
   const [displayMonth, setDisplayMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [events, setEvents] = useState<ListingItem[]>([]);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [myEvents, setMyEvents] = useState<EventItem[]>([]);
 
   const loadEvents = useCallback(async () => {
-    const next = await fetchEventListings();
-    setEvents(next);
-  }, []);
+    const [nextEvents, nextMine] = await Promise.all([
+      fetchCampusEvents(),
+      viewerProfileId ? fetchMyEvents(viewerProfileId) : Promise.resolve([]),
+    ]);
+    setEvents(nextEvents);
+    setMyEvents(nextMine);
+  }, [viewerProfileId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -186,6 +161,10 @@ export function EventsCalendarScreen() {
       return eventDay > today && eventDay <= weekEnd;
     });
   }, [calendarEvents]);
+  const myCalendarEvents = useMemo(
+    () => buildCalendarEvents(myEvents, displayMonth),
+    [displayMonth, myEvents],
+  );
 
   const monthStart = startOfMonth(displayMonth);
   const firstWeekday = monthStart.getDay();
@@ -321,7 +300,7 @@ export function EventsCalendarScreen() {
 
         {todayEvents.length > 0 ? (
           todayEvents.map((event) => (
-            <EventRow key={event.id} event={event} navigation={navigation} />
+            <EventRow key={event.id} event={event} showOwner />
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -336,7 +315,7 @@ export function EventsCalendarScreen() {
 
         {weekEvents.length > 0 ? (
           weekEvents.map((event) => (
-            <EventRow key={`week-${event.id}`} event={event} navigation={navigation} />
+            <EventRow key={`week-${event.id}`} event={event} showOwner />
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -344,16 +323,26 @@ export function EventsCalendarScreen() {
             <Text style={styles.emptyBody}>Upcoming campus events will show up here.</Text>
           </View>
         )}
+
+        <View style={styles.sectionHeaderWeek}>
+          <Text style={styles.sectionTitle}>My Events</Text>
+        </View>
+
+        {myCalendarEvents.length > 0 ? (
+          myCalendarEvents.map((event) => (
+            <EventRow key={`mine-${event.id}`} event={event} />
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No events created yet</Text>
+            <Text style={styles.emptyBody}>Events you post will show here.</Text>
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.bottomBar}>
         <Pressable
-          onPress={() =>
-            navigation.navigate('Main', {
-              screen: 'CreateListing',
-              params: { screen: 'CreateEntry' },
-            })
-          }
+          onPress={() => navigation.navigate('EventCreateDetails')}
           style={({ pressed }) => [styles.bottomButton, pressed && styles.bottomButtonPressed]}
         >
           <Ionicons name="add" size={24} color={colors.surface} />
@@ -540,6 +529,12 @@ const styles = StyleSheet.create({
   eventLocation: {
     marginTop: 1,
     color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 11,
+  },
+  eventOwner: {
+    marginTop: 2,
+    color: colors.textMuted,
     fontFamily: fonts.medium,
     fontSize: 11,
   },

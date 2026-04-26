@@ -10,7 +10,7 @@ import { MeetupMapPreview } from '@/components/MeetupMapPreview';
 import { RemoteImage } from '@/components/RemoteImage';
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
-import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
+import { fonts, colors, spacing } from '@/styles/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
 export function MeetupDetailsScreen() {
@@ -34,111 +34,141 @@ export function MeetupDetailsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.headerIconButton}>
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Meetup Details</Text>
-        <View style={{ width: 24 }} />
+        <Pressable style={styles.headerIconButton}>
+          <Ionicons name="ellipsis-horizontal" size={20} color={colors.textPrimary} />
+        </Pressable>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.card}>
-          <View style={styles.itemRow}>
+        <View style={styles.itemCard}>
+          <View style={styles.itemRowTop}>
             <RemoteImage uri={imageUrl} style={styles.thumb} />
-            <View>
-              <Text style={styles.itemTitle}>{title}</Text>
+            <View style={styles.itemMeta}>
+              <View style={styles.salePill}>
+                <Text style={styles.salePillText}>For Sale</Text>
+              </View>
+              <Text style={styles.itemTitle} numberOfLines={3}>
+                {title}
+              </Text>
               <Text style={styles.itemPrice}>{price}</Text>
             </View>
           </View>
+        </View>
 
-          {peerLabel ? (
-            <Pressable
-              style={styles.peerRow}
-              onPress={() => {
-                if (!peerUserId) return;
-                navigateToUserProfile(
-                  navigation,
-                  {
-                    userId: peerUserId,
-                    handle: peerHandle,
-                    displayName: peerLabel,
-                    avatarUrl: peerAvatarUrl,
-                  },
-                  viewerProfileId
-                );
-              }}
-              accessibilityLabel={`View ${peerLabel}'s profile`}
-              disabled={!peerUserId}
-            >
-              {peerAvatarUrl ? (
-                <RemoteImage uri={peerAvatarUrl} style={styles.peerAvatar} />
-              ) : (
-                <View style={[styles.peerAvatar, styles.peerAvatarFallback]}>
-                  <Ionicons name="person" size={16} color={colors.textMuted} />
-                </View>
-              )}
-              <View style={styles.peerMeta}>
-                <Text style={styles.peerRole}>
-                  {role === 'buyer' ? 'Seller' : 'Buyer'}
-                </Text>
-                <Text style={styles.peerName} numberOfLines={1}>
-                  {peerLabel}
-                </Text>
+        {peerLabel ? (
+          <Pressable
+            style={styles.peerRow}
+            onPress={() => {
+              if (!peerUserId) return;
+              navigateToUserProfile(
+                navigation,
+                {
+                  userId: peerUserId,
+                  handle: peerHandle,
+                  displayName: peerLabel,
+                  avatarUrl: peerAvatarUrl,
+                },
+                viewerProfileId
+              );
+            }}
+            accessibilityLabel={`View ${peerLabel}'s profile`}
+            disabled={!peerUserId}
+          >
+            {peerAvatarUrl ? (
+              <RemoteImage uri={peerAvatarUrl} style={styles.peerAvatar} />
+            ) : (
+              <View style={[styles.peerAvatar, styles.peerAvatarFallback]}>
+                <Ionicons name="person" size={16} color={colors.textMuted} />
               </View>
-              {peerUserId ? (
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={colors.textMuted}
-                />
-              ) : null}
-            </Pressable>
-          ) : null}
+            )}
+            <View style={styles.peerMeta}>
+              <Text style={styles.peerRole}>
+                {role === 'buyer' ? 'Seller' : 'Buyer'}
+              </Text>
+              <Text style={styles.peerName} numberOfLines={1}>
+                {peerLabel}
+              </Text>
+            </View>
+            <View style={styles.messageButton}>
+              <Ionicons
+                name="chatbubble-outline"
+                size={19}
+                color={colors.primary}
+              />
+            </View>
+          </Pressable>
+        ) : null}
 
-          <View style={styles.divider} />
+        <View style={styles.detailsCard}>
+          <Pressable style={styles.detailRow}>
+            <View style={styles.detailLeft}>
+              <View style={styles.detailIconWrap}>
+                <Ionicons name="location" size={18} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={styles.detailLabel}>Location</Text>
+                <Text style={styles.detailValue}>{location}</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
 
-          <Text style={styles.label}>Location</Text>
-          <View style={styles.rowIcon}>
-            <Ionicons name="location" size={20} color={colors.primary} />
-            <Text style={styles.rowText}>{location}</Text>
-          </View>
+          <View style={styles.detailDivider} />
 
-          <View style={styles.divider} />
-
-          <Text style={styles.label}>Time</Text>
-          <View style={styles.rowIcon}>
-            <Ionicons name="time-outline" size={20} color={colors.primary} />
-            <Text style={styles.rowText}>{timeLabel}</Text>
-          </View>
+          <Pressable style={styles.detailRow}>
+            <View style={styles.detailLeft}>
+              <View style={styles.detailIconWrap}>
+                <Ionicons name="time-outline" size={18} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={styles.detailLabel}>Time</Text>
+                <Text style={styles.detailValue}>{timeLabel}</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
 
           <View style={styles.mapSection}>
             <MeetupMapPreview location={location} />
           </View>
-
-          {role === 'seller' ? (
-            <Pressable style={styles.btnPurple}>
-              <Text style={styles.btnPurpleText}>Suggest Meetup Details</Text>
-            </Pressable>
-          ) : (
-            <>
-              <Pressable style={styles.btnWhite}>
-                <Text style={styles.btnWhiteText}>Confirm Details</Text>
-              </Pressable>
-              <Pressable style={styles.btnPurple}>
-                <Text style={styles.btnPurpleText}>Suggest New Details</Text>
-              </Pressable>
-            </>
-          )}
         </View>
 
-        <Text style={styles.disclaimer}>
-          <Text style={styles.star}>*</Text>
-          For your safety, we recommend completing exchanges in well-lit public locations on
-          campus.
-        </Text>
+        {role !== 'seller' ? (
+          <Pressable style={styles.btnWhite}>
+            <View style={styles.actionContent}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={colors.textPrimary} />
+              <Text style={styles.btnWhiteText}>Confirm Details</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textPrimary} />
+          </Pressable>
+        ) : null}
+
+        <Pressable style={styles.btnPurple}>
+          <View style={styles.actionContent}>
+            <Ionicons name="create-outline" size={18} color={colors.textInverse} />
+            <Text style={styles.btnPurpleText}>
+              {role === 'seller' ? 'Suggest Meetup Details' : 'Suggest New Details'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textInverse} />
+        </Pressable>
+
+        <View style={styles.disclaimer}>
+          <View style={styles.disclaimerIconWrap}>
+            <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
+          </View>
+          <Text style={styles.disclaimerText}>
+            For your safety, we recommend completing exchanges in well-lit public locations on
+            campus.
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -147,71 +177,98 @@ export function MeetupDetailsScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  headerIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   headerTitle: {
-    ...typography.header,
-    fontSize: 18,
+    color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 28,
+    letterSpacing: -0.6,
   },
   scroll: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xxl,
   },
-  card: {
-    backgroundColor: colors.bannerTint,
-    borderRadius: radii.card,
-    padding: spacing.md,
+  itemCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    padding: 12,
   },
-  itemRow: {
+  itemRowTop: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
   },
   thumb: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
+    width: 118,
+    height: 118,
+    borderRadius: 14,
     backgroundColor: colors.border,
+  },
+  itemMeta: {
+    flex: 1,
+  },
+  salePill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#CFC9F8',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  salePillText: {
+    color: colors.primary,
+    fontFamily: fonts.medium,
+    fontSize: 12,
   },
   itemTitle: {
     fontFamily: fonts.bold,
     fontSize: 16,
     color: colors.textPrimary,
+    lineHeight: 24,
   },
   itemPrice: {
     fontFamily: fonts.extraBold,
-    fontSize: 17,
-    marginTop: 4,
-    color: colors.textPrimary,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginVertical: spacing.md,
+    fontSize: 18,
+    color: colors.primary,
+    marginTop: 6,
   },
   peerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: spacing.md,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: radii.button,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 16,
     backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     borderColor: colors.border,
   },
   peerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: colors.chipBg,
   },
   peerAvatarFallback: {
@@ -223,66 +280,132 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   peerRole: {
-    ...typography.caption,
     color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 12,
   },
   peerName: {
-    fontFamily: fonts.semiBold,
-    fontSize: 14,
-    color: colors.textPrimary,
-    marginTop: 1,
-  },
-  label: {
     fontFamily: fonts.bold,
-    marginBottom: 8,
+    fontSize: 19,
     color: colors.textPrimary,
   },
-  rowIcon: {
+  messageButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailsCard: {
+    marginTop: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  detailRow: {
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
   },
-  rowText: {
-    ...typography.body,
-    flex: 1,
+  detailLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  detailIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F3F0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailLabel: {
+    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+  },
+  detailValue: {
     color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    marginTop: 1,
+  },
+  detailDivider: {
+    height: 1,
+    backgroundColor: colors.border,
   },
   mapSection: {
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
+    marginTop: spacing.sm,
   },
   btnPurple: {
+    marginTop: 12,
+    minHeight: 52,
+    borderRadius: 12,
     backgroundColor: colors.primary,
-    borderRadius: radii.button,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'space-between',
   },
   btnPurpleText: {
-    ...typography.button,
-    color: '#FFF',
+    color: colors.textInverse,
+    fontFamily: fonts.bold,
+    fontSize: 15,
   },
   btnWhite: {
-    borderWidth: 2,
-    borderColor: colors.borderStrong,
-    borderRadius: radii.button,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 10,
+    marginTop: 12,
+    minHeight: 52,
+    borderWidth: 1.5,
+    borderColor: '#CFC9F8',
+    borderRadius: 12,
     backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   btnWhiteText: {
-    ...typography.button,
     color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 15,
+  },
+  actionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   disclaimer: {
-    marginTop: spacing.lg,
-    ...typography.caption,
-    lineHeight: 18,
-    color: colors.primary,
-    paddingHorizontal: spacing.xs,
+    marginTop: 14,
+    borderRadius: 14,
+    backgroundColor: '#F5F4FF',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
   },
-  star: {
-    color: colors.error,
+  disclaimerIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#ECE8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  disclaimerText: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

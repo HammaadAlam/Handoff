@@ -21,7 +21,9 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  type CustomShopSection,
   ManageSectionsModal,
+  loadCustomShopSections,
   loadProfileTabPreferences,
 } from '@/components/profile/ManageSectionsModal';
 import {
@@ -78,6 +80,14 @@ const PROFILE_COMPACT_BAR_H = 72;
 const PROFILE_HERO_HEIGHT_HOLD_UNTIL = 0.38;
 /** Extra bottom inset inside the lavender band so the rating row clears the tab edge. */
 const PROFILE_HERO_BAND_EXTRA_BOTTOM = 2;
+
+function fallbackFavoriteCount(listingId: string): number {
+  let hash = 0;
+  for (let i = 0; i < listingId.length; i += 1) {
+    hash = (hash * 31 + listingId.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 23) + 3;
+}
 
 function sortProfileTabs(order: ProfileTab[]) {
   return [...order].sort(
@@ -147,6 +157,8 @@ function StoreCarouselCard({
 }) {
   const { isFavorite, toggleFavorite } = useMarketplace();
   const fav = isFavorite(item.id);
+  const count = item.favoriteCount ?? fallbackFavoriteCount(item.id);
+  const countLabel = count > 99 ? '99+' : String(count);
 
   return (
     <Pressable style={styles.carouselCard} onPress={onPress}>
@@ -159,9 +171,10 @@ function StoreCarouselCard({
         >
           <Ionicons
             name={fav ? 'heart' : 'heart-outline'}
-            size={18}
+            size={16}
             color={fav ? colors.error : colors.textPrimary}
           />
+          <Text style={styles.favoriteCountText}>{countLabel}</Text>
         </Pressable>
       </View>
       <Text style={styles.carouselTitle} numberOfLines={4} ellipsizeMode="tail">
@@ -181,6 +194,8 @@ function GridCard({
 }) {
   const { isFavorite, toggleFavorite } = useMarketplace();
   const fav = isFavorite(item.id);
+  const count = item.favoriteCount ?? fallbackFavoriteCount(item.id);
+  const countLabel = count > 99 ? '99+' : String(count);
 
   return (
     <Pressable style={styles.gridCard} onPress={onPress}>
@@ -192,9 +207,10 @@ function GridCard({
         >
           <Ionicons
             name={fav ? 'heart' : 'heart-outline'}
-            size={18}
+            size={16}
             color={fav ? colors.error : colors.textPrimary}
           />
+          <Text style={styles.favoriteCountText}>{countLabel}</Text>
         </Pressable>
       </View>
     </Pressable>
@@ -227,6 +243,7 @@ export function ProfileScreen() {
     PROFILE_HERO_EXPANDED_FALLBACK,
   );
   const [storeListings, setStoreListings] = useState<ListingItem[]>([]);
+  const [customSections, setCustomSections] = useState<CustomShopSection[]>([]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollYRef = useRef(0);
@@ -343,6 +360,17 @@ export function ProfileScreen() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const sections = await loadCustomShopSections(viewerProfileId);
+      if (!cancelled) setCustomSections(sections);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerProfileId]);
+
+  useEffect(() => {
     if (!prefsLoaded) return;
     if (!tabBarOrder.includes(activeTab)) {
       setActiveTab(tabBarOrder[0] ?? 'Shop');
@@ -365,7 +393,11 @@ export function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadStoreListings();
-    }, [loadStoreListings]),
+      void (async () => {
+        const sections = await loadCustomShopSections(viewerProfileId);
+        setCustomSections(sections);
+      })();
+    }, [loadStoreListings, viewerProfileId]),
   );
 
   const featuredListings = useMemo(() => storeListings.slice(0, 8), [storeListings]);
@@ -417,8 +449,10 @@ export function ProfileScreen() {
         onClose={() => setManageSectionsOpen(false)}
         tabOrder={tabBarOrder}
         shopLayout={shopSectionLayout}
-        featuredCount={featuredListings.length}
-        saleListingCount={saleListings.length}
+        viewerProfileId={viewerProfileId}
+        listings={storeListings}
+        customSections={customSections}
+        onApplyCustomSections={setCustomSections}
         onApply={({ tabOrder, shopLayout }) => {
           const sortedTabs = sortProfileTabs(tabOrder);
           setTabBarOrder(sortedTabs);
@@ -655,54 +689,56 @@ export function ProfileScreen() {
               </View>
             )}
 
-            {activeTab === 'Shop' && hasListings && shopSectionLayout.topPicks && (
-              <>
-                <View style={styles.sectionHead}>
-                  <Text style={styles.sectionTitle}>Top picks</Text>
-                </View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.carouselRail}
-                  contentContainerStyle={styles.carouselContent}
-                >
-                  {featuredListings.map((item) => (
-                    <StoreCarouselCard
-                      key={item.id}
-                      item={item}
-                      onPress={() => openListing(item)}
-                    />
-                  ))}
-                </ScrollView>
-              </>
-            )}
+            {activeTab === 'Shop' &&
+              customSections.length > 0 &&
+              customSections.map((section) => {
+                const sectionItems = allListings.filter((item) =>
+                  section.itemIds.includes(item.id),
+                );
+                return (
+                  <View key={section.id}>
+                    <View style={styles.sectionHead}>
+                      <Text style={styles.sectionTitle}>{section.title}</Text>
+                    </View>
+                    {sectionItems.length > 0 ? (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.carouselRail}
+                        contentContainerStyle={styles.carouselContent}
+                      >
+                        {sectionItems.map((item) => (
+                          <StoreCarouselCard
+                            key={`${section.id}-${item.id}`}
+                            item={item}
+                            onPress={() => openListing(item)}
+                          />
+                        ))}
+                      </ScrollView>
+                    ) : (
+                      <Text style={styles.sectionEmptyText}>
+                        No items in this row yet. Add items from Manage sections.
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
 
-            {hasListings && (activeTab === 'Sale' ||
-              (activeTab === 'Shop' && shopSectionLayout.newlyListed)) && (
+            {hasListings && activeTab === 'Sale' && (
               <>
                 <View style={styles.sectionHead}>
                   <View style={styles.sectionTitleBlock}>
                     <Text style={styles.sectionTitle} numberOfLines={2}>
-                      {activeTab === 'Sale' ? 'On sale' : 'Newly listed'}
+                      On sale
                     </Text>
                   </View>
-                  {activeTab === 'Sale' ? (
-                    <Pressable
-                      hitSlop={8}
-                      style={styles.sectionHeadAction}
-                      onPress={() => setActiveTab('Shop')}
-                    >
-                      <Text style={styles.seeAll}>See all</Text>
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      hitSlop={8}
-                      style={styles.sectionHeadAction}
-                      onPress={() => setManageSectionsOpen(true)}
-                    >
-                      <Text style={styles.seeAll}>Edit sections</Text>
-                    </Pressable>
-                  )}
+                  <Pressable
+                    hitSlop={8}
+                    style={styles.sectionHeadAction}
+                    onPress={() => setActiveTab('Shop')}
+                  >
+                    <Text style={styles.seeAll}>See all</Text>
+                  </Pressable>
                 </View>
                 <ScrollView
                   horizontal
@@ -721,9 +757,7 @@ export function ProfileScreen() {
               </>
             )}
 
-            {(activeTab === 'Sale' ||
-              (activeTab === 'Shop' &&
-                (shopSectionLayout.allItems || !hasListings))) && (
+            {(activeTab === 'Sale' || activeTab === 'Shop') && (
               <>
                 <View style={styles.sectionHead}>
                   <Text style={styles.sectionTitle}>All items</Text>
@@ -775,16 +809,6 @@ export function ProfileScreen() {
                 )}
               </>
             )}
-
-            {activeTab === 'Shop' &&
-              hasListings &&
-              !shopSectionLayout.topPicks &&
-              !shopSectionLayout.newlyListed &&
-              !shopSectionLayout.allItems && (
-                <Text style={styles.shopEmptySections}>
-                  Turn on sections in Manage sections to show your storefront blocks.
-                </Text>
-              )}
           </>
         )}
 
@@ -1171,13 +1195,12 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     lineHeight: 20,
   },
-  shopEmptySections: {
+  sectionEmptyText: {
     ...typography.body,
-    fontSize: 15,
+    fontSize: 13,
     color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.md,
+    marginTop: -2,
+    marginBottom: spacing.md,
   },
   emptyShopCard: {
     alignItems: 'center',
@@ -1241,12 +1264,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    minWidth: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.overlayOnImage,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 6,
+    gap: 1,
   },
   carouselTitle: {
     ...listingCardTypography.title,
@@ -1283,12 +1308,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    minWidth: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.overlayOnImage,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 6,
+    gap: 1,
+  },
+  favoriteCountText: {
+    color: colors.textPrimary,
+    fontFamily: fonts.semiBold,
+    fontSize: 9,
+    lineHeight: 10,
   },
   gridCaption: {
     ...listingCardTypography.title,

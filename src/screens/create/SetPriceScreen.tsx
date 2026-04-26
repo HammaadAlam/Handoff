@@ -37,6 +37,8 @@ export function SetPriceScreen() {
   const [price, setPrice] = useState(draft.price);
   const [lowestOffer, setLowestOffer] = useState(draft.lowestOffer);
   const suggestedPrice = draft.price.trim();
+  const priceHasLetters = /[a-zA-Z]/.test(price);
+  const lowestOfferHasLetters = /[a-zA-Z]/.test(lowestOffer);
 
   const priceNum = useMemo(() => {
     const cleaned = price.replace(/[^0-9.]/g, '');
@@ -53,7 +55,11 @@ export function SetPriceScreen() {
   const lowestOfferValid =
     lowestOfferNum === null ||
     (lowestOfferNum >= 0 && (priceNum === 0 || lowestOfferNum < priceNum));
-  const canContinue = priceNum > 0 && lowestOfferValid;
+  const canContinue =
+    priceNum > 0 &&
+    lowestOfferValid &&
+    !priceHasLetters &&
+    !lowestOfferHasLetters;
 
   const continueFlow = () => {
     if (!canContinue) return;
@@ -115,6 +121,9 @@ export function SetPriceScreen() {
             value={price}
           />
         </View>
+        {priceHasLetters ? (
+          <Text style={styles.fieldError}>Price must use numbers only.</Text>
+        ) : null}
 
         <Text style={[styles.label, styles.labelSpaced]}>
           Lowest acceptable offer
@@ -133,6 +142,11 @@ export function SetPriceScreen() {
             value={lowestOffer}
           />
         </View>
+        {lowestOfferHasLetters ? (
+          <Text style={styles.fieldError}>
+            Lowest acceptable offer must use numbers only.
+          </Text>
+        ) : null}
         {!lowestOfferValid ? (
           <Text style={styles.fieldError}>
             Lowest acceptable offer must be less than your price.
