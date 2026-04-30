@@ -268,6 +268,48 @@ export async function createListing(
 }
 
 /**
+ * Soft-delete a listing the caller owns. Updates `status` to `'removed'`
+ * so the row drops out of public feeds (which filter by `status = 'active'`)
+ * but stays referenced by historical conversations/offers/favorites.
+ *
+ * RLS (`listings_update_owner`) enforces that only the linked auth user
+ * can mutate their own listings; we additionally scope by `seller_id`
+ * so a stale viewer id can't accidentally hit someone else's row.
+ */
+export async function removeListing(args: {
+  listingId: string;
+  sellerProfileId?: string | null;
+}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, reason: 'Supabase is not configured.' };
+  }
+  if (!args.listingId) {
+    return { ok: false, reason: 'Missing listing id.' };
+  }
+
+  try {
+    let query = getSupabase()
+      .from('listings')
+      .update({ status: 'removed' })
+      .eq('id', args.listingId);
+    if (args.sellerProfileId) {
+      query = query.eq('seller_id', args.sellerProfileId);
+    }
+    const { error } = await query;
+    if (error) {
+      console.warn('removeListing error', error);
+      return { ok: false, reason: error.message || 'Could not remove listing.' };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.warn('removeListing exception', err);
+    const message =
+      err instanceof Error ? err.message : 'Unknown error while removing listing.';
+    return { ok: false, reason: message };
+  }
+}
+
+/**
  * Public profile/shop listings for a specific seller (`profiles.id`).
  */
 export async function fetchListingsByUserId(

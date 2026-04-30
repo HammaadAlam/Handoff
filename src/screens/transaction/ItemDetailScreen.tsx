@@ -7,6 +7,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   FlatList,
   NativeScrollEvent,
@@ -35,6 +36,7 @@ import {
   seedLocalOfferAmount,
   upsertLocalInboxConversation,
 } from '@/services/conversations';
+import { removeListing } from '@/services/listings';
 import { resolveProfileId } from '@/services/profiles';
 import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
 import type { RootStackParamList } from '@/navigation/types';
@@ -74,6 +76,7 @@ export function ItemDetailScreen() {
   const [descExpanded, setDescExpanded] = useState(false);
   const [profileResolving, setProfileResolving] = useState(false);
   const [conversationOpening, setConversationOpening] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const viewerProfileId = useViewerProfileId();
@@ -82,6 +85,15 @@ export function ItemDetailScreen() {
   /** Exact half of footer row (matches `footer` horizontal padding + `footerRow` gap) */
   const footerBtnWidth =
     (windowW - spacing.md * 2 - spacing.sm) / 2;
+  /**
+   * Owner detection — when the viewer is the seller, swap the buyer-facing
+   * Offer / Message footer for a single destructive "Remove Listing" action.
+   * Defaults to false while the viewer profile id is still loading so we
+   * never flicker the wrong CTA in front of a real buyer.
+   */
+  const isOwnListing = Boolean(
+    viewerProfileId && sellerProfileId && viewerProfileId === sellerProfileId,
+  );
 
   const listingItem: ListingItem = useMemo(
     () => ({
@@ -201,6 +213,42 @@ export function ItemDetailScreen() {
   const handleOfferSubmit = (amount: string) => {
     setOfferOpen(false);
     void openConversation('offer', amount);
+  };
+
+  const handleRemoveListing = () => {
+    if (removing) return;
+    Alert.alert(
+      'Remove listing?',
+      `“${title}” will be hidden from the marketplace. This can\u2019t be undone right now.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setRemoving(true);
+            try {
+              const result = await removeListing({
+                listingId,
+                sellerProfileId: viewerProfileId,
+              });
+              if (!result.ok) {
+                Alert.alert(
+                  'Could not remove listing',
+                  result.reason ||
+                    'Something went wrong while removing this listing. Please try again.',
+                );
+                return;
+              }
+              navigation.goBack();
+            } finally {
+              setRemoving(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true },
+    );
   };
 
   const sellerAvatar = sellerAvatarUrl ?? DEFAULT_PEER_AVATAR_URI;
@@ -367,44 +415,61 @@ export function ItemDetailScreen() {
           },
         ]}
       >
-        <View style={styles.footerRow}>
+        {isOwnListing ? (
           <Pressable
-            style={[styles.btnOffer, { width: footerBtnWidth }]}
-            onPress={() => setOfferOpen(true)}
+            style={[styles.btnRemove, removing && styles.btnRemoveDisabled]}
+            onPress={handleRemoveListing}
             accessibilityRole="button"
-            accessibilityLabel={`Send offer ${priceDisplay}`}
-            disabled={conversationOpening}
+            accessibilityLabel="Remove this listing"
+            disabled={removing}
           >
-            <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
-            <Text style={styles.btnOfferText} numberOfLines={1}>
-              Offer
+            <Ionicons name="trash-outline" size={20} color={colors.primary} />
+            <Text style={styles.btnRemoveText}>
+              {removing ? 'Removing…' : 'Remove Listing'}
             </Text>
           </Pressable>
-          <Pressable
-            style={[styles.btnChat, { width: footerBtnWidth }]}
-            onPress={() => {
-              void openConversation('message');
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Message seller"
-            disabled={conversationOpening}
-          >
-            <Ionicons name="chatbubble-outline" size={20} color={colors.textInverse} />
-            <Text style={styles.btnChatText}>Message</Text>
-          </Pressable>
-        </View>
+        ) : (
+          <View style={styles.footerRow}>
+            <Pressable
+              style={[styles.btnOffer, { width: footerBtnWidth }]}
+              onPress={() => setOfferOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Send offer ${priceDisplay}`}
+              disabled={conversationOpening}
+            >
+              <Ionicons name="pricetag-outline" size={20} color={colors.primary} />
+              <Text style={styles.btnOfferText} numberOfLines={1}>
+                Offer
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.btnChat, { width: footerBtnWidth }]}
+              onPress={() => {
+                void openConversation('message');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Message seller"
+              disabled={conversationOpening}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color={colors.textInverse} />
+              <Text style={styles.btnChatText}>Message</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
 
-      <MakeOfferSheet
-        visible={offerOpen}
-        title={title}
-        imageUrl={imageUrl}
-        price={price}
-        variant={condition}
-        lowestOffer={lowestOffer}
-        onClose={() => setOfferOpen(false)}
-        onSubmit={handleOfferSubmit}
-      />
+      {!isOwnListing ? (
+        <MakeOfferSheet
+          visible={offerOpen}
+          title={title}
+          imageUrl={imageUrl}
+          price={price}
+          variant={condition}
+          lowestOffer={lowestOffer}
+          onClose={() => setOfferOpen(false)}
+          onSubmit={handleOfferSubmit}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -637,5 +702,25 @@ const styles = StyleSheet.create({
   btnChatText: {
     ...typography.button,
     color: colors.textInverse,
+  },
+  btnRemove: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.card,
+    borderWidth: 2,
+    borderColor: colors.primaryLight,
+    backgroundColor: '#F5F4FF',
+  },
+  btnRemoveDisabled: {
+    opacity: 0.6,
+  },
+  btnRemoveText: {
+    ...typography.button,
+    color: colors.primary,
   },
 });
