@@ -1,5 +1,6 @@
 /**
- * Applies supabase/schema.sql then supabase/seed.sql using Postgres.
+ * Applies supabase/schema.sql, all supabase/migrations/*.sql, then supabase/seed.sql
+ * using Postgres.
  *
  * Prefer discrete vars when the DB password contains #, @, etc. (URI + postgres.js
  * treat # as a URL fragment; unquoted # in .env is also treated as a comment).
@@ -13,6 +14,7 @@
  *   SUPABASE_DB_URL=postgresql://postgres:encoded@host:5432/postgres
  */
 import { readFileSync } from 'fs';
+import { readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import postgres from 'postgres';
@@ -58,17 +60,27 @@ if (host && password) {
 }
 
 const schemaPath = join(root, 'supabase/schema.sql');
+const migrationsDir = join(root, 'supabase/migrations');
 const seedPath = join(root, 'supabase/seed.sql');
 
 try {
   const schema = readFileSync(schemaPath, 'utf8');
+  const migrationFiles = readdirSync(migrationsDir)
+    .filter((name) => name.endsWith('.sql'))
+    .sort((a, b) => a.localeCompare(b));
   const seed = readFileSync(seedPath, 'utf8');
 
   console.log('Applying supabase/schema.sql …');
   await sql.unsafe(schema);
+  for (const fileName of migrationFiles) {
+    const migrationPath = join(migrationsDir, fileName);
+    const migrationSql = readFileSync(migrationPath, 'utf8');
+    console.log(`Applying supabase/migrations/${fileName} …`);
+    await sql.unsafe(migrationSql);
+  }
   console.log('Applying supabase/seed.sql …');
   await sql.unsafe(seed);
-  console.log('Done. Profiles + listings are loaded.');
+  console.log('Done. Schema, migrations, profiles, and listings are loaded.');
 } catch (e) {
   console.error(e);
   process.exit(1);

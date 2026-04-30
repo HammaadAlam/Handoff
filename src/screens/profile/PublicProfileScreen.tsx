@@ -642,9 +642,6 @@ export function PublicProfileScreen() {
   );
 }
 
-/** Unused — kept for future "featured" carousel; silences linter if referenced. */
-export const PUBLIC_PROFILE_CARD_W = CAROUSEL_CARD_W;
-
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
