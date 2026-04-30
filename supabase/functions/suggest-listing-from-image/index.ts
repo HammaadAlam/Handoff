@@ -6,12 +6,15 @@
  *   supabase secrets set GEMINI_API_KEY=your_key
  *
  * Optional:
- *   supabase secrets set GEMINI_MODEL=gemini-2.0-flash
+ *   supabase secrets set GEMINI_MODEL=gemini-2.5-flash
  * (default model below if unset)
  *
  * Invoke body (JSON):
  *   { "imageUrl": "https://..." }  OR  { "imageBase64": "...", "mimeType": "image/jpeg" }
- *   Optional: "hints": { "title": "...", "description": "..." } to refine existing copy.
+ *   Optional:
+ *     "hints":   { "title": "...", "description": "..." } to refine existing copy.
+ *     "options": { categories, conditions, attributes } catalog so the model
+ *                picks real dropdown values instead of lazy-defaulting to "Other".
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
@@ -26,11 +29,22 @@ const FALLBACK_MODELS = ['gemini-1.5-flash'] as const;
 
 type Hints = { title?: string; description?: string };
 
+type AttributeKey = 'brand' | 'model' | 'storage' | 'color';
+
+type AttributeMap = Partial<Record<AttributeKey, string[]>>;
+
+type OptionsCatalog = {
+  categories?: string[];
+  conditions?: string[];
+  attributes?: Record<string, AttributeMap>;
+};
+
 type SuggestBody = {
   imageUrl?: string;
   imageBase64?: string;
   mimeType?: string;
   hints?: Hints;
+  options?: OptionsCatalog;
 };
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -82,6 +96,66 @@ async function resolveInlineImage(
   );
 }
 
+function formatAttributeLine(label: string, opts: string[] | undefined): string {
+  if (!opts || opts.length === 0) return '';
+  return `  - ${label}: ${opts.join(' | ')}`;
+}
+
+function buildOptionsBlock(catalog: OptionsCatalog | undefined): string {
+  if (!catalog) return '';
+  const lines: string[] = [];
+
+  if (catalog.categories && catalog.categories.length > 0) {
+    lines.push(`Allowed category values (pick exactly one): ${catalog.categories.join(' | ')}`);
+  }
+  if (catalog.conditions && catalog.conditions.length > 0) {
+    lines.push(`Allowed condition values (pick exactly one): ${catalog.conditions.join(' | ')}`);
+  }
+
+  if (catalog.attributes && Object.keys(catalog.attributes).length > 0) {
+    lines.push('');
+    lines.push(
+      'Allowed brand / model (type) / storage / color values per category. You MUST pick a value from the list that matches the category you chose:',
+    );
+    for (const [cat, attrs] of Object.entries(catalog.attributes)) {
+      const block = [
+        formatAttributeLine('brand', attrs.brand),
+        formatAttributeLine('model (type)', attrs.model),
+        formatAttributeLine('storage', attrs.storage),
+        formatAttributeLine('color', attrs.color),
+      ].filter(Boolean);
+      if (block.length === 0) continue;
+      lines.push(`If category = "${cat}":`);
+      lines.push(...block);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+const BASE_SYSTEM_INSTRUCTION = `You help sellers on a university campus marketplace (Handoff).
+Analyze the product photo and fill in listing fields exactly.
+
+Title: max 45 chars, sellable, no price.
+Description: 1–2 short sentences in a student-seller voice (friendly, direct, "ready for pickup", "used for one semester", etc.), max 220 characters.
+estimatedPrice: integer USD with no symbol, based on typical resale value of similar campus items in the indicated condition. Always provide a positive integer.
+
+CRITICAL selection rules for category, condition, brand, model (type), storage, color:
+- Pick the SINGLE option from each provided list that has the highest probability of correctly describing the item. Commit to a real value.
+- Do NOT lazy-default to "Other" or "N/A". Only pick "Other" / "N/A" when EVERY other option in that list is genuinely worse — this should be rare.
+- When a brand is visible in the photo (logo, label, product styling), pick that brand from the list. Otherwise pick the closest applicable brand.
+- Always pick the dominant color from the color list.
+- Examples of how NOT to pick "Other":
+  * Insulated water bottle / coffee mug / drinking flask → category "Other", model (type) "Kitchen / Home Goods" (NOT "Other").
+  * Backpack / tote / handbag → category "Clothes", model (type) "Bag" (NOT "Other").
+  * Sneakers / running shoes → category "Clothes" or "Sports", model (type) "Shoes".
+  * Office chair, dorm chair, gaming chair → category "Furniture", model (type) "Chair".
+  * Wired keyboard, mouse, charger → category "Electronics", model (type) "Accessory".
+  * Textbook → category "Books", model (type) "Textbook".
+
+Respond with ONLY a JSON object (no markdown) with keys:
+title, description, category, condition, brand, model, storage, color, estimatedPrice.`;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -109,7 +183,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Invalid JSON body' }, 400);
   }
 
-  const { imageUrl, imageBase64, mimeType = 'image/jpeg', hints } = body;
+  const { imageUrl, imageBase64, mimeType = 'image/jpeg', hints, options } = body;
 
   const inline = await resolveInlineImage(imageUrl, imageBase64, mimeType);
   if (inline instanceof Response) return inline;
@@ -120,22 +194,10 @@ Deno.serve(async (req) => {
     hintLines.push(`Draft description (refine to match photo): ${hints.description.trim()}`);
   }
 
-  const system = `You help sellers on a university campus marketplace (Handoff).
-Analyze the product photo and suggest listing fields.
-
-Rules:
-- title: concise and sellable, max 45 characters, no price in title.
-- description: 1–2 short sentences written in a student seller voice (friendly, direct, "ready for pickup", "used for one semester", etc.), max 220 characters.
-- category must be exactly one of: Clothes, Electronics, Furniture, Books, Sports, Tickets & Events, Other.
-- condition must be exactly one of: New, Like New, Good, Fair, For Parts.
-- brand must match the category's brand/organizer list as best as possible.
-- model/type should be filled from the category type list; if uncertain return "Other" (or "N/A" if applicable).
-- storage should be filled when relevant; if unknown, return "N/A".
-- color should be filled when relevant; if unknown, return "Other".
-- estimatedPrice should be an integer USD estimate with no currency symbol.
-
-Respond with ONLY a JSON object (no markdown) with keys:
-title, description, category, condition, brand, model, storage, color, estimatedPrice.`;
+  const optionsBlock = buildOptionsBlock(options);
+  const system = optionsBlock
+    ? `${BASE_SYSTEM_INSTRUCTION}\n\n${optionsBlock}`
+    : BASE_SYSTEM_INSTRUCTION;
 
   const userText =
     hintLines.length > 0
@@ -173,7 +235,7 @@ title, description, category, condition, brand, model, storage, color, estimated
           },
         ],
         generationConfig: {
-          temperature: 0.35,
+          temperature: 0.25,
           maxOutputTokens: 1024,
           responseMimeType: 'application/json',
         },

@@ -22,6 +22,7 @@ import { StudentEventsBanner } from '@/components/home/StudentEventsBanner';
 import { TicketCard } from '@/components/home/TicketCard';
 import { ProductCard } from '@/components/marketplace/ProductCard';
 import { SearchPopularCard } from '@/components/marketplace/SearchPopularCard';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import {
   DEFAULT_PEER_AVATAR_URI,
   filterListingsForHomeCategory,
@@ -172,6 +173,7 @@ function searchQueryForCategory(category: HomeCategoryPill) {
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeTabNavigation>();
+  const viewerProfileId = useViewerProfileId();
   const { width } = useWindowDimensions();
   const [activeCategory, setActiveCategory] = useState<HomeCategoryPill>('For You');
   const [bannerGroupIndex, setBannerGroupIndex] = useState(0);
@@ -241,36 +243,44 @@ export function HomeScreen() {
     ).slice(0, 3);
   }, [recommended]);
 
+  const feedListings = useMemo(
+    () =>
+      viewerProfileId
+        ? recommended.filter((item) => item.sellerId !== viewerProfileId)
+        : recommended,
+    [recommended, viewerProfileId],
+  );
+
   const hotListings = useMemo(() => {
-    const filtered = filterHomeListings(recommended, activeCategory);
+    const filtered = filterHomeListings(feedListings, activeCategory);
     return excludeEventListings(filtered).slice(0, 8);
-  }, [activeCategory, recommended]);
+  }, [activeCategory, feedListings]);
 
   // "Saved by Others" — second rail of listings others are browsing (not Events-only;
   // most catalogs have few/no Events rows, which left this rail empty).
   const savedByOthersRail = useMemo(() => {
     const hotIds = new Set(hotListings.map((item) => item.id));
-    const filtered = excludeEventListings(filterHomeListings(recommended, activeCategory));
+    const filtered = excludeEventListings(filterHomeListings(feedListings, activeCategory));
     let pool = filtered.filter((item) => !hotIds.has(item.id));
     if (pool.length < 4) {
-      pool = excludeEventListings(recommended).filter((item) => !hotIds.has(item.id));
+      pool = excludeEventListings(feedListings).filter((item) => !hotIds.has(item.id));
     }
     if (pool.length === 0) {
       pool = filtered.slice(0, 8);
     }
     return pool.slice(0, 8).map(listingToTicketCard);
-  }, [activeCategory, recommended, hotListings]);
+  }, [activeCategory, feedListings, hotListings]);
 
   const recentlyListed = useMemo(() => {
-    const filtered = filterHomeListings(recommended, activeCategory);
+    const filtered = filterHomeListings(feedListings, activeCategory);
     const hotIds = new Set(hotListings.map((item) => item.id));
     const freshPool = filtered.filter((item) => !hotIds.has(item.id));
     const source = freshPool.length >= RECENT_LISTING_LIMIT ? freshPool : filtered;
     return source.slice(0, RECENT_LISTING_LIMIT);
-  }, [activeCategory, hotListings, recommended]);
+  }, [activeCategory, hotListings, feedListings]);
 
   const moreCampusFinds = useMemo(() => {
-    const filtered = filterHomeListings(recommended, activeCategory);
+    const filtered = filterHomeListings(feedListings, activeCategory);
     const usedIds = new Set([
       ...hotListings.map((item) => item.id),
       ...recentlyListed.map((item) => item.id),
@@ -278,7 +288,7 @@ export function HomeScreen() {
     const remaining = filtered.filter((item) => !usedIds.has(item.id));
     const source = remaining.length >= 4 ? remaining : [...filtered].reverse();
     return source.slice(0, Math.max(6, visibleCount));
-  }, [activeCategory, hotListings, recentlyListed, recommended, visibleCount]);
+  }, [activeCategory, hotListings, recentlyListed, feedListings, visibleCount]);
 
   const openSeeAll = useCallback(
     (homeSection: 'hot' | 'saved' | 'recent' | 'more') => {

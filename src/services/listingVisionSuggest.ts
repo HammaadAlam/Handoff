@@ -26,26 +26,90 @@ export type ListingVisionSuggestion = {
   estimatedPrice: string;
 };
 
+/**
+ * Tokens whose only purpose is "I don't know" -- never auto-picked from a list.
+ * If Gemini returns one of these, we still try to fall back to a real option
+ * before accepting it.
+ */
+const FALLBACK_TOKENS = new Set(['other', 'n a', 'na', 'unknown', 'unsure', 'none']);
+
+function tokenize(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/**
+ * Pick the option that most plausibly matches `raw`. Tries:
+ *   1) case/punctuation-insensitive exact match
+ *   2) substring containment (longer overlap wins)
+ *   3) word-overlap scoring
+ * Skips "Other" / "N/A" sentinels during steps 2 & 3 so they're never auto-selected
+ * via fuzzy match. Returns null when nothing plausibly matches.
+ */
+function bestFitMatch(raw: string, options: readonly string[]): string | null {
+  const target = tokenize(raw);
+  if (!target) return null;
+
+  for (const opt of options) {
+    if (tokenize(opt) === target) return opt;
+  }
+
+  let bestSubstring: string | null = null;
+  let bestSubstringScore = 0;
+  for (const opt of options) {
+    const optNorm = tokenize(opt);
+    if (FALLBACK_TOKENS.has(optNorm)) continue;
+    if (optNorm.includes(target) || target.includes(optNorm)) {
+      const score = Math.min(optNorm.length, target.length);
+      if (score > bestSubstringScore) {
+        bestSubstringScore = score;
+        bestSubstring = opt;
+      }
+    }
+  }
+  if (bestSubstring) return bestSubstring;
+
+  const targetTokens = target.split(' ').filter((t) => t.length > 1);
+  let bestTokenMatch: string | null = null;
+  let bestTokenScore = 0;
+  for (const opt of options) {
+    const optNorm = tokenize(opt);
+    if (FALLBACK_TOKENS.has(optNorm)) continue;
+    const optTokens = optNorm.split(' ').filter((t) => t.length > 1);
+    let score = 0;
+    for (const t of targetTokens) {
+      if (optTokens.some((o) => o === t || o.startsWith(t) || t.startsWith(o))) {
+        score += 1;
+      }
+    }
+    if (score > bestTokenScore) {
+      bestTokenScore = score;
+      bestTokenMatch = opt;
+    }
+  }
+  return bestTokenScore > 0 ? bestTokenMatch : null;
+}
+
+/**
+ * Resolve a Gemini-supplied raw value to a concrete option from `options`.
+ *
+ * Behaviour matches the Quick List intent: prefer the highest-confidence real
+ * option, only fall back to "Other"/"N/A" when no other option is a plausible
+ * description.
+ */
+function selectFromOptions(raw: string, options: readonly string[]): string {
+  if (options.length === 0) return '';
+  const matched = bestFitMatch(raw, options);
+  if (matched) return matched;
+  const firstReal = options.find((o) => !FALLBACK_TOKENS.has(tokenize(o)));
+  return firstReal ?? options[0];
+}
+
 function normalizeCategory(raw: string): string {
-  const t = raw.trim();
-  return (LISTING_CATEGORIES as readonly string[]).includes(t) ? t : 'Other';
+  return selectFromOptions(raw, LISTING_CATEGORIES);
 }
 
 function normalizeCondition(raw: string): string {
-  const t = raw.trim();
-  return (LISTING_CONDITIONS as readonly string[]).includes(t) ? t : 'Good';
-}
-
-function normalizeBrand(raw: string): string {
-  return raw.trim();
-}
-
-function normalizeDropdownValue(raw: string, options: readonly string[]): string {
-  const value = raw.trim();
-  if (value && options.includes(value)) return value;
-  if (options.includes('N/A')) return 'N/A';
-  if (options.includes('Other')) return 'Other';
-  return options[0] ?? '';
+  return selectFromOptions(raw, LISTING_CONDITIONS);
 }
 
 function normalizeEstimatedPrice(raw: unknown): string {
@@ -57,6 +121,30 @@ function normalizeEstimatedPrice(raw: unknown): string {
   const amount = Number(cleaned);
   if (!Number.isFinite(amount) || amount <= 0) return '';
   return String(Math.round(amount));
+}
+
+type AttributeKey = 'brand' | 'model' | 'storage' | 'color';
+
+type OptionsCatalog = {
+  categories: string[];
+  conditions: string[];
+  attributes: Record<string, Partial<Record<AttributeKey, readonly string[]>>>;
+};
+
+function buildOptionsCatalog(): OptionsCatalog {
+  const attributes: OptionsCatalog['attributes'] = {};
+  for (const cat of LISTING_CATEGORIES) {
+    const map: Partial<Record<AttributeKey, readonly string[]>> = {};
+    for (const attr of getListingAttributesForCategory(cat)) {
+      map[attr.key] = attr.options;
+    }
+    attributes[cat] = map;
+  }
+  return {
+    categories: [...LISTING_CATEGORIES],
+    conditions: [...LISTING_CONDITIONS],
+    attributes,
+  };
 }
 
 async function imageToJpegBase64(imageUri: string): Promise<{ base64: string; mimeType: string }> {
@@ -74,6 +162,9 @@ async function imageToJpegBase64(imageUri: string): Promise<{ base64: string; mi
 /**
  * Calls Supabase Edge Function `suggest-listing-from-image` (Gemini vision).
  * Requires project secret GEMINI_API_KEY. Works with local file:// or https:// URIs.
+ *
+ * Sends the catalog of valid dropdown options so the model picks the highest-
+ * confidence real value and never lazy-defaults to "Other"/"N/A".
  */
 export async function suggestListingFromImage(
   imageUri: string,
@@ -81,12 +172,14 @@ export async function suggestListingFromImage(
 ): Promise<ListingVisionSuggestion | null> {
   if (!isSupabaseConfigured() || !imageUri.trim()) return null;
 
+  const optionsCatalog = buildOptionsCatalog();
+
   let body: Record<string, unknown>;
   if (imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
-    body = { imageUrl: imageUri, hints };
+    body = { imageUrl: imageUri, hints, options: optionsCatalog };
   } else {
     const { base64, mimeType } = await imageToJpegBase64(imageUri);
-    body = { imageBase64: base64, mimeType, hints };
+    body = { imageBase64: base64, mimeType, hints, options: optionsCatalog };
   }
 
   try {
@@ -113,30 +206,28 @@ export async function suggestListingFromImage(
     }
 
     const category = normalizeCategory(typeof row.category === 'string' ? row.category : '');
-    const attributeMap = Object.fromEntries(
-      getListingAttributesForCategory(category).map((attr) => [attr.key, attr.options]),
-    ) as Partial<Record<'brand' | 'model' | 'storage' | 'color', readonly string[]>>;
+    const attributeMap = optionsCatalog.attributes[category] ?? {};
 
     return {
       title: row.title.slice(0, 60),
       description: typeof row.description === 'string' ? row.description.slice(0, 300) : '',
       category,
       condition: normalizeCondition(typeof row.condition === 'string' ? row.condition : ''),
-      brand: normalizeDropdownValue(
-        normalizeBrand(typeof row.brand === 'string' ? row.brand : ''),
-        attributeMap.brand ?? ['Other'],
+      brand: selectFromOptions(
+        typeof row.brand === 'string' ? row.brand : '',
+        attributeMap.brand ?? [],
       ),
-      model: normalizeDropdownValue(
+      model: selectFromOptions(
         typeof row.model === 'string' ? row.model : '',
-        attributeMap.model ?? ['Other'],
+        attributeMap.model ?? [],
       ),
-      storage: normalizeDropdownValue(
+      storage: selectFromOptions(
         typeof row.storage === 'string' ? row.storage : '',
-        attributeMap.storage ?? ['N/A'],
+        attributeMap.storage ?? [],
       ),
-      color: normalizeDropdownValue(
+      color: selectFromOptions(
         typeof row.color === 'string' ? row.color : '',
-        attributeMap.color ?? ['Other'],
+        attributeMap.color ?? [],
       ),
       estimatedPrice: normalizeEstimatedPrice(row.estimatedPrice),
     };

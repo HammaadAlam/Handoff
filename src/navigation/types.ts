@@ -114,6 +114,11 @@ export type MeetupDetailsParams = {
   imageUrl: string;
   location?: string;
   timeLabel?: string;
+  /**
+   * Persisted conversation id. When present, Confirm/Suggest write to the
+   * `meetups` table; absent (local-only thread) falls back to optimistic UI.
+   */
+  conversationId?: string;
   /** Counterparty profile info — when present, shown as a tappable chip */
   peerUserId?: string;
   peerHandle?: string;

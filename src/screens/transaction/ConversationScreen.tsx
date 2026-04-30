@@ -152,6 +152,7 @@ export function ConversationScreen() {
       imageUrl,
       location: 'LSU Student Union',
       timeLabel: 'Today - 6:30PM',
+      conversationId: activeConversationId ?? conversationId,
       peerUserId: peerId ?? undefined,
       peerHandle: peerName,
       peerName,
