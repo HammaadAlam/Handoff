@@ -75,3 +75,4 @@ create policy "profiles_select_all"
 -- Paste that file next, or the bundled supabase/full_setup.sql (npm run db:bundle).
 
 -- Events location coordinates are added in 0016_events_location_coords.sql.
+-- Profile personalization fields are added in 0017_profiles_personalization.sql.

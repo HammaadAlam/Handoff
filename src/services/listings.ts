@@ -1,3 +1,6 @@
+/**
+ * Marketplace listings — Supabase queries and mutations (seller embeds, feeds).
+ */
 import { type HomeCategory, type ListingItem } from '@/data/mockData';
 import { getSupabase, isSupabaseConfigured } from '@/services/supabase';
 

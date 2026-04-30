@@ -22,6 +22,7 @@ import { StudentEventsBanner } from '@/components/home/StudentEventsBanner';
 import { TicketCard } from '@/components/home/TicketCard';
 import { ProductCard } from '@/components/marketplace/ProductCard';
 import { SearchPopularCard } from '@/components/marketplace/SearchPopularCard';
+import { useAuth } from '@/context/AuthContext';
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import {
   DEFAULT_PEER_AVATAR_URI,
@@ -33,6 +34,7 @@ import {
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { HomeTabNavigation } from '@/navigation/types';
 import { fetchRecommendedListings } from '@/services/listings';
+import { fetchViewerPersonalization } from '@/services/personalization';
 import { colors, fonts, spacing } from '@/styles/theme';
 
 const HOME_CATEGORIES = [
@@ -70,6 +72,20 @@ const TECH_KEYWORDS = [
   'usb',
   'watch',
 ] as const;
+
+const INTEREST_KEYWORDS: Record<string, readonly string[]> = {
+  Textbooks: ['textbook', 'lab kit', 'calculator', 'study guide', 'workbook'],
+  'School Supplies': ['notebook', 'folder', 'pen', 'pencil', 'backpack', 'whiteboard'],
+  Electronics: ['laptop', 'macbook', 'ipad', 'iphone', 'charger', 'usb', 'camera', 'headphone'],
+  Sports: ['ticket', 'game', 'sports', 'basketball', 'football', 'jersey'],
+  Clothes: ['shirt', 'hoodie', 'jacket', 'jeans', 'shoes', 'coat', 'dress'],
+  'Beauty & Style': ['makeup', 'palette', 'beauty', 'skincare', 'style'],
+  Music: ['guitar', 'keyboard', 'speaker', 'mic', 'headphone', 'music'],
+  Art: ['paint', 'canvas', 'art', 'drawing', 'brush'],
+  Food: ['meal', 'snack', 'food', 'coffee', 'kitchen'],
+  Gaming: ['gaming', 'xbox', 'playstation', 'controller', 'switch'],
+  Baking: ['baking', 'oven', 'mixer', 'pan', 'cake'],
+};
 
 type HomeHeroBanner = {
   attendeesLabel: string;
@@ -183,11 +199,14 @@ function sectionTitle(section: 'hot' | 'saved' | 'recent' | 'more') {
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeTabNavigation>();
+  const { user } = useAuth();
   const viewerProfileId = useViewerProfileId();
   const { width } = useWindowDimensions();
   const [activeCategory, setActiveCategory] = useState<HomeCategoryPill>('For You');
   const [bannerGroupIndex, setBannerGroupIndex] = useState(0);
   const [recommended, setRecommended] = useState<ListingItem[]>([]);
+  const [viewerInterests, setViewerInterests] = useState<string[]>([]);
+  const [viewerClothingSize, setViewerClothingSize] = useState<string>('');
   const [refreshing, setRefreshing] = useState(false);
   const [campus, setCampus] = useState<CampusOption>('LSU Campus');
   const [visibleCount, setVisibleCount] = useState(24);
@@ -220,9 +239,14 @@ export function HomeScreen() {
   const recentCardWidth = Math.floor((contentWidth - railGap) / 2);
 
   const loadRecommended = useCallback(async () => {
-    const items = await fetchRecommendedListings();
+    const [items, personalization] = await Promise.all([
+      fetchRecommendedListings(),
+      fetchViewerPersonalization(user?.id ?? null),
+    ]);
     setRecommended(items);
-  }, []);
+    setViewerInterests(personalization?.interests ?? []);
+    setViewerClothingSize(personalization?.clothingSize ?? '');
+  }, [user?.id]);
 
   useEffect(() => {
     void loadRecommended();
@@ -261,18 +285,47 @@ export function HomeScreen() {
     [recommended, viewerProfileId],
   );
 
+  const personalizedForYou = useMemo(() => {
+    if (viewerInterests.length === 0 && !viewerClothingSize) return feedListings;
+    const interestKeywords = viewerInterests.flatMap((interest) => INTEREST_KEYWORDS[interest] ?? []);
+    const scoring = (item: ListingItem) => {
+      let score = 0;
+      const haystack = [item.title, item.description, item.brand, item.category]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      for (const keyword of interestKeywords) {
+        if (haystack.includes(keyword)) score += 2;
+      }
+      if (
+        viewerInterests.includes('Clothes') &&
+        item.category === 'Clothes' &&
+        viewerClothingSize &&
+        item.size &&
+        item.size.toLowerCase() === viewerClothingSize.toLowerCase()
+      ) {
+        score += 3;
+      }
+      if (item.category === 'For You') score += 1;
+      return score;
+    };
+    return [...feedListings].sort((a, b) => scoring(b) - scoring(a));
+  }, [feedListings, viewerClothingSize, viewerInterests]);
+
   const hotListings = useMemo(() => {
-    return sectionBaseListings(feedListings, activeCategory).slice(0, 8);
-  }, [activeCategory, feedListings]);
+    const source = activeCategory === 'For You' ? personalizedForYou : feedListings;
+    return sectionBaseListings(source, activeCategory).slice(0, 8);
+  }, [activeCategory, feedListings, personalizedForYou]);
 
   // "Saved by Others" — second rail of listings others are browsing (not Events-only;
   // most catalogs have few/no Events rows, which left this rail empty).
   const savedByOthersRail = useMemo(() => {
     const hotIds = new Set(hotListings.map((item) => item.id));
-    const filtered = sectionBaseListings(feedListings, activeCategory);
+    const source = activeCategory === 'For You' ? personalizedForYou : feedListings;
+    const filtered = sectionBaseListings(source, activeCategory);
     let pool = filtered.filter((item) => !hotIds.has(item.id));
     if (pool.length < 4) {
-      pool = sectionBaseListings(feedListings, activeCategory).filter(
+      pool = sectionBaseListings(source, activeCategory).filter(
         (item) => !hotIds.has(item.id),
       );
     }
@@ -280,26 +333,28 @@ export function HomeScreen() {
       pool = filtered.slice(0, 8);
     }
     return pool.slice(0, 8).map(listingToTicketCard);
-  }, [activeCategory, feedListings, hotListings]);
+  }, [activeCategory, feedListings, hotListings, personalizedForYou]);
 
   const recentlyListed = useMemo(() => {
-    const filtered = sectionBaseListings(feedListings, activeCategory);
+    const source = activeCategory === 'For You' ? personalizedForYou : feedListings;
+    const filtered = sectionBaseListings(source, activeCategory);
     const hotIds = new Set(hotListings.map((item) => item.id));
     const freshPool = filtered.filter((item) => !hotIds.has(item.id));
-    const source = freshPool.length >= RECENT_LISTING_LIMIT ? freshPool : filtered;
-    return source.slice(0, RECENT_LISTING_LIMIT);
-  }, [activeCategory, hotListings, feedListings]);
+    const listingSource = freshPool.length >= RECENT_LISTING_LIMIT ? freshPool : filtered;
+    return listingSource.slice(0, RECENT_LISTING_LIMIT);
+  }, [activeCategory, hotListings, feedListings, personalizedForYou]);
 
   const moreCampusFinds = useMemo(() => {
-    const filtered = sectionBaseListings(feedListings, activeCategory);
+    const source = activeCategory === 'For You' ? personalizedForYou : feedListings;
+    const filtered = sectionBaseListings(source, activeCategory);
     const usedIds = new Set([
       ...hotListings.map((item) => item.id),
       ...recentlyListed.map((item) => item.id),
     ]);
     const remaining = filtered.filter((item) => !usedIds.has(item.id));
-    const source = remaining.length >= 4 ? remaining : [...filtered].reverse();
-    return source.slice(0, Math.max(6, visibleCount));
-  }, [activeCategory, hotListings, recentlyListed, feedListings, visibleCount]);
+    const listingSource = remaining.length >= 4 ? remaining : [...filtered].reverse();
+    return listingSource.slice(0, Math.max(6, visibleCount));
+  }, [activeCategory, hotListings, recentlyListed, feedListings, personalizedForYou, visibleCount]);
 
   const openSeeAll = useCallback(
     (homeSection: 'hot' | 'saved' | 'recent' | 'more') => {

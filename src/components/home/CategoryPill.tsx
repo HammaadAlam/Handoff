@@ -1,3 +1,6 @@
+/**
+ * Category Pill — UI component.
+ */
 import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fonts } from '@/styles/theme';

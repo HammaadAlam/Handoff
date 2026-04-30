@@ -1,3 +1,6 @@
+/**
+ * Create Event Draft — static data / draft types.
+ */
 export type CreateEventDraft = {
   title: string;
   description: string;

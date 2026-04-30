@@ -1,3 +1,6 @@
+/**
+ * Event Create Success screen — events UI.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';

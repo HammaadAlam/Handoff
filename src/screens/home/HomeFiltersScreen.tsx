@@ -1,3 +1,6 @@
+/**
+ * Home Filters screen — home UI.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import {
   CommonActions,

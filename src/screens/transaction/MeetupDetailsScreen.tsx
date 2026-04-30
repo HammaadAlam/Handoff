@@ -35,7 +35,10 @@ import {
   type MeetupRecord,
 } from '@/services/meetups';
 import { fonts, colors, radii, spacing, typography } from '@/styles/theme';
-import { regionForMeetupLocation } from '@/utils/meetupLocationCoords';
+import {
+  coordsForMeetupLocation,
+  regionForMeetupLocation,
+} from '@/utils/meetupLocationCoords';
 import type { RootStackParamList } from '@/navigation/types';
 
 const LOCATION_PRESETS = NEARBY_PICKUP_SPOTS.map((spot) => spot.name);
@@ -272,14 +275,16 @@ export function MeetupDetailsScreen() {
       return;
     }
     const scheduledAt = scheduledDate.toISOString();
+    const resolvedCoords =
+      draftPin ?? coordsForMeetupLocation(chosenLocation);
     setBusy('propose');
     try {
       const result = await proposeMeetup({
         conversationId: conversationId!,
         locationLabel: chosenLocation,
         scheduledAt,
-        lat: draftPin?.latitude ?? null,
-        lng: draftPin?.longitude ?? null,
+        lat: resolvedCoords?.latitude ?? null,
+        lng: resolvedCoords?.longitude ?? null,
         sessionUserId,
       });
       if (!result) {
@@ -530,6 +535,7 @@ export function MeetupDetailsScreen() {
                     onPress={() => {
                       setDraftLocation(opt);
                       setDraftCustomLocation('');
+                      setDraftPin(null);
                     }}
                   >
                     <Text
@@ -544,7 +550,10 @@ export function MeetupDetailsScreen() {
             </View>
             <TextInput
               value={draftCustomLocation}
-              onChangeText={setDraftCustomLocation}
+              onChangeText={(value) => {
+                setDraftCustomLocation(value);
+                setDraftPin(null);
+              }}
               placeholder="Or type a custom spot (e.g. PFT Atrium)"
               placeholderTextColor={colors.textMuted}
               style={styles.textInput}

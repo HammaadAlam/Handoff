@@ -1,3 +1,6 @@
+/**
+ * Use Viewer Profile Id — React hook.
+ */
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { isSupabaseConfigured } from '@/services/supabase';

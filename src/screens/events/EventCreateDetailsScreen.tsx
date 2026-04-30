@@ -1,3 +1,6 @@
+/**
+ * Event Create Details screen — events UI.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,12 +10,14 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { mergeCreateEventDraft } from '@/data/createEventDraft';
+import { NEARBY_PICKUP_SPOTS } from '@/data/mockPickupLocations';
 import type { RootStackParamList } from '@/navigation/types';
-import { colors, fonts, spacing } from '@/styles/theme';
+import { colors, fonts, radii, spacing } from '@/styles/theme';
 import { regionForMeetupLocation } from '@/utils/meetupLocationCoords';
 import { RemoteImage } from '@/components/RemoteImage';
 
 const TOTAL_STEPS = 2;
+const LOCATION_PRESETS = NEARBY_PICKUP_SPOTS.map((spot) => spot.name);
 
 function StepProgress({ active }: { active: number }) {
   return (
@@ -158,10 +163,29 @@ export function EventCreateDetailsScreen() {
         />
 
         <Text style={styles.label}>Location *</Text>
+        <View style={styles.locationChipRow}>
+          {LOCATION_PRESETS.map((spot) => {
+            const active = locationLabel.trim() === spot;
+            return (
+              <Pressable
+                key={spot}
+                style={[styles.locationChip, active && styles.locationChipActive]}
+                onPress={() => setLocationLabel(spot)}
+              >
+                <Text
+                  style={[styles.locationChipText, active && styles.locationChipTextActive]}
+                  numberOfLines={1}
+                >
+                  {spot}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
         <TextInput
           value={locationLabel}
           onChangeText={setLocationLabel}
-          placeholder="Student Center Courtyard"
+          placeholder="Or type custom location"
           placeholderTextColor={colors.textMuted}
           maxLength={100}
           style={styles.input}
@@ -271,6 +295,33 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 100, paddingTop: 12 },
   row: { flexDirection: 'row', gap: 8 },
   half: { flex: 1 },
+  locationChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  locationChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.chipBg,
+    maxWidth: '100%',
+  },
+  locationChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#ECE8FF',
+  },
+  locationChipText: {
+    color: colors.textSecondary,
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+  },
+  locationChipTextActive: {
+    color: colors.primary,
+  },
   mapWrap: {
     height: 180,
     borderRadius: 10,

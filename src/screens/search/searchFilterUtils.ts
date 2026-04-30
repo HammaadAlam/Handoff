@@ -1,3 +1,6 @@
+/**
+ * Search Filter Utils — search UI.
+ */
 import type { ListingItem } from '@/data/mockData';
 import { LISTING_CATEGORIES } from '@/data/listingOptions';
 import type { SearchFilters } from '@/navigation/types';

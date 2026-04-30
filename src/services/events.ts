@@ -1,3 +1,6 @@
+/**
+ * Events — Supabase / API service layer.
+ */
 import { getSupabase, isSupabaseConfigured } from '@/services/supabase';
 import { SAMPLE_LISTING_PHOTOS } from '@/data/createListingDraft';
 

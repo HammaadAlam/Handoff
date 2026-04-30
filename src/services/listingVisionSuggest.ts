@@ -1,3 +1,6 @@
+/**
+ * Listing Vision Suggest — Supabase / API service layer.
+ */
 import * as ImageManipulator from 'expo-image-manipulator';
 
 import {

@@ -142,6 +142,11 @@ export function ProfileSettingsScreen() {
 
         <Section title="SETTINGS">
           <SettingsRow
+            icon="sparkles-outline"
+            label="Personalization & recommendations"
+            onPress={() => navigation.navigate('PersonalizationAbout')}
+          />
+          <SettingsRow
             icon="notifications-outline"
             label="Notifications"
             onPress={stub('Notifications')}

@@ -1,3 +1,6 @@
+/**
+ * Meetup map helpers — campus location labels to coordinates (LSU defaults).
+ */
 import type { Region } from 'react-native-maps';
 
 /** LSU Student Union, Baton Rouge — default campus meetup */
@@ -28,12 +31,18 @@ const OVERRIDES: Record<string, { latitude: number; longitude: number }> = {
   'nicholson gateway': { latitude: 30.4088, longitude: -91.1851 },
 };
 
+export function coordsForMeetupLocation(
+  location: string,
+): { latitude: number; longitude: number } | null {
+  const key = location.trim().toLowerCase();
+  return OVERRIDES[key] ?? null;
+}
+
 /**
  * Map region + pin for a meetup label. Unknown strings use the LSU default.
  */
 export function regionForMeetupLocation(location: string): Region {
-  const key = location.trim().toLowerCase();
-  const center = OVERRIDES[key] ?? LSU_STUDENT_UNION;
+  const center = coordsForMeetupLocation(location) ?? LSU_STUDENT_UNION;
   return {
     latitude: center.latitude,
     longitude: center.longitude,

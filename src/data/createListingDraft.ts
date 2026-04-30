@@ -1,3 +1,6 @@
+/**
+ * Create Listing Draft — static data / draft types.
+ */
 export type MeetupMethod = 'meet' | 'ship';
 
 export type CreateListingDraft = {

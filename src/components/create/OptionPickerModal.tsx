@@ -1,3 +1,6 @@
+/**
+ * Option Picker Modal — UI component.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import {
   FlatList,

@@ -1,3 +1,6 @@
+/**
+ * Events Calendar screen — events UI.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useMemo, useState } from 'react';

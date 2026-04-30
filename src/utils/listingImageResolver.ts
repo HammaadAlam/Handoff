@@ -1,3 +1,6 @@
+/**
+ * Listing Image Resolver — shared utilities.
+ */
 type ListingImageInput = {
   id?: string | null;
   title: string;

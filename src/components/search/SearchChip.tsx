@@ -1,3 +1,6 @@
+/**
+ * Search Chip — UI component.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fonts } from '@/styles/theme';

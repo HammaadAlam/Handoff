@@ -152,6 +152,8 @@ export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
   SignUp: undefined;
+  PersonalizationAbout: undefined;
+  PersonalizationInterests: undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
   EventsCalendar: undefined;
   EventCreateDetails: { draft?: Partial<CreateEventDraft> } | undefined;

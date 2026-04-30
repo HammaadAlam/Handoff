@@ -1,3 +1,6 @@
+/**
+ * Home Stack Navigator — React Navigation stack.
+ */
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { HomeCategoryResultsScreen } from '@/screens/home/HomeCategoryResultsScreen';
 import { HomeFiltersScreen } from '@/screens/home/HomeFiltersScreen';

@@ -1,3 +1,6 @@
+/**
+ * Search Section Header — UI component.
+ */
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts } from '@/styles/theme';
 

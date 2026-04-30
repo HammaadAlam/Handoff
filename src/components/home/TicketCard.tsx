@@ -1,3 +1,6 @@
+/**
+ * Ticket Card — UI component.
+ */
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RemoteImage } from '@/components/RemoteImage';
 import type { TicketListing } from '@/data/mockData';

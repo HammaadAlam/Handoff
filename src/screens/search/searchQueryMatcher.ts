@@ -1,3 +1,6 @@
+/**
+ * Search Query Matcher — search UI.
+ */
 import type { ListingItem } from '@/data/mockData';
 
 const QUERY_KEYWORD_MAP: Record<string, string[]> = {
