@@ -17,59 +17,33 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProductCard } from '@/components/marketplace/ProductCard';
 import { DEFAULT_PEER_AVATAR_URI } from '@/data/mockData';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { ListingItem } from '@/data/mockData';
-import type { SearchFilters, SearchStackParamList } from '@/navigation/types';
+import type { SearchStackParamList } from '@/navigation/types';
 import { fetchRecommendedListings } from '@/services/listings';
 import { fonts, colors, spacing, typography } from '@/styles/theme';
+import { applySearchFilters, DEFAULT_FILTERS } from './searchFilterUtils';
 import { listingMatchesSearchQuery } from './searchQueryMatcher';
 
-const DEFAULT_FILTERS: SearchFilters = {
-  sort: 'best',
-  priceMax: 2000,
-  condition: null,
-  sellerType: 'Any',
-  mileage: 'Any',
-};
-
-
-function listingPriceValue(item: ListingItem): number {
-  const n = Number(item.price.replace(/[^0-9.]/g, ''));
-  return Number.isFinite(n) ? n : 0;
-}
-
-function normalizeCondition(v?: ListingItem['condition']): SearchFilters['condition'] {
-  if (!v) return null;
-  if (v === 'New') return 'New';
-  if (v === 'Like New') return 'Like New';
-  return 'Used';
-}
-
-function matchesDistance(item: ListingItem, mileage: SearchFilters['mileage']): boolean {
-  if (mileage === 'Any') return true;
-  const loc = (item.location ?? '').toLowerCase();
-  const onCampus =
-    /campus|lsu|student union|hall|quad|dorm|union/.test(loc);
-  if (mileage === 'On campus') return onCampus;
-  if (mileage === 'Within 5 mi') return onCampus || /highland|greek|north|west|south|east/.test(loc);
-  return true;
-}
-
-function matchesSellerType(item: ListingItem, sellerType: SearchFilters['sellerType']): boolean {
-  if (sellerType === 'Any') return true;
-  const isCampusShop = item.trust === 'premium';
-  return sellerType === 'Campus shop' ? isCampusShop : !isCampusShop;
+function toTitleCase(value: string) {
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 export function CategoryResultsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SearchStackParamList>>();
+  const viewerProfileId = useViewerProfileId();
   const { width } = useWindowDimensions();
   const gridInset = spacing.md;
   const gridGutter = spacing.sm;
   const gridInnerWidth = width - gridInset * 2;
   const gridColWidth = (gridInnerWidth - gridGutter) / 2;
-  const { params } = useRoute<RouteProp<SearchStackParamList, 'CategoryResults'>>();
-  const { query, filters = DEFAULT_FILTERS } = params;
+  const route = useRoute<RouteProp<SearchStackParamList, 'CategoryResults'>>();
+  const { query, filters = DEFAULT_FILTERS } = route.params;
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -90,26 +64,14 @@ export function CategoryResultsScreen() {
 
   const data = useMemo(
     () => {
-      const source = listings.filter((item) => {
+      const source = listings
+        .filter((item) => (viewerProfileId ? item.sellerId !== viewerProfileId : true))
+        .filter((item) => {
         return listingMatchesSearchQuery(item, query);
       });
-      const filtered = source
-        .filter((item) => listingPriceValue(item) <= filters.priceMax)
-        .filter((item) =>
-          filters.condition ? normalizeCondition(item.condition) === filters.condition : true,
-        )
-        .filter((item) => matchesSellerType(item, filters.sellerType))
-        .filter((item) => matchesDistance(item, filters.mileage));
-
-      if (filters.sort === 'low') {
-        return [...filtered].sort((a, b) => listingPriceValue(a) - listingPriceValue(b));
-      }
-      if (filters.sort === 'high') {
-        return [...filtered].sort((a, b) => listingPriceValue(b) - listingPriceValue(a));
-      }
-      return filtered;
+      return applySearchFilters(source, filters);
     },
-    [query, filters, listings],
+    [query, filters, listings, viewerProfileId],
   );
 
   return (
@@ -119,14 +81,20 @@ export function CategoryResultsScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Pressable
-          onPress={() => navigation.navigate('Filters', { query, filters })}
+          onPress={() =>
+            navigation.navigate('Filters', {
+              query,
+              filters,
+              targetRouteKey: route.key,
+            })
+          }
           hitSlop={12}
           style={styles.filterBtn}
         >
           <Ionicons name="filter-outline" size={24} color={colors.textPrimary} />
         </Pressable>
       </View>
-      <Text style={styles.title}>{query}</Text>
+      <Text style={styles.title}>{toTitleCase(query)}</Text>
 
       <FlatList
         style={styles.listFlex}

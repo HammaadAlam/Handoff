@@ -14,18 +14,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProductCard } from '@/components/marketplace/ProductCard';
 import { DEFAULT_PEER_AVATAR_URI, type ListingItem } from '@/data/mockData';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
-import type { HomeStackParamList, SearchFilters } from '@/navigation/types';
+import type { HomeStackParamList } from '@/navigation/types';
 import { fetchRecommendedListings } from '@/services/listings';
 import { fonts, colors, spacing, typography } from '@/styles/theme';
-
-const DEFAULT_FILTERS: SearchFilters = {
-  sort: 'best',
-  priceMax: 2000,
-  condition: null,
-  sellerType: 'Any',
-  mileage: 'Any',
-};
+import { applySearchFilters, DEFAULT_FILTERS } from '@/screens/search/searchFilterUtils';
 
 const HOME_TECH_KEYWORDS = [
   'airpod',
@@ -63,47 +57,31 @@ function filterHomeListings(
   return listings.filter((item) => item.category === category);
 }
 
-function listingPriceValue(item: ListingItem): number {
-  const n = Number(item.price.replace(/[^0-9.]/g, ''));
-  return Number.isFinite(n) ? n : 0;
-}
-
-function normalizeCondition(v?: ListingItem['condition']): SearchFilters['condition'] {
-  if (!v) return null;
-  if (v === 'New') return 'New';
-  if (v === 'Like New') return 'Like New';
-  return 'Used';
-}
-
-function matchesDistance(item: ListingItem, mileage: SearchFilters['mileage']): boolean {
-  if (mileage === 'Any') return true;
-  const loc = (item.location ?? '').toLowerCase();
-  const onCampus = /campus|lsu|student union|hall|quad|dorm|union/.test(loc);
-  if (mileage === 'On campus') return onCampus;
-  if (mileage === 'Within 5 mi') return onCampus || /highland|greek|north|west|south|east/.test(loc);
-  return true;
-}
-
-function matchesSellerType(item: ListingItem, sellerType: SearchFilters['sellerType']): boolean {
-  if (sellerType === 'Any') return true;
-  const isCampusShop = item.trust === 'premium';
-  return sellerType === 'Campus shop' ? isCampusShop : !isCampusShop;
+function toTitleCase(value: string) {
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 export function HomeCategoryResultsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+  const viewerProfileId = useViewerProfileId();
   const { width } = useWindowDimensions();
   const gridInset = spacing.md;
   const gridGutter = spacing.sm;
   const gridInnerWidth = width - gridInset * 2;
   const gridColWidth = (gridInnerWidth - gridGutter) / 2;
-  const { params } = useRoute<RouteProp<HomeStackParamList, 'CategoryResults'>>();
+  const route = useRoute<RouteProp<HomeStackParamList, 'CategoryResults'>>();
   const {
     query,
     filters = DEFAULT_FILTERS,
     homeCategory,
     homeSection,
-  } = params;
+    title,
+    sectionListingIds = [],
+  } = route.params;
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -124,8 +102,11 @@ export function HomeCategoryResultsScreen() {
 
   const data = useMemo(() => {
     let source: ListingItem[];
+    const discoverable = viewerProfileId
+      ? listings.filter((item) => item.sellerId !== viewerProfileId)
+      : listings;
     if (homeCategory && homeSection) {
-      const filtered = filterHomeListings(listings, homeCategory);
+      const filtered = filterHomeListings(discoverable, homeCategory);
       const hotListings = filtered.slice(0, 8);
 
       if (homeSection === 'hot') {
@@ -134,7 +115,7 @@ export function HomeCategoryResultsScreen() {
         const hotIds = new Set(hotListings.map((item) => item.id));
         let pool = filtered.filter((item) => !hotIds.has(item.id));
         if (pool.length < 4) {
-          pool = listings.filter((item) => !hotIds.has(item.id));
+          pool = discoverable.filter((item) => !hotIds.has(item.id));
         }
         if (pool.length === 0) {
           pool = filtered.slice(0, 8);
@@ -157,7 +138,7 @@ export function HomeCategoryResultsScreen() {
       }
     } else {
       const normalizedQuery = query.trim().toLowerCase();
-      source = listings.filter((item) => {
+      source = discoverable.filter((item) => {
         if (!normalizedQuery) return true;
         const haystack = [item.title, item.brand, item.category, item.description, item.sellerHandle]
           .filter(Boolean)
@@ -166,22 +147,12 @@ export function HomeCategoryResultsScreen() {
         return haystack.includes(normalizedQuery);
       });
     }
-    const filtered = source
-      .filter((item) => listingPriceValue(item) <= filters.priceMax)
-      .filter((item) =>
-        filters.condition ? normalizeCondition(item.condition) === filters.condition : true,
-      )
-      .filter((item) => matchesSellerType(item, filters.sellerType))
-      .filter((item) => matchesDistance(item, filters.mileage));
-
-    if (filters.sort === 'low') {
-      return [...filtered].sort((a, b) => listingPriceValue(a) - listingPriceValue(b));
-    }
-    if (filters.sort === 'high') {
-      return [...filtered].sort((a, b) => listingPriceValue(b) - listingPriceValue(a));
-    }
-    return filtered;
-  }, [filters, listings, query]);
+    const scoped =
+      sectionListingIds.length > 0
+        ? source.filter((item) => sectionListingIds.includes(item.id))
+        : source;
+    return applySearchFilters(scoped, filters);
+  }, [filters, listings, query, homeCategory, homeSection, sectionListingIds, viewerProfileId]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -190,14 +161,20 @@ export function HomeCategoryResultsScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Pressable
-          onPress={() => navigation.navigate('Filters', { query, filters })}
+          onPress={() =>
+            navigation.navigate('Filters', {
+              query,
+              filters,
+              targetRouteKey: route.key,
+            })
+          }
           hitSlop={12}
           style={styles.filterBtn}
         >
           <Ionicons name="filter-outline" size={24} color={colors.textPrimary} />
         </Pressable>
       </View>
-      <Text style={styles.title}>{query}</Text>
+      <Text style={styles.title}>{title ?? toTitleCase(query)}</Text>
 
       <FlatList
         style={styles.listFlex}

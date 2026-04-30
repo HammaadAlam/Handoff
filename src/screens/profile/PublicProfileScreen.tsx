@@ -40,6 +40,7 @@ import {
   type PublicReview,
 } from '@/services/profiles';
 import {
+  ensureDirectConversation,
   ensureConversationForListing,
 } from '@/services/conversations';
 import {
@@ -217,25 +218,30 @@ export function PublicProfileScreen() {
   const onMessage = async () => {
     if (!profile) return;
     const seedListingId = bundle?.listings[0]?.id;
-    const conversationId = seedListingId
-      ? await ensureConversationForListing({
-          listingId: seedListingId,
-          sellerProfileId: profile.id,
-          sessionUserId,
-        })
-      : null;
+    let conversationId = await ensureDirectConversation({
+      sellerProfileId: profile.id,
+      sessionUserId,
+    });
+    if (!conversationId && seedListingId) {
+      conversationId = await ensureConversationForListing({
+        listingId: seedListingId,
+        sellerProfileId: profile.id,
+        sessionUserId,
+      });
+    }
     if (!conversationId) return;
     navigation.navigate('Conversation', {
-      listingId: seedListingId ?? '',
-      title: seedListingId ? (bundle?.listings[0]?.title ?? profile.displayName) : `Chat with ${profile.displayName}`,
-      price: '',
-      imageUrl: profile.avatarUrl,
+      listingId: seedListingId ?? undefined,
+      title: seedListingId ? bundle?.listings[0]?.title : undefined,
+      price: seedListingId ? bundle?.listings[0]?.price : undefined,
+      imageUrl: seedListingId ? bundle?.listings[0]?.imageUrl : undefined,
       seller: profile.handle,
       peerUserId: profile.id,
       peerDisplayName: profile.displayName,
       avatarUrl: profile.avatarUrl,
       entry: 'message',
       conversationId,
+      directMessage: true,
     });
   };
 

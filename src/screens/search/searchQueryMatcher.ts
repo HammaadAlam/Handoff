@@ -108,8 +108,8 @@ export function listingMatchesSearchQuery(
     return hasAny(FURNITURE_KEYWORDS);
   }
   if (normalizedQuery === 'events' || normalizedQuery === 'tickets') {
-    if (itemCategory === 'events') return true;
-    return hasAny(EVENT_KEYWORDS);
+    // Tickets category should be strict event inventory only.
+    return itemCategory === 'events';
   }
   if (normalizedQuery === 'textbook' || normalizedQuery === 'textbooks') {
     // Avoid false positives like "matebook".

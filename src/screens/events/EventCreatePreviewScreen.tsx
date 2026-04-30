@@ -71,6 +71,8 @@ export function EventCreatePreviewScreen() {
         title: draft.title,
         description: draft.description,
         locationLabel: draft.locationLabel,
+        locationLat: draft.locationLat ?? null,
+        locationLng: draft.locationLng ?? null,
         startsAt: draft.startsAt,
         endsAt: draft.endsAt || undefined,
         imageUrl: draft.imageUri || undefined,
@@ -115,6 +117,11 @@ export function EventCreatePreviewScreen() {
           <Text style={styles.meta}>Starts {formatEventDate(draft.startsAt)}</Text>
           <Text style={styles.meta}>Ends {formatEventDate(draft.endsAt)}</Text>
           <Text style={styles.meta}>Location: {draft.locationLabel || 'Campus venue'}</Text>
+          {typeof draft.locationLat === 'number' && typeof draft.locationLng === 'number' ? (
+            <Text style={styles.meta}>
+              Coordinates: {draft.locationLat.toFixed(4)}, {draft.locationLng.toFixed(4)}
+            </Text>
+          ) : null}
           <Text style={styles.description}>
             {draft.description || 'No event description provided.'}
           </Text>

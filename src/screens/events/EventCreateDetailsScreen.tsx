@@ -2,12 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
+import MapView, { Marker } from 'react-native-maps';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { mergeCreateEventDraft } from '@/data/createEventDraft';
 import type { RootStackParamList } from '@/navigation/types';
 import { colors, fonts, spacing } from '@/styles/theme';
+import { regionForMeetupLocation } from '@/utils/meetupLocationCoords';
 import { RemoteImage } from '@/components/RemoteImage';
 
 const TOTAL_STEPS = 2;
@@ -52,6 +54,14 @@ export function EventCreateDetailsScreen() {
   const [title, setTitle] = useState(draft.title);
   const [description, setDescription] = useState(draft.description);
   const [locationLabel, setLocationLabel] = useState(draft.locationLabel);
+  const [locationPin, setLocationPin] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(
+    typeof draft.locationLat === 'number' && typeof draft.locationLng === 'number'
+      ? { latitude: draft.locationLat, longitude: draft.locationLng }
+      : null,
+  );
   const [imageUri, setImageUri] = useState(draft.imageUri);
   const [startDate, setStartDate] = useState(toLocalDateInput(draft.startsAt));
   const [startTime, setStartTime] = useState(toLocalTimeInput(draft.startsAt));
@@ -101,6 +111,8 @@ export function EventCreateDetailsScreen() {
         title,
         description,
         locationLabel,
+        locationLat: locationPin?.latitude ?? null,
+        locationLng: locationPin?.longitude ?? null,
         imageUri,
         startsAt,
         endsAt,
@@ -154,6 +166,24 @@ export function EventCreateDetailsScreen() {
           maxLength={100}
           style={styles.input}
         />
+        <View style={styles.mapWrap}>
+          <MapView
+            style={styles.map}
+            initialRegion={regionForMeetupLocation(locationLabel || 'LSU Campus')}
+            onPress={(event) => {
+              const { latitude, longitude } = event.nativeEvent.coordinate;
+              setLocationPin({ latitude, longitude });
+              setLocationLabel(
+                `Pinned location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+              );
+            }}
+          >
+            {locationPin ? <Marker coordinate={locationPin} /> : null}
+          </MapView>
+        </View>
+        <Text style={styles.mapHint}>
+          Tap map to choose an exact meetup point.
+        </Text>
 
         <Text style={styles.label}>Start (YYYY-MM-DD / HH:MM)</Text>
         <View style={styles.row}>
@@ -241,6 +271,23 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 100, paddingTop: 12 },
   row: { flexDirection: 'row', gap: 8 },
   half: { flex: 1 },
+  mapWrap: {
+    height: 180,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 10,
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  mapHint: {
+    color: colors.textSecondary,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    marginTop: 6,
+  },
   imagePicker: {
     minHeight: 120,
     borderRadius: 10,
