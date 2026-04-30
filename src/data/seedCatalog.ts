@@ -1,5 +1,5 @@
 /**
- * Canonical marketplace demo data — 10 seller profiles + 220 listings.
+ * Canonical marketplace demo data — 10 seller profiles + 420 listings.
  * UUIDs match supabase/seed.sql (run `npm run db:emit-seed` to regenerate SQL).
  * Listing images: Unsplash URLs chosen for casual / dorm / desk context (not white-seamless catalog).
  */
@@ -360,7 +360,7 @@ function buildListings(): SeedListing[] {
   const listings: SeedListing[] = [];
   const nProfiles = SEED_PROFILES.length;
 
-  for (let i = 0; i < 220; i++) {
+  for (let i = 0; i < 420; i++) {
     const idx = i + 1;
     const seller = SEED_PROFILES[i % nProfiles];
     const cat = CATS[i % CATS.length];

@@ -73,3 +73,5 @@ create policy "profiles_select_all"
 -- Feature tables (favorites, follows, listing_images, conversations, messages,
 -- offers, meetups, reviews) + RLS live in supabase/migrations/0002_features.sql.
 -- Paste that file next, or the bundled supabase/full_setup.sql (npm run db:bundle).
+
+-- Events location coordinates are added in 0016_events_location_coords.sql.

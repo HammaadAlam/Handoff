@@ -13,17 +13,27 @@ import type { CreateListingDraft } from '@/data/createListingDraft';
 /** Search tab is its own stack (landing, query, results, filters). */
 export type SearchFilters = {
   sort: 'best' | 'low' | 'high';
+  priceMin: number;
   priceMax: number;
   condition: 'New' | 'Like New' | 'Used' | null;
   sellerType: 'Any' | 'Individual' | 'Campus shop';
   mileage: 'Any' | 'On campus' | 'Within 5 mi' | 'Within 15 mi';
+  /** Optional multi-select categories. Empty means "all categories". */
+  categories?: string[];
 };
 
 export type SearchStackParamList = {
   SearchHome: undefined;
   SearchQuery: { initialQuery?: string } | undefined;
   CategoryResults: { query: string; filters?: SearchFilters };
-  Filters: { query: string; filters?: SearchFilters } | undefined;
+  Filters:
+    | {
+        query: string;
+        filters?: SearchFilters;
+        /** Update this route's params and pop back instead of pushing results. */
+        targetRouteKey?: string;
+      }
+    | undefined;
 };
 
 export type HomeStackParamList = {
@@ -33,8 +43,18 @@ export type HomeStackParamList = {
     filters?: SearchFilters;
     homeCategory?: 'For You' | 'Clothes' | 'Furniture' | 'Tech' | 'Events';
     homeSection?: 'hot' | 'saved' | 'recent' | 'more';
+    /** Explicit title to display for Home "See all" routes. */
+    title?: string;
+    /** Exact listing ids from Home section rail/grid to keep See all scoped. */
+    sectionListingIds?: string[];
   };
-  Filters: { query: string; filters?: SearchFilters } | undefined;
+  Filters:
+    | {
+        query: string;
+        filters?: SearchFilters;
+        targetRouteKey?: string;
+      }
+    | undefined;
 };
 
 /** Create Listing tab: entry → photos → review/edit → price → meetup → preview → success */
@@ -89,10 +109,10 @@ export type ItemDetailParams = {
 
 /** Chat / offer thread tied to a listing */
 export type ConversationParams = {
-  listingId: string;
-  title: string;
-  price: string;
-  imageUrl: string;
+  listingId?: string;
+  title?: string;
+  price?: string;
+  imageUrl?: string;
   seller: string;
   /** Canonical counterparty profile id (profiles.id). */
   peerUserId?: string;
@@ -105,6 +125,8 @@ export type ConversationParams = {
   offerAmount?: string;
   /** Supabase conversation id — present when opened from Inbox or a known thread */
   conversationId?: string;
+  /** Open thread as direct profile chat (no listing header). */
+  directMessage?: boolean;
 };
 
 export type MeetupDetailsParams = {

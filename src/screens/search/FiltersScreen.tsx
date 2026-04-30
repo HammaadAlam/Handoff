@@ -2,13 +2,31 @@
  * Filters — sheet layout; max price slider, sort chips, condition, footer.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import {
+  CommonActions,
+  RouteProp,
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Slider from '@react-native-community/slider';
 import { useCallback, useMemo, useState } from 'react';
-import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  BackHandler,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { SearchFilters, SearchStackParamList } from '@/navigation/types';
+import {
+  DEFAULT_FILTERS,
+  FILTER_CATEGORIES,
+} from '@/screens/search/searchFilterUtils';
 import { fonts, colors, radii, shadows, spacing, typography } from '@/styles/theme';
 
 type SortOption = 'best' | 'low' | 'high';
@@ -17,7 +35,7 @@ const CONDITIONS = ['New', 'Like New', 'Used'] as const;
 const SELLER_TYPES = ['Any', 'Individual', 'Campus shop'] as const;
 const MILEAGE_LABELS = ['Any', 'On campus', 'Within 5 mi', 'Within 15 mi'] as const;
 
-const PRICE_SLIDER_MAX = 2000;
+const PRICE_SLIDER_MAX = DEFAULT_FILTERS.priceMax;
 const PRICE_STEP = 25;
 
 export function FiltersScreen() {
@@ -25,6 +43,7 @@ export function FiltersScreen() {
   const { params } = useRoute<RouteProp<SearchStackParamList, 'Filters'>>();
   const query = params?.query ?? '';
   const initialFilters = params?.filters;
+  const targetRouteKey = params?.targetRouteKey;
 
   /** Pop when possible; if Filters is the only route (nothing to pop), replace with Search home */
   const exitFilters = useCallback(() => {
@@ -50,8 +69,15 @@ export function FiltersScreen() {
   );
 
   const [sort, setSort] = useState<SortOption>(initialFilters?.sort ?? 'best');
-  /** Maximum budget (slider); min is always $0 */
-  const [priceMax, setPriceMax] = useState(initialFilters?.priceMax ?? PRICE_SLIDER_MAX);
+  const [priceMinInput, setPriceMinInput] = useState(
+    `${initialFilters?.priceMin ?? DEFAULT_FILTERS.priceMin}`,
+  );
+  const [priceMaxInput, setPriceMaxInput] = useState(
+    `${initialFilters?.priceMax ?? DEFAULT_FILTERS.priceMax}`,
+  );
+  const [priceMaxSlider, setPriceMaxSlider] = useState(
+    initialFilters?.priceMax ?? PRICE_SLIDER_MAX,
+  );
 
   const [condition, setCondition] = useState<(typeof CONDITIONS)[number] | null>(
     initialFilters?.condition ?? null,
@@ -62,31 +88,66 @@ export function FiltersScreen() {
   const [mileage, setMileage] = useState<(typeof MILEAGE_LABELS)[number]>(
     initialFilters?.mileage ?? 'Any',
   );
+  const [categories, setCategories] = useState<string[]>(
+    initialFilters?.categories ?? [],
+  );
+  const [budgetError, setBudgetError] = useState<string | null>(null);
+
+  const parseBudget = (value: string) => {
+    const cleaned = value.replace(/[^0-9]/g, '');
+    if (!cleaned) return 0;
+    const parsed = Number(cleaned);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.min(Math.max(0, parsed), 99999);
+  };
 
   const rangeLabel = useMemo(() => {
-    const rounded = Math.round(priceMax);
+    const rounded = Math.round(priceMaxSlider);
     if (rounded >= PRICE_SLIDER_MAX) {
       return `$0 – $${PRICE_SLIDER_MAX.toLocaleString()}+`;
     }
     return `$0 – $${rounded.toLocaleString()}`;
-  }, [priceMax]);
+  }, [priceMaxSlider]);
 
   const reset = () => {
     setSort('best');
-    setPriceMax(PRICE_SLIDER_MAX);
+    setPriceMinInput(`${DEFAULT_FILTERS.priceMin}`);
+    setPriceMaxInput(`${DEFAULT_FILTERS.priceMax}`);
+    setPriceMaxSlider(DEFAULT_FILTERS.priceMax);
     setCondition(null);
     setSellerType('Any');
     setMileage('Any');
+    setCategories([]);
+    setBudgetError(null);
   };
 
   const apply = () => {
+    const priceMin = parseBudget(priceMinInput);
+    const priceMax = parseBudget(priceMaxInput);
+    if (priceMin > priceMax) {
+      setBudgetError('Min budget cannot be greater than max budget.');
+      return;
+    }
+    setBudgetError(null);
     const nextFilters: SearchFilters = {
       sort,
+      priceMin,
       priceMax,
       condition,
       sellerType,
       mileage,
+      categories,
     };
+    if (targetRouteKey) {
+      navigation.dispatch(
+        CommonActions.setParams({
+          params: { filters: nextFilters },
+          source: targetRouteKey,
+        }),
+      );
+      navigation.goBack();
+      return;
+    }
     navigation.replace('CategoryResults', { query, filters: nextFilters });
   };
 
@@ -111,20 +172,47 @@ export function FiltersScreen() {
           contentContainerStyle={styles.scrollInner}
           showsVerticalScrollIndicator={false}
         >
-          {/* Price — slider only */}
           <View style={styles.block}>
             <View style={styles.blockHead}>
               <Text style={styles.blockTitle}>Price</Text>
               <Text style={styles.blockMeta}>{rangeLabel}</Text>
             </View>
-            <Text style={styles.sliderHint}>Max budget</Text>
+            <Text style={styles.sliderHint}>Min and max budget</Text>
+            <View style={styles.budgetRow}>
+              <TextInput
+                value={priceMinInput}
+                onChangeText={(value) => {
+                  const cleaned = value.replace(/[^0-9]/g, '');
+                  setPriceMinInput(cleaned);
+                }}
+                keyboardType="number-pad"
+                placeholder="Min"
+                style={[styles.input, styles.budgetInput]}
+              />
+              <TextInput
+                value={priceMaxInput}
+                onChangeText={(value) => {
+                  const cleaned = value.replace(/[^0-9]/g, '');
+                  setPriceMaxInput(cleaned);
+                  const numeric = parseBudget(cleaned);
+                  setPriceMaxSlider(Math.min(numeric || PRICE_SLIDER_MAX, PRICE_SLIDER_MAX));
+                }}
+                keyboardType="number-pad"
+                placeholder="Max"
+                style={[styles.input, styles.budgetInput]}
+              />
+            </View>
+            {budgetError ? <Text style={styles.errorText}>{budgetError}</Text> : null}
             <Slider
               style={styles.slider}
               minimumValue={0}
               maximumValue={PRICE_SLIDER_MAX}
               step={PRICE_STEP}
-              value={priceMax}
-              onValueChange={setPriceMax}
+              value={priceMaxSlider}
+              onValueChange={(value) => {
+                setPriceMaxSlider(value);
+                setPriceMaxInput(`${Math.round(value)}`);
+              }}
               minimumTrackTintColor={colors.primary}
               maximumTrackTintColor={colors.chipBg}
               thumbTintColor={colors.primary}
@@ -147,6 +235,33 @@ export function FiltersScreen() {
                   >
                     <Text style={[styles.choiceChipText, on && styles.choiceChipTextOn]}>
                       {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.block}>
+            <Text style={[styles.blockTitle, styles.blockTitleGap]}>Categories</Text>
+            <Text style={styles.inlineHint}>Optional - choose any categories</Text>
+            <View style={styles.chipRow}>
+              {FILTER_CATEGORIES.map((category) => {
+                const on = categories.includes(category);
+                return (
+                  <Pressable
+                    key={category}
+                    onPress={() =>
+                      setCategories((prev) =>
+                        prev.includes(category)
+                          ? prev.filter((c) => c !== category)
+                          : [...prev, category],
+                      )
+                    }
+                    style={[styles.choiceChip, on && styles.choiceChipOn]}
+                  >
+                    <Text style={[styles.choiceChipText, on && styles.choiceChipTextOn]}>
+                      {category}
                     </Text>
                   </Pressable>
                 );
@@ -296,6 +411,34 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     color: colors.textSecondary,
     marginBottom: spacing.xs,
+  },
+  budgetRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  budgetInput: {
+    flex: 1,
+  },
+  input: {
+    minHeight: 44,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    color: colors.textPrimary,
+    fontFamily: fonts.medium,
+    backgroundColor: colors.surface,
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.error,
+    marginTop: 2,
+  },
+  inlineHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
   },
   slider: {
     width: '100%',

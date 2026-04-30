@@ -2,6 +2,8 @@ export type CreateEventDraft = {
   title: string;
   description: string;
   locationLabel: string;
+  locationLat?: number | null;
+  locationLng?: number | null;
   imageUri: string;
   startsAt: string;
   endsAt: string;
@@ -26,6 +28,8 @@ export const DEFAULT_CREATE_EVENT_DRAFT: CreateEventDraft = {
   title: '',
   description: '',
   locationLabel: '',
+  locationLat: null,
+  locationLng: null,
   imageUri: '',
   startsAt: defaultStartsAt,
   endsAt: buildDefaultEndsAtIso(defaultStartsAt),

@@ -23,6 +23,7 @@ import {
   DEFAULT_PEER_AVATAR_URI,
   type ListingItem,
 } from '@/data/mockData';
+import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { SearchStackNavigation } from '@/navigation/types';
 import { fetchRecommendedListings } from '@/services/listings';
@@ -95,6 +96,7 @@ const BROWSE_CATEGORIES = [
 
 export function SearchHomeScreen() {
   const navigation = useNavigation<SearchStackNavigation>();
+  const viewerProfileId = useViewerProfileId();
   const { width } = useWindowDimensions();
   const [recommended, setRecommended] = useState<ListingItem[]>([]);
 
@@ -133,8 +135,11 @@ export function SearchHomeScreen() {
   );
 
   const trendingItems = useMemo(() => {
-    return recommended.slice(0, 8);
-  }, [recommended]);
+    const discoverable = viewerProfileId
+      ? recommended.filter((item) => item.sellerId !== viewerProfileId)
+      : recommended;
+    return discoverable.slice(0, 8);
+  }, [recommended, viewerProfileId]);
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
@@ -206,10 +211,7 @@ export function SearchHomeScreen() {
         </ScrollView>
 
         <View style={styles.browseSection}>
-          <SearchSectionHeader
-            onPressAction={() => navigation.navigate('SearchQuery', {})}
-            title="Browse Categories"
-          />
+          <SearchSectionHeader title="Browse Categories" />
 
           <View style={styles.categoryRow}>
             {BROWSE_CATEGORIES.slice(0, 2).map((category) => (

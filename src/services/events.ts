@@ -8,6 +8,8 @@ export type EventItem = {
   title: string;
   description: string;
   locationLabel: string;
+  locationLat?: number | null;
+  locationLng?: number | null;
   startsAt: string;
   endsAt?: string | null;
   imageUrl: string;
@@ -19,6 +21,8 @@ type EventRow = {
   title: string;
   description: string;
   location_label: string;
+  location_lat?: number | null;
+  location_lng?: number | null;
   starts_at: string;
   ends_at?: string | null;
   image_url?: string | null;
@@ -37,6 +41,10 @@ function mapEventRow(row: EventRow): EventItem {
     title: row.title,
     description: row.description ?? '',
     locationLabel: row.location_label ?? '',
+    locationLat:
+      typeof row.location_lat === 'number' ? row.location_lat : null,
+    locationLng:
+      typeof row.location_lng === 'number' ? row.location_lng : null,
     startsAt: row.starts_at,
     endsAt: row.ends_at ?? null,
     imageUrl: row.image_url || SAMPLE_LISTING_PHOTOS[0],
@@ -49,6 +57,8 @@ const EVENTS_WITH_OWNER_SELECT = `
   title,
   description,
   location_label,
+  location_lat,
+  location_lng,
   starts_at,
   ends_at,
   image_url,
@@ -96,6 +106,8 @@ export type NewEventInput = {
   title: string;
   description?: string;
   locationLabel: string;
+  locationLat?: number | null;
+  locationLng?: number | null;
   startsAt: string;
   endsAt?: string;
   imageUrl?: string;
@@ -130,6 +142,10 @@ export async function createEvent(input: NewEventInput): Promise<CreateEventResu
         title: input.title.trim(),
         description: input.description?.trim() ?? '',
         location_label: input.locationLabel.trim(),
+        location_lat:
+          typeof input.locationLat === 'number' ? input.locationLat : null,
+        location_lng:
+          typeof input.locationLng === 'number' ? input.locationLng : null,
         starts_at: input.startsAt,
         ends_at: input.endsAt ?? null,
         image_url: input.imageUrl ?? null,

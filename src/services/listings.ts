@@ -136,7 +136,7 @@ export async function fetchRecommendedListings(): Promise<ListingItem[]> {
       .select(LISTING_WITH_PROFILE_SELECT)
       .eq('status', 'active')
       .order('created_at', { ascending: false })
-      .limit(120);
+      .limit(240);
 
     if (error) return [];
 

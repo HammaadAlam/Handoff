@@ -621,6 +621,43 @@ export async function ensureConversationForListing(args: {
 }
 
 /**
+ * Ensure a direct (non-listing) conversation exists between viewer and seller.
+ */
+export async function ensureDirectConversation(args: {
+  sellerProfileId: string;
+  sessionUserId: string | null;
+}): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = getSupabase();
+  const viewerId = await resolveViewerProfileId(args.sessionUserId, supabase);
+  if (!viewerId || viewerId === args.sellerProfileId) return null;
+
+  const { data: existing } = await supabase
+    .from('conversations')
+    .select('id')
+    .or(
+      `and(buyer_id.eq.${viewerId},seller_id.eq.${args.sellerProfileId},listing_id.is.null),and(buyer_id.eq.${args.sellerProfileId},seller_id.eq.${viewerId},listing_id.is.null)`,
+    )
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+
+  const { data, error } = await supabase
+    .from('conversations')
+    .insert({
+      listing_id: null,
+      buyer_id: viewerId,
+      seller_id: args.sellerProfileId,
+      last_message_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single();
+  if (error || !data?.id) return null;
+  return data.id as string;
+}
+
+/**
  * Persist a pending offer row for the active conversation.
  */
 export async function createPendingOffer(args: {

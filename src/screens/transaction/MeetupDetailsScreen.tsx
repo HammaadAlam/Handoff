@@ -27,6 +27,7 @@ import { useAuth } from '@/context/AuthContext';
 import { NEARBY_PICKUP_SPOTS } from '@/data/mockPickupLocations';
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToUserProfile } from '@/navigation/navigateToUserProfile';
+import { sendMessage } from '@/services/conversations';
 import {
   confirmMeetup,
   fetchLatestMeetup,
@@ -287,6 +288,15 @@ export function MeetupDetailsScreen() {
           'Please check your connection and try again.',
         );
         return;
+      }
+      if (!conversationId!.startsWith('local:')) {
+        const timeSummary = formatScheduledAt(result.scheduledAt) ?? 'a proposed time';
+        const messageBody = `Suggested meetup details: ${result.locationLabel} at ${timeSummary}.`;
+        await sendMessage({
+          conversationId: conversationId!,
+          body: messageBody,
+          sessionUserId,
+        });
       }
       setMeetup(result);
       setSuggestOpen(false);

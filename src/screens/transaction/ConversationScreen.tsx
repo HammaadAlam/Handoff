@@ -76,6 +76,7 @@ export function ConversationScreen() {
     avatarUrl,
     offerAmount: routeOfferAmount,
     conversationId,
+    directMessage,
   } = params;
   const { user } = useAuth();
   const viewerProfileId = useViewerProfileId();
@@ -126,7 +127,9 @@ export function ConversationScreen() {
   }, [activeConversationId, sessionUserId]);
 
   const offerAmount = persistedOfferAmount ?? routeOfferAmount ?? '$12.00';
-  const listPrice = price.includes('$') ? price : `$${price}`;
+  const safePrice = price ?? '';
+  const listPrice = safePrice.includes('$') ? safePrice : `$${safePrice}`;
+  const hasListingContext = Boolean(!directMessage && params.listingId && title && imageUrl);
   const initialDraft =
     entry === 'offer' ? 'Would you be willing to negotiate?' : '';
 
@@ -147,9 +150,9 @@ export function ConversationScreen() {
   const goMeetup = (role: 'buyer' | 'seller') => {
     navigation.navigate('MeetupDetails', {
       role,
-      title,
+      title: title ?? `Chat with ${peerName}`,
       price: offerAmount,
-      imageUrl,
+      imageUrl: imageUrl ?? peerAvatar,
       location: 'LSU Student Union',
       timeLabel: 'Today - 6:30PM',
       conversationId: activeConversationId ?? conversationId,
@@ -163,10 +166,16 @@ export function ConversationScreen() {
   const handleSend = useCallback(
     async (text: string) => {
       let resolvedConversationId =
-        activeConversationId ?? conversationId ?? `local:${params.listingId}:draft`;
-      if ((!activeConversationId || activeConversationId.startsWith('local:')) && peerId) {
+        activeConversationId ??
+        conversationId ??
+        `local:${params.listingId ?? `dm:${peerId ?? 'peer'}`}:draft`;
+      if (
+        hasListingContext &&
+        (!activeConversationId || activeConversationId.startsWith('local:')) &&
+        peerId
+      ) {
         const ensured = await ensureConversationForListing({
-          listingId: params.listingId,
+          listingId: params.listingId!,
           sellerProfileId: peerId,
           sessionUserId,
         });
@@ -197,10 +206,10 @@ export function ConversationScreen() {
       await upsertLocalInboxConversation({
         sessionUserId,
         conversationId: resolvedConversationId,
-        listingId: params.listingId,
-        title,
-        price,
-        imageUrl,
+        listingId: params.listingId ?? `dm:${peerId ?? 'peer'}`,
+        title: title ?? peerName,
+        price: price ?? '',
+        imageUrl: imageUrl ?? peerAvatar,
         seller: peerName,
         peerUserId: peerId ?? undefined,
         peerAvatarUrl: peerAvatar,
@@ -225,6 +234,7 @@ export function ConversationScreen() {
       activeConversationId,
       conversationId,
       params.listingId,
+      hasListingContext,
       peerAvatar,
       peerId,
       peerName,
@@ -262,23 +272,25 @@ export function ConversationScreen() {
           </Pressable>
         </View>
 
-        <Pressable
-          style={styles.itemBar}
-          onPress={() =>
-            navigation.navigate('ItemDetail', {
-              listingId: params.listingId,
-              title,
-              price,
-              imageUrl,
-              seller,
-              sellerProfileId: peerId ?? undefined,
-            })
-          }
-        >
-          <RemoteImage uri={imageUrl} style={styles.itemThumb} />
-          <Text style={styles.itemTitle}>{title}</Text>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </Pressable>
+        {hasListingContext ? (
+          <Pressable
+            style={styles.itemBar}
+            onPress={() =>
+              navigation.navigate('ItemDetail', {
+                listingId: params.listingId!,
+                title: title!,
+                price: price!,
+                imageUrl: imageUrl!,
+                seller,
+                sellerProfileId: peerId ?? undefined,
+              })
+            }
+          >
+            <RemoteImage uri={imageUrl!} style={styles.itemThumb} />
+            <Text style={styles.itemTitle}>{title}</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
 
         <ScrollView
           ref={scrollRef}
@@ -310,7 +322,7 @@ export function ConversationScreen() {
             </Text>
           ) : null}
 
-          {entry === 'offer' || !!persistedOfferAmount ? (
+          {hasListingContext && (entry === 'offer' || !!persistedOfferAmount) ? (
             <View style={styles.alignEnd}>
               <View style={styles.offerBubble}>
                 <Text style={styles.offerTitle}>You made an offer!</Text>
@@ -346,33 +358,35 @@ export function ConversationScreen() {
         </ScrollView>
 
         <View style={{ paddingBottom: insets.bottom }}>
-          <View style={styles.meetupPillWrap}>
-            <Pressable
-              style={styles.meetupPill}
-              onPress={() => goMeetup('buyer')}
-              accessibilityLabel={
-                entry === 'offer'
-                  ? MEETUP_DETAILS_LABEL
-                  : 'Preview meetup location'
-              }
-            >
-              <Ionicons
-                name="location-outline"
-                size={14}
-                color={colors.primary}
-              />
-              <Text style={styles.meetupPillText} numberOfLines={1}>
-                {entry === 'offer'
-                  ? MEETUP_DETAILS_LABEL
-                  : 'Preview meetup location'}
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={14}
-                color={colors.primary}
-              />
-            </Pressable>
-          </View>
+          {hasListingContext ? (
+            <View style={styles.meetupPillWrap}>
+              <Pressable
+                style={styles.meetupPill}
+                onPress={() => goMeetup('buyer')}
+                accessibilityLabel={
+                  entry === 'offer'
+                    ? MEETUP_DETAILS_LABEL
+                    : 'Preview meetup location'
+                }
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={14}
+                  color={colors.primary}
+                />
+                <Text style={styles.meetupPillText} numberOfLines={1}>
+                  {entry === 'offer'
+                    ? MEETUP_DETAILS_LABEL
+                    : 'Preview meetup location'}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color={colors.primary}
+                />
+              </Pressable>
+            </View>
+          ) : null}
           <ChatComposer
             initialValue={initialDraft}
             placeholder={

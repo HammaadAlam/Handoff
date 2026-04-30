@@ -47,12 +47,6 @@ type HomeCategoryPill = (typeof HOME_CATEGORIES)[number];
 
 const CAMPUS_OPTIONS = [
   'LSU Campus',
-  'Southern University',
-  'Tulane',
-  'UL Lafayette',
-  'UNO',
-  'Loyola',
-  'Grambling',
 ] as const;
 type CampusOption = (typeof CAMPUS_OPTIONS)[number];
 
@@ -165,10 +159,26 @@ function excludeEventListings(listings: ListingItem[]) {
   return listings.filter((item) => item.category !== 'Events');
 }
 
+function sectionBaseListings(
+  listings: ListingItem[],
+  category: HomeCategoryPill,
+) {
+  const filtered = filterHomeListings(listings, category);
+  if (category === 'Events') return filtered;
+  return excludeEventListings(filtered);
+}
+
 function searchQueryForCategory(category: HomeCategoryPill) {
   if (category === 'For You') return 'popular';
   if (category === 'Tech') return 'calculator';
   return category;
+}
+
+function sectionTitle(section: 'hot' | 'saved' | 'recent' | 'more') {
+  if (section === 'hot') return 'Hot On Campus';
+  if (section === 'saved') return 'Saved By Others';
+  if (section === 'recent') return 'Recently Listed';
+  return 'More Campus Finds';
 }
 
 export function HomeScreen() {
@@ -252,18 +262,19 @@ export function HomeScreen() {
   );
 
   const hotListings = useMemo(() => {
-    const filtered = filterHomeListings(feedListings, activeCategory);
-    return excludeEventListings(filtered).slice(0, 8);
+    return sectionBaseListings(feedListings, activeCategory).slice(0, 8);
   }, [activeCategory, feedListings]);
 
   // "Saved by Others" — second rail of listings others are browsing (not Events-only;
   // most catalogs have few/no Events rows, which left this rail empty).
   const savedByOthersRail = useMemo(() => {
     const hotIds = new Set(hotListings.map((item) => item.id));
-    const filtered = excludeEventListings(filterHomeListings(feedListings, activeCategory));
+    const filtered = sectionBaseListings(feedListings, activeCategory);
     let pool = filtered.filter((item) => !hotIds.has(item.id));
     if (pool.length < 4) {
-      pool = excludeEventListings(feedListings).filter((item) => !hotIds.has(item.id));
+      pool = sectionBaseListings(feedListings, activeCategory).filter(
+        (item) => !hotIds.has(item.id),
+      );
     }
     if (pool.length === 0) {
       pool = filtered.slice(0, 8);
@@ -272,7 +283,7 @@ export function HomeScreen() {
   }, [activeCategory, feedListings, hotListings]);
 
   const recentlyListed = useMemo(() => {
-    const filtered = filterHomeListings(feedListings, activeCategory);
+    const filtered = sectionBaseListings(feedListings, activeCategory);
     const hotIds = new Set(hotListings.map((item) => item.id));
     const freshPool = filtered.filter((item) => !hotIds.has(item.id));
     const source = freshPool.length >= RECENT_LISTING_LIMIT ? freshPool : filtered;
@@ -280,7 +291,7 @@ export function HomeScreen() {
   }, [activeCategory, hotListings, feedListings]);
 
   const moreCampusFinds = useMemo(() => {
-    const filtered = filterHomeListings(feedListings, activeCategory);
+    const filtered = sectionBaseListings(feedListings, activeCategory);
     const usedIds = new Set([
       ...hotListings.map((item) => item.id),
       ...recentlyListed.map((item) => item.id),
@@ -292,13 +303,23 @@ export function HomeScreen() {
 
   const openSeeAll = useCallback(
     (homeSection: 'hot' | 'saved' | 'recent' | 'more') => {
+      const sectionListingIds =
+        homeSection === 'hot'
+          ? hotListings.map((item) => item.id)
+          : homeSection === 'saved'
+            ? savedByOthersRail.map((item) => item.id)
+            : homeSection === 'recent'
+              ? recentlyListed.map((item) => item.id)
+              : moreCampusFinds.map((item) => item.id);
       navigation.navigate('CategoryResults', {
         query: searchQueryForCategory(activeCategory),
+        title: sectionTitle(homeSection),
         homeCategory: activeCategory,
         homeSection,
+        sectionListingIds,
       });
     },
-    [activeCategory, navigation],
+    [activeCategory, hotListings, savedByOthersRail, recentlyListed, moreCampusFinds, navigation],
   );
 
   useEffect(() => {
