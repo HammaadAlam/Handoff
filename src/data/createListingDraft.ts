@@ -27,7 +27,7 @@ export const SAMPLE_LISTING_PHOTOS = [
   'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=900&q=80',
 ] as const;
 
-export const DEFAULT_CREATE_LISTING_DRAFT: CreateListingDraft = {
+const DEFAULT_CREATE_LISTING_DRAFT: CreateListingDraft = {
   acceptOffers: true,
   brand: '',
   category: '',

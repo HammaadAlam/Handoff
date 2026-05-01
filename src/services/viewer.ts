@@ -15,7 +15,7 @@ function handleFromUser(user: User): string {
  * Demo catalog profiles in seed.sql use this UUID prefix. They must not be treated as
  * the signed-in user's profile when linked via auth_user_id (data mistake or old seed run).
  */
-export function isSeedCatalogProfileId(profileId: string): boolean {
+function isSeedCatalogProfileId(profileId: string): boolean {
   return profileId.toLowerCase().startsWith('a0000000-0000-4000-8000-');
 }
 

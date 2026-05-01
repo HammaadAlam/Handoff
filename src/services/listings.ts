@@ -5,7 +5,7 @@ import { type HomeCategory, type ListingItem } from '@/data/mockData';
 import { getSupabase, isSupabaseConfigured } from '@/services/supabase';
 import { resolveViewerProfileId } from '@/services/viewer';
 
-export type ProfileEmbed = {
+type ProfileEmbed = {
   handle: string;
   avatar_url: string;
   display_name: string;
@@ -180,7 +180,7 @@ export async function fetchRecommendedListings(): Promise<ListingItem[]> {
   }
 }
 
-export type NewListingInput = {
+type NewListingInput = {
   sellerId: string;
   title: string;
   price: string;
@@ -197,7 +197,7 @@ export type NewListingInput = {
   lowestOffer?: number;
 };
 
-export type CreateListingResult =
+type CreateListingResult =
   | { ok: true; listing: ListingItem }
   | { ok: false; reason: string };
 

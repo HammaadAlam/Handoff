@@ -12,12 +12,12 @@ import { getSupabase, isSupabaseConfigured } from '@/services/supabase';
 
 /** Edge function `suggest-listing-from-image` uses Gemini; set secret `GEMINI_API_KEY` on Supabase. */
 
-export type ListingVisionHints = {
+type ListingVisionHints = {
   title?: string;
   description?: string;
 };
 
-export type ListingVisionSuggestion = {
+type ListingVisionSuggestion = {
   title: string;
   description: string;
   category: string;

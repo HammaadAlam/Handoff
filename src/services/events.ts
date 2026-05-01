@@ -104,7 +104,7 @@ export async function fetchMyEvents(ownerId: string, limit = 24): Promise<EventI
   }
 }
 
-export type NewEventInput = {
+type NewEventInput = {
   ownerId: string;
   title: string;
   description?: string;
@@ -116,7 +116,7 @@ export type NewEventInput = {
   imageUrl?: string;
 };
 
-export type CreateEventResult =
+type CreateEventResult =
   | { ok: true; event: EventItem }
   | { ok: false; reason: string };
 

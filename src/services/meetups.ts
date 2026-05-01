@@ -9,7 +9,7 @@
 import { getSupabase, isSupabaseConfigured } from '@/services/supabase';
 import { resolveViewerProfileId } from '@/services/viewer';
 
-export type MeetupStatus = 'proposed' | 'confirmed' | 'completed' | 'cancelled';
+type MeetupStatus = 'proposed' | 'confirmed' | 'completed' | 'cancelled';
 
 export type MeetupRecord = {
   id: string;

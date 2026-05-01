@@ -1,6 +1,6 @@
 /**
  * Favorites store: hydrates from public.favorites when Supabase is configured
- * (anon demo viewer = PROFILE_DEMO_HANDLE seed profile) and persists toggles
+ * (anon demo viewer = seed catalog profile, handle `fahdhkhattak`) and persists toggles
  * optimistically. Falls back to in-memory state when Supabase is unavailable.
  */
 import {

@@ -20,7 +20,7 @@ export const LISTING_CONDITIONS = [
   'For Parts',
 ] as const;
 
-export const LISTING_SIZES = [
+const LISTING_SIZES = [
   'XS',
   'S',
   'M',
@@ -235,9 +235,9 @@ const LISTING_COLORS = [
   'Other',
 ] as const;
 
-export type ListingAttributeKey = 'brand' | 'model' | 'storage' | 'color';
+type ListingAttributeKey = 'brand' | 'model' | 'storage' | 'color';
 
-export type ListingAttributeConfig = {
+type ListingAttributeConfig = {
   key: ListingAttributeKey;
   label: string;
   options: readonly string[];
@@ -289,7 +289,4 @@ export function getListingAttributesForCategory(
   return CATEGORY_ATTRIBUTES[category as ListingCategory];
 }
 
-export type ListingCategory = (typeof LISTING_CATEGORIES)[number];
-export type ListingCondition = (typeof LISTING_CONDITIONS)[number];
-export type ListingSize = (typeof LISTING_SIZES)[number];
-export type ListingBrand = (typeof LISTING_BRANDS)[number];
+type ListingCategory = (typeof LISTING_CATEGORIES)[number];

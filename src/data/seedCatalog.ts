@@ -4,11 +4,9 @@
  * Listing images: Unsplash URLs chosen for casual / dorm / desk context (not white-seamless catalog).
  */
 
-export const PROFILE_DEMO_HANDLE = 'fahdhkhattak';
+type SeedCategory = 'For You' | 'Clothes' | 'Furniture' | 'Events';
 
-export type SeedCategory = 'For You' | 'Clothes' | 'Furniture' | 'Events';
-
-export type SeedProfile = {
+type SeedProfile = {
   id: string;
   handle: string;
   displayName: string;
@@ -23,7 +21,7 @@ export type SeedProfile = {
   isVerifiedEdu: boolean;
 };
 
-export type SeedListing = {
+type SeedListing = {
   id: string;
   sellerId: string;
   title: string;
@@ -396,11 +394,3 @@ function buildListings(): SeedListing[] {
 }
 
 export const SEED_LISTINGS: SeedListing[] = buildListings();
-
-export function getSeedProfileByHandle(handle: string): SeedProfile | undefined {
-  return SEED_PROFILES.find((p) => p.handle === handle);
-}
-
-export function getSeedProfileById(id: string): SeedProfile | undefined {
-  return SEED_PROFILES.find((p) => p.id === id);
-}

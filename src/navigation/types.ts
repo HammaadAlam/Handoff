@@ -1,10 +1,7 @@
 /**
  * Navigation types — tabs nested under root stack for listing → chat → meetup flows.
  */
-import type {
-  BottomTabNavigationProp,
-  BottomTabScreenProps,
-} from '@react-navigation/bottom-tabs';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp, NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CreateEventDraft } from '@/data/createEventDraft';
@@ -80,9 +77,6 @@ export type MainTabParamList = {
   Profile: undefined;
 };
 
-export type MainTabProps<T extends keyof MainTabParamList> =
-  BottomTabScreenProps<MainTabParamList, T>;
-
 /** Full listing → opens from Home / Search grids */
 export type ItemDetailParams = {
   listingId: string;
@@ -129,7 +123,7 @@ export type ConversationParams = {
   directMessage?: boolean;
 };
 
-export type MeetupDetailsParams = {
+type MeetupDetailsParams = {
   role: 'buyer' | 'seller';
   title: string;
   price: string;
@@ -146,6 +140,14 @@ export type MeetupDetailsParams = {
   peerHandle?: string;
   peerName?: string;
   peerAvatarUrl?: string;
+};
+
+/** Read-only view of another seller's profile */
+type UserProfileParams = {
+  userId: string;
+  displayName?: string;
+  avatarUrl?: string;
+  handle?: string;
 };
 
 export type RootStackParamList = {
@@ -165,14 +167,6 @@ export type RootStackParamList = {
   Favorites: undefined;
   ProfileSettings: undefined;
   UserProfile: UserProfileParams;
-};
-
-/** Read-only view of another seller's profile */
-export type UserProfileParams = {
-  userId: string;
-  displayName?: string;
-  avatarUrl?: string;
-  handle?: string;
 };
 
 export type RootStackNav = NativeStackNavigationProp<RootStackParamList>;
@@ -195,13 +189,4 @@ export type ProfileTabNavigation = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-/** @deprecated Prefer navigateToItemDetail + Search stack types inside search screens */
-export type SearchTabNavigation = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabParamList, 'Search'>,
-  NativeStackNavigationProp<RootStackParamList>
->;
-
 export type SearchStackNavigation = NativeStackNavigationProp<SearchStackParamList>;
-
-export type CreateListingStackNavigation =
-  NativeStackNavigationProp<CreateListingStackParamList>;

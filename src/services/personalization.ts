@@ -18,9 +18,9 @@ export const PERSONALIZATION_INTEREST_OPTIONS = [
   'Baking',
 ] as const;
 
-export type PersonalizationInterest = (typeof PERSONALIZATION_INTEREST_OPTIONS)[number];
+type PersonalizationInterest = (typeof PERSONALIZATION_INTEREST_OPTIONS)[number];
 
-export type ViewerPersonalization = {
+type ViewerPersonalization = {
   profileId: string;
   onboardingCompleted: boolean;
   onboardingSkipped: boolean;
@@ -34,7 +34,7 @@ export type ViewerPersonalization = {
   interests: string[];
 };
 
-export type AboutYouInput = {
+type AboutYouInput = {
   name: string;
   university: string;
   year: string;
@@ -55,7 +55,7 @@ function normalizeInterests(values: string[]): string[] {
   return out;
 }
 
-export type ProfileSaveOutcome = { ok: true } | { ok: false; message: string };
+type ProfileSaveOutcome = { ok: true } | { ok: false; message: string };
 
 const RLS_NO_ROW_HINT =
   'Your profile could not be updated. Sign out and sign back in, or ask an admin to link your account (profiles.auth_user_id).';

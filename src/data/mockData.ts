@@ -9,7 +9,7 @@ export const DEFAULT_PEER_AVATAR_URI =
 export const PLACEHOLDER_IMAGE_URI =
   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80';
 
-export const HOME_CATEGORIES = ['For You', 'Clothes', 'Furniture', 'Events'] as const;
+const HOME_CATEGORIES = ['For You', 'Clothes', 'Furniture', 'Events'] as const;
 export type HomeCategory = (typeof HOME_CATEGORIES)[number];
 
 const HOME_CATEGORY_SET = new Set<string>(HOME_CATEGORIES);
@@ -47,12 +47,6 @@ export type TicketListing = ListingItem & {
   venue: string;
 };
 
-export type SuggestedCategory = {
-  id: string;
-  label: string;
-  imageUrl: string;
-};
-
 export type InboxFilter = 'All' | 'Selling' | 'Buying' | 'Archived';
 
 export type ConversationRow = {
@@ -73,7 +67,7 @@ export type ConversationRow = {
 };
 
 /** Normalized home chip category from a listing (for filtering). */
-export function listingHomeCategory(listing: ListingItem): HomeCategory | undefined {
+function listingHomeCategory(listing: ListingItem): HomeCategory | undefined {
   const raw = listing.category?.trim();
   if (raw && HOME_CATEGORY_SET.has(raw)) {
     return raw as HomeCategory;
@@ -89,11 +83,3 @@ export function filterListingsForHomeCategory(
   return listings.filter((listing) => listingHomeCategory(listing) === category);
 }
 
-export function filterEventsForHomeCategory(
-  events: TicketListing[],
-  category: HomeCategory,
-): TicketListing[] {
-  if (category === 'For You') return events;
-  if (category !== 'Events') return [];
-  return events;
-}

@@ -17,12 +17,12 @@ export const DEFAULT_FILTERS: SearchFilters = {
 
 export const FILTER_CATEGORIES = [...LISTING_CATEGORIES, 'Events'] as const;
 
-export function listingPriceValue(item: ListingItem): number {
+function listingPriceValue(item: ListingItem): number {
   const n = Number(item.price.replace(/[^0-9.]/g, ''));
   return Number.isFinite(n) ? n : 0;
 }
 
-export function normalizeCondition(
+function normalizeCondition(
   v?: ListingItem['condition'],
 ): SearchFilters['condition'] {
   if (!v) return null;
@@ -31,7 +31,7 @@ export function normalizeCondition(
   return 'Used';
 }
 
-export function matchesDistance(
+function matchesDistance(
   item: ListingItem,
   mileage: SearchFilters['mileage'],
 ): boolean {
@@ -45,7 +45,7 @@ export function matchesDistance(
   return true;
 }
 
-export function matchesSellerType(
+function matchesSellerType(
   item: ListingItem,
   sellerType: SearchFilters['sellerType'],
 ): boolean {

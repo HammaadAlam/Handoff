@@ -246,7 +246,7 @@ const RULES: ImageRule[] = [
 ];
 
 /** Lowercase + fold common unicode punctuation so titles match EXACT keys and rules. */
-export function normalizeListingMatchText(v: string | null | undefined): string {
+function normalizeListingMatchText(v: string | null | undefined): string {
   let s = (v ?? '')
     .normalize('NFKC')
     .toLowerCase()

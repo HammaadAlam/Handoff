@@ -1,5 +1,5 @@
 /** Demo campus pickup spots — replace with API + map pins. */
-export type PickupSpot = {
+type PickupSpot = {
   id: string;
   name: string;
   address: string;

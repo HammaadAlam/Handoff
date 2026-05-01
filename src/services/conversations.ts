@@ -3,7 +3,7 @@
  *
  * Viewer resolution:
  *  - Signed-in user with linked profile (profiles.auth_user_id = session.user.id) → that profile
- *  - Otherwise (anon / authBypass) → PROFILE_DEMO_HANDLE (seed catalog demo seller)
+ *  - Otherwise (anon / authBypass) → seed catalog demo seller (`fahdhkhattak`)
  */
 import {
   DEFAULT_PEER_AVATAR_URI,
@@ -534,7 +534,7 @@ export async function appendLocalThreadMessage(args: {
 }
 
 /** Peer profile info needed to render a thread header from Inbox or deep links. */
-export type PeerInfo = {
+type PeerInfo = {
   id: string;
   handle: string;
   displayName: string;

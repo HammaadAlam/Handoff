@@ -27,7 +27,7 @@ function buildDefaultEndsAtIso(startsAtIso: string) {
 
 const defaultStartsAt = buildDefaultStartsAtIso();
 
-export const DEFAULT_CREATE_EVENT_DRAFT: CreateEventDraft = {
+const DEFAULT_CREATE_EVENT_DRAFT: CreateEventDraft = {
   title: '',
   description: '',
   locationLabel: '',
