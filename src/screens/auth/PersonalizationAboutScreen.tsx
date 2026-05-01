@@ -2,7 +2,7 @@
  * Personalization About screen — auth UI.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation, useNavigationState } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -82,6 +82,7 @@ function SelectRow({
 
 export function PersonalizationAboutScreen() {
   const navigation = useNavigation<Nav>();
+  const stackIndex = useNavigationState((state) => state?.index ?? 0);
   const { user } = useAuth();
   const [name, setName] = useState('');
   const [university, setUniversity] = useState('');
@@ -120,9 +121,9 @@ export function PersonalizationAboutScreen() {
     if (busy) return;
     setBusy(true);
     try {
-      const ok = await skipViewerOnboarding(user?.id ?? null);
-      if (!ok) {
-        Alert.alert('Could not save', 'Please try again.');
+      const result = await skipViewerOnboarding(user?.id ?? null);
+      if (!result.ok) {
+        Alert.alert('Could not save', result.message);
         return;
       }
       resetToMain(navigation);
@@ -138,7 +139,7 @@ export function PersonalizationAboutScreen() {
     }
     setBusy(true);
     try {
-      const ok = await saveAboutYou(user?.id ?? null, {
+      const result = await saveAboutYou(user?.id ?? null, {
         name,
         university,
         year,
@@ -147,8 +148,8 @@ export function PersonalizationAboutScreen() {
         height,
         weight,
       });
-      if (!ok) {
-        Alert.alert('Could not save', 'Please try again.');
+      if (!result.ok) {
+        Alert.alert('Could not save', result.message);
         return;
       }
       navigation.navigate('PersonalizationInterests');
@@ -157,14 +158,29 @@ export function PersonalizationAboutScreen() {
     }
   };
 
+  const showBack = stackIndex > 0;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.headerRow}>
+        {showBack ? (
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={12}
+            style={styles.headerSide}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
+          </Pressable>
+        ) : (
+          <View style={styles.headerSide} />
+        )}
         <View style={styles.progressWrap}>
           <View style={[styles.progressBar, styles.progressBarActive]} />
           <View style={styles.progressBar} />
         </View>
-        <Pressable onPress={() => void handleSkip()} hitSlop={12}>
+        <Pressable onPress={() => void handleSkip()} hitSlop={12} style={styles.headerSide}>
           <Text style={styles.skipText}>Skip</Text>
         </Pressable>
       </View>
@@ -254,11 +270,16 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm,
+    gap: spacing.sm,
   },
-  progressWrap: { flexDirection: 'row', gap: 8, flex: 1, marginRight: spacing.md },
+  headerSide: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressWrap: { flexDirection: 'row', gap: 8, flex: 1 },
   progressBar: {
     flex: 1,
     height: 5,

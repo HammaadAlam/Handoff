@@ -1,7 +1,8 @@
 /**
  * Personalization Interests screen — auth UI.
  */
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { CommonActions, useNavigation, useNavigationState } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -43,6 +44,7 @@ function resetToMain(navigation: Nav) {
 
 export function PersonalizationInterestsScreen() {
   const navigation = useNavigation<Nav>();
+  const stackIndex = useNavigationState((state) => state?.index ?? 0);
   const { user } = useAuth();
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -68,13 +70,21 @@ export function PersonalizationInterestsScreen() {
     );
   };
 
+  const handleBack = () => {
+    if (stackIndex > 0) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('PersonalizationAbout');
+  };
+
   const handleSkip = async () => {
     if (busy) return;
     setBusy(true);
     try {
-      const ok = await skipViewerOnboarding(user?.id ?? null);
-      if (!ok) {
-        Alert.alert('Could not save', 'Please try again.');
+      const result = await skipViewerOnboarding(user?.id ?? null);
+      if (!result.ok) {
+        Alert.alert('Could not save', result.message);
         return;
       }
       resetToMain(navigation);
@@ -90,9 +100,9 @@ export function PersonalizationInterestsScreen() {
     }
     setBusy(true);
     try {
-      const ok = await saveViewerInterests(user?.id ?? null, selected);
-      if (!ok) {
-        Alert.alert('Could not save', 'Please try again.');
+      const result = await saveViewerInterests(user?.id ?? null, selected);
+      if (!result.ok) {
+        Alert.alert('Could not save', result.message);
         return;
       }
       resetToMain(navigation);
@@ -104,11 +114,20 @@ export function PersonalizationInterestsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.headerRow}>
+        <Pressable
+          onPress={handleBack}
+          hitSlop={12}
+          style={styles.headerSide}
+          accessibilityRole="button"
+          accessibilityLabel="Back to previous step"
+        >
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
+        </Pressable>
         <View style={styles.progressWrap}>
           <View style={[styles.progressBar, styles.progressBarActive]} />
           <View style={[styles.progressBar, styles.progressBarActive]} />
         </View>
-        <Pressable onPress={() => void handleSkip()} hitSlop={12}>
+        <Pressable onPress={() => void handleSkip()} hitSlop={12} style={styles.headerSide}>
           <Text style={styles.skipText}>Skip</Text>
         </Pressable>
       </View>
@@ -152,11 +171,16 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm,
+    gap: spacing.sm,
   },
-  progressWrap: { flexDirection: 'row', gap: 8, flex: 1, marginRight: spacing.md },
+  headerSide: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressWrap: { flexDirection: 'row', gap: 8, flex: 1 },
   progressBar: {
     flex: 1,
     height: 5,

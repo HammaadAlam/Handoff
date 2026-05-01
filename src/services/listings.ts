@@ -3,6 +3,7 @@
  */
 import { type HomeCategory, type ListingItem } from '@/data/mockData';
 import { getSupabase, isSupabaseConfigured } from '@/services/supabase';
+import { resolveViewerProfileId } from '@/services/viewer';
 
 export type ProfileEmbed = {
   handle: string;
@@ -314,6 +315,7 @@ export async function removeListing(args: {
 
 /**
  * Public profile/shop listings for a specific seller (`profiles.id`).
+ * Only rows with `seller_id === userId` are returned (defensive filter after query).
  */
 export async function fetchListingsByUserId(
   userId: string,
@@ -333,8 +335,24 @@ export async function fetchListingsByUserId(
       .limit(limit);
 
     if (error) return [];
-    return ((data ?? []) as ListingRow[]).map(mapListingRow);
+    const rows = ((data ?? []) as ListingRow[]).filter((row) => row.seller_id === userId);
+    return rows.map(mapListingRow).filter((item) => item.sellerId === userId);
   } catch {
     return [];
   }
+}
+
+/**
+ * Signed-in user's own shop: resolves `profiles.id` from the session, then loads only
+ * their active listings. Prefer this on the Profile tab so the grid always matches auth.
+ */
+export async function fetchMyShopListingsForSession(
+  sessionUserId: string | null,
+  limit = 60,
+): Promise<ListingItem[]> {
+  if (!sessionUserId || !isSupabaseConfigured()) return [];
+  const profileId = await resolveViewerProfileId(sessionUserId, getSupabase());
+  if (!profileId) return [];
+  const items = await fetchListingsByUserId(profileId, limit);
+  return items.filter((item) => item.sellerId === profileId);
 }

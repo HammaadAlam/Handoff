@@ -43,7 +43,7 @@ import {
 import { useViewerProfileId } from '@/hooks/useViewerProfileId';
 import { navigateToItemDetail } from '@/navigation/navigateItemDetail';
 import type { ProfileTabNavigation } from '@/navigation/types';
-import { fetchListingsByUserId } from '@/services/listings';
+import { fetchMyShopListingsForSession } from '@/services/listings';
 import {
   fonts,
   colors,
@@ -220,7 +220,7 @@ function GridCard({
 export function ProfileScreen() {
   const navigation = useNavigation<ProfileTabNavigation>();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, authBypass } = useAuth();
   const viewerProfileId = useViewerProfileId();
   const accountHandle = user?.email?.split('@')[0] ?? 'new_user';
   const profileHandle = accountHandle;
@@ -244,6 +244,8 @@ export function ProfileScreen() {
   );
   const [storeListings, setStoreListings] = useState<ListingItem[]>([]);
   const [customSections, setCustomSections] = useState<CustomShopSection[]>([]);
+  /** Bumps on each shop reload so stale async responses cannot overwrite state (e.g. account switch). */
+  const shopLoadGenRef = useRef(0);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const scrollYRef = useRef(0);
@@ -377,22 +379,25 @@ export function ProfileScreen() {
     }
   }, [tabBarOrder, activeTab, prefsLoaded]);
 
-  const loadStoreListings = useCallback(async () => {
-    if (!viewerProfileId) {
-      setStoreListings([]);
-      return;
-    }
-    const mine = await fetchListingsByUserId(viewerProfileId);
-    setStoreListings(mine);
-  }, [viewerProfileId]);
+  const loadStoreListings = useCallback(() => {
+    const gen = ++shopLoadGenRef.current;
+    void (async () => {
+      if (authBypass || !user?.id) {
+        if (gen === shopLoadGenRef.current) setStoreListings([]);
+        return;
+      }
+      const mine = await fetchMyShopListingsForSession(user.id);
+      if (gen === shopLoadGenRef.current) setStoreListings(mine);
+    })();
+  }, [authBypass, user?.id]);
 
   useEffect(() => {
-    void loadStoreListings();
+    loadStoreListings();
   }, [loadStoreListings]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadStoreListings();
+      loadStoreListings();
       void (async () => {
         const sections = await loadCustomShopSections(viewerProfileId);
         setCustomSections(sections);

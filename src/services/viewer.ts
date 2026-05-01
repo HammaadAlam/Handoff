@@ -11,6 +11,14 @@ function handleFromUser(user: User): string {
   return (normalized || 'user').slice(0, 24);
 }
 
+/**
+ * Demo catalog profiles in seed.sql use this UUID prefix. They must not be treated as
+ * the signed-in user's profile when linked via auth_user_id (data mistake or old seed run).
+ */
+export function isSeedCatalogProfileId(profileId: string): boolean {
+  return profileId.toLowerCase().startsWith('a0000000-0000-4000-8000-');
+}
+
 async function createViewerProfileFromAuthUser(
   user: User,
   supabase: SupabaseClient,
@@ -62,18 +70,29 @@ export async function resolveViewerProfileId(
   supabase: SupabaseClient = getSupabase(),
 ): Promise<string | null> {
   if (!sessionUserId) return null;
+
+  const { data: authRes } = await supabase.auth.getUser();
+  const authUser = authRes.user;
+  if (!authUser || authUser.id !== sessionUserId) return null;
+
   const { data } = await supabase
     .from('profiles')
     .select('id')
     .eq('auth_user_id', sessionUserId)
     .maybeSingle();
-  if (data?.id) return data.id as string;
 
-  // Fallback for older accounts that don't yet have linked profiles rows.
-  const { data: authRes } = await supabase.auth.getUser();
-  const authUser = authRes.user;
-  if (!authUser || authUser.id !== sessionUserId) return null;
+  if (data?.id) {
+    const id = data.id as string;
+    if (!isSeedCatalogProfileId(id)) {
+      return id;
+    }
+    console.warn(
+      'resolveViewerProfileId: seed-catalog profile is linked to this auth user; ignoring so a real profile can be used. Run migration 0019_clear_seed_profile_auth_links.sql if inserts fail.',
+      { profileId: id },
+    );
+  }
 
+  // No usable linked row — create one for older accounts or after clearing bad links.
   const createdId = await createViewerProfileFromAuthUser(authUser, supabase);
   if (createdId) return createdId;
 
@@ -82,5 +101,9 @@ export async function resolveViewerProfileId(
     .select('id')
     .eq('auth_user_id', sessionUserId)
     .maybeSingle();
-  return (retryData?.id as string | undefined) ?? null;
+  const retryId = retryData?.id as string | undefined;
+  if (retryId && !isSeedCatalogProfileId(retryId)) {
+    return retryId;
+  }
+  return null;
 }
